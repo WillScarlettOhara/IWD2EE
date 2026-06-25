@@ -1,0 +1,77 @@
+
+(function()
+
+	IEex_DisableCodeProtection()
+
+	--------------------------------------------------------------------------------
+	-- Camera zoom (STAGE 1, zoom-in): bracket CGameArea::Render (0x477740) with a
+	-- GL MODELVIEW scale around the viewport centre. See IEexHelper
+	-- Export_ZoomWorldBegin / Export_ZoomWorldEnd.
+	--
+	-- CGameArea::Render draws the world viewport (tiles + sorted sprites + FoW +
+	-- selection highlight); UI panels draw AFTER it with MODELVIEW back at identity.
+	-- Scaling MODELVIEW between the two hooks scales the world only. The helper uses
+	-- glLoadIdentity (stateless) so the engine's m_bAreaLoaded early-return can never
+	-- imbalance the matrix stack.
+	--
+	--   entry 0x477740: this=ecx=CGameArea*; 8 displaced bytes
+	--                   (83 EC 14            sub esp,0x14
+	--                    A1 DC F6 8C 00      mov eax,ds:0x8CF6DC) -> continue 0x477748
+	--   exit  0x477E55: epilogue before ret 0x8 @ 0x477E5C; 7 displaced bytes
+	--                   (5F 5D 5B 5E         pop edi/ebp/ebx/esi
+	--                    83 C4 14            add esp,0x14)         -> continue 0x477E5C
+	--------------------------------------------------------------------------------
+
+	-- Entry: pass CGameArea* (ecx) to begin.
+	IEex_HookRestore(0x477740, 0, 8, {[[
+		!push_all_registers_iwd2
+		!push_ecx
+		!call >IEex_Helper_ZoomWorldBegin
+		!pop_all_registers_iwd2
+	]]})
+
+	-- Exit: reset MODELVIEW to identity.
+	IEex_HookRestore(0x477E55, 0, 7, {[[
+		!push_all_registers_iwd2
+		!call >IEex_Helper_ZoomWorldEnd
+		!pop_all_registers_iwd2
+	]]})
+
+	--------------------------------------------------------------------------------
+	-- STAGE 2: replace CInfinity::GetWorldCoordinates (0x5CDFC0) with a zoom-aware
+	-- reimplementation so mouse picking / selection / move-orders align when zoomed.
+	-- Direct jmp: __thiscall struct-return matches native ABI (ecx=this, stack=
+	-- [sret][ptScreen], ret 0x8). Original body becomes dead (never executed).
+	--------------------------------------------------------------------------------
+	IEex_WriteAssembly(0x5CDFC0, {[[
+		!jmp_dword >IEex_Helper_CInfinity_GetWorldCoordinatesOverride
+	]]})
+
+	--------------------------------------------------------------------------------
+	-- STAGE 3a: replace CInfinity::SetViewPosition (0x5D11F0) with an overscroll-
+	-- aware reimplementation. When zoomed, allow panning past the map edges (~half
+	-- the viewport) so content the bottom UI would occlude can be repositioned;
+	-- byte-faithful vanilla clamp at z==1. __thiscall(int,int,uint), ret 0xC.
+	--------------------------------------------------------------------------------
+	IEex_WriteAssembly(0x5D11F0, {[[
+		!jmp_dword >IEex_Helper_CInfinity_SetViewPositionOverride
+	]]})
+
+	--------------------------------------------------------------------------------
+	-- Crisp circles: replace CVidMode::DrawEllipse3d (0x7BC580) with a zoom-aware
+	-- reimplementation. The engine plots selection / move-dest circles as GL_POINTS
+	-- at glPointSize(1.0) (px size immune to the MODELVIEW scale -> sparse dots when
+	-- zoomed). When the world zoom is active, scale centre+axes by z and rasterise at
+	-- identity MODELVIEW for a solid, crisp circle. __thiscall(...), ret 0x10.
+	--------------------------------------------------------------------------------
+	IEex_WriteAssembly(0x7BC580, {[[
+		!jmp_dword >IEex_Helper_CVidMode_DrawEllipse3dOverride
+	]]})
+
+	-- Crisp chevrons: replace CVidMode::DrawRecticle3d (0x7BC7A0) — the move-dest /
+	-- formation reticle's arc segments are the same GL_POINTS as the circles.
+	IEex_WriteAssembly(0x7BC7A0, {[[
+		!jmp_dword >IEex_Helper_CVidMode_DrawRecticle3dOverride
+	]]})
+
+end)()

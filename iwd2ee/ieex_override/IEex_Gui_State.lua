@@ -1292,6 +1292,13 @@ end
 function IEex_IsUIBlockingViewport(nCursorX, nCursorY)
 	local worldScreen = IEex_GetEngineWorld()
 	if IEex_GetActiveEngine() == worldScreen and not IEex_IsEngineUIManagerHidden(worldScreen) then
+		-- UI-scaling Stage 2: the HUD is rendered scaled about the bottom-centre, so map the
+		-- physical cursor into the HUD's logical space before testing it against the (native)
+		-- panel rects -- otherwise clicks over the scaled HUD leak a world-move and the move-
+		-- cursor shows over the HUD. No-op when not GL / not scaled.
+		if IEex_Helper_UIScaleMapWorldCursor then
+			nCursorX, nCursorY = IEex_Helper_UIScaleMapWorldCursor(nCursorX, nCursorY)
+		end
 		for _, i in ipairs(IEex_AllWorldScreenPanelIDs) do
 			if IEex_IsPanelBlockingViewport(IEex_GetPanelFromEngine(worldScreen, i), nCursorX, nCursorY) then
 				return true

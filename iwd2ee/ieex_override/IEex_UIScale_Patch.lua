@@ -33,7 +33,7 @@
 
 	IEex_HookRestore(0x4D45C3, 0, 5, {[[
 		!push_all_registers_iwd2
-		!call >IEex_Helper_UIScaleRenderEnd
+		!call >IEex_Helper_UIScaleRenderEndUI
 		!pop_all_registers_iwd2
 	]]})
 
@@ -88,5 +88,31 @@
 		!call >IEex_Helper_UIScaleRenderEnd
 		!pop_all_registers_iwd2
 	]]})
+
+	--------------------------------------------------------------------------------
+	-- 3.6x canvas: the main-menu torch (CScreenConnection::RenderTorch @0x5FB020) uses a
+	-- HARDCODED 1x offset CPoint pt(106,383), only doubled for the 2x new-GUI tier. Under the
+	-- 3.6x pre-scaled-CHU canvas (1x mode, newGui=0) it stays 1x -> wrong spot. Scale the 1x
+	-- immediates to x3.6 (106->382, 383->1379). The torch then renders in the panels' scaled
+	-- space because Export_UIScaleRenderEndUI leaves the MODELVIEW set through the overlay pass
+	-- (no RenderTorch hook). Gated on "UI Canvas Scale x10" = 36 so 1x/2x are untouched.
+	--   0x5FB0AF  BF 6A 00 00 00   mov edi,106 (pt.x) -> imm@0x5FB0B0 = 382  (0x17E)
+	--   0x5FB0B4  BE 7F 01 00 00   mov esi,383 (pt.y) -> imm@0x5FB0B5 = 1379 (0x563)
+	--------------------------------------------------------------------------------
+	if IEex_GetPrivateProfileInt("IEex Options", "UI Canvas Scale x10", 10, ".\\Icewind2.ini") >= 36 then
+		IEex_DisableCodeProtection()
+		IEex_WriteDword(0x5FB0B0, 382)
+		IEex_WriteDword(0x5FB0B5, 1379)
+		-- The torch renders AFTER pVidMode->Flip(TRUE), so MODELVIEW was reset to identity ->
+		-- it would land at raw screen coords. Re-apply the Stage-1 transform at RenderTorch entry
+		-- (0x5FB020) so the x3.6 torch maps like the bg. 5 displaced bytes: A1 DC F6 8C 00.
+		-- MUST be before EnableCodeProtection (HookRestore writes a jmp into .text).
+		IEex_HookRestore(0x5FB020, 0, 5, {[[
+			!push_all_registers_iwd2
+			!call >IEex_Helper_UIScaleTorchBegin
+			!pop_all_registers_iwd2
+		]]})
+		IEex_EnableCodeProtection()
+	end
 
 end)()

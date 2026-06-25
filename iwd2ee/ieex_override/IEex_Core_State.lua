@@ -546,7 +546,13 @@ end
 
 function IEex_DoStage2Indexing()
 	IEex_IndexMasterSpellLists()
-	IEex_MoveHighResolutionPaddingPanels()
+	-- The HD 3.6x UI canvas (Icewind2.ini [IEex Options] "UI Canvas Scale x10" >= 11) lays the
+	-- whole UI out at 2880x2160 and the GL fill frames it; the vanilla centred-800x600 STON*
+	-- stone border then lands top-left (wrong) under that transform. Skip it -> the engine's
+	-- default 0-width border panels (invisible). Stock/2x (x10 <= 10) keeps the vanilla frame.
+	if IEex_GetPrivateProfileInt("IEex Options", "UI Canvas Scale x10", 10, ".\\Icewind2.ini") <= 10 then
+		IEex_MoveHighResolutionPaddingPanels()
+	end
 end
 
 function IEex_IndexMasterSpellLists()

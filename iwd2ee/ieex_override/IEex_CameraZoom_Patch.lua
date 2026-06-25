@@ -74,4 +74,31 @@
 		!jmp_dword >IEex_Helper_CVidMode_DrawRecticle3dOverride
 	]]})
 
+	--------------------------------------------------------------------------------
+	-- Wheel gate (don't scroll the log when zooming the world). CBaldurEngine::
+	-- OnMouseWheel (0x4289C0) scrolls the message-log scrollbar on every wheel notch.
+	-- When the cursor is over the world (Export_WheelShouldZoom => world screen + GL +
+	-- not over a UI panel) we skip the original entirely (ret 0x10) so only the zoom
+	-- happens; otherwise the original runs (log scrolls when the cursor is over it).
+	-- The zoom tick itself is recorded in window_proc, gated by the same predicate.
+	-- Displaced 6 bytes @0x4289C0: 56 57 8B 7C 24 14 (push esi; push edi; mov edi,
+	-- [esp+0x14]) -> continue at 0x4289C6.
+	--------------------------------------------------------------------------------
+	local wheelHook = IEex_WriteAssemblyAuto({[[
+		!push_all_registers_iwd2
+		!call >IEex_Helper_WheelShouldZoom
+		85 C0
+		!jz_dword >continue
+		!pop_all_registers_iwd2
+		!ret_word 10 00
+		@continue
+		!pop_all_registers_iwd2
+		56 57 8B 7C 24 14
+		!jmp_dword :4289C6
+	]]})
+	IEex_WriteAssembly(0x4289C0, IEex_FlattenTable({
+		{[[ !jmp_dword ]], {wheelHook, 4, 4}},
+		{[[ 90 ]]},
+	}))
+
 end)()

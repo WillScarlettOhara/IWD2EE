@@ -38,36 +38,34 @@
 	]]})
 
 	--------------------------------------------------------------------------------
-	-- STAGE 1b hit-test: align mouse input with the scaled UI WITHOUT touching the
-	-- cursor. The full-screen screens delegate every mouse event to their CUIManager
-	-- (CScreenInventory::OnLButtonDown -> m_cUIManager.OnLButtonDown(pt), etc), so the
-	-- CUIManager mouse handlers are the single hit-test chokepoint. Each is
-	-- __thiscall(CPoint pt) (ret 8), so pt is on the stack at [entry_esp+4]; map it
-	-- physical->logical there. m_ptPointer is left physical, so the cursor sprite keeps
-	-- tracking the real mouse (handled separately below). Gated to non-world engines in
-	-- the helper, so the world screen's HUD handlers are untouched.
-	--   0x4D40B0 OnMouseMove      5B (83 EC 10 53 55)
-	--   0x4D41D0 OnLButtonDown    5B (83 EC 10 53 55)
-	--   0x4D42B0 OnLButtonUp      6B (56 8B F1 8B 4E 14)
-	--   0x4D4310 OnLButtonDblClk  6B (8B 41 04 83 EC 10)
-	--   0x4D43D0 OnRButtonDown    5B (83 EC 10 53 55)
-	--   0x4D44B0 OnRButtonUp      6B (56 8B F1 8B 4E 14)
+	-- SYSTEMIC hit-test fix (input core). Transform the cursor to UI-LOGICAL at the ONE
+	-- capture source -- CChitin::AsynchronousUpdate -- so the stored m_ptPointer AND the pt
+	-- dispatched to the engine's On*(pt) handlers are logical whenever the cursor is over
+	-- scaled UI. Every downstream hit-test (the CUIManager handlers, CScreenWorld
+	-- portrait-pick @0x68C3D0, button dispatch, GetWorldCoordinates rejection, the wheel
+	-- gate) then reads correct coords with NO per-site map. World picking/move stays
+	-- physical: the helper only logical-ises in the world when the candidate is over a HUD
+	-- panel. This REPLACES the old per-site fixes (the 6 CUIManager MapPoint hooks that were
+	-- here, and the Stage-2 map inside IEex_IsUIBlockingViewport).
+	--
+	-- Hook 0x78F489: the m_bFullscreen branch of AsynchronousUpdate, after ScreenToClient
+	-- (@0x78F41F) and the m_bPointerInside edge block, BEFORE the pt==m_ptPointer compare /
+	-- store (@0x78F4E2) / dispatch. pt is the on-stack client CPoint at [esp+0x1C]/[esp+0x20];
+	-- pass &pt and rewrite it in place. 10 displaced bytes
+	--   8B 4C 24 1C          mov ecx,[esp+0x1C]
+	--   8B 86 06 19 00 00     mov eax,[esi+0x1906]
+	-- re-run after the call, now reading the transformed value. Our deploy is always
+	-- borderless-fullscreen at native res (m_bFullscreen=TRUE -> only this branch executes);
+	-- a windowed mode would need a second hook in the PtInRect branch. See
+	-- IEexHelper Export_UIScaleCaptureMap.
 	--------------------------------------------------------------------------------
-
-	local mapPointAsm = {[[
+	IEex_HookRestore(0x78F489, 0, 10, {[[
 		!mark_esp
 		!push_all_registers_iwd2
-		!marked_esp !lea(eax,[esp+4]) !push_eax
-		!call >IEex_Helper_UIScaleMapPoint
+		!marked_esp !lea(eax,[esp+1C]) !push_eax
+		!call >IEex_Helper_UIScaleCaptureMap
 		!pop_all_registers_iwd2
-	]]}
-
-	IEex_HookRestore(0x4D40B0, 0, 5, mapPointAsm)
-	IEex_HookRestore(0x4D41D0, 0, 5, mapPointAsm)
-	IEex_HookRestore(0x4D42B0, 0, 6, mapPointAsm)
-	IEex_HookRestore(0x4D4310, 0, 6, mapPointAsm)
-	IEex_HookRestore(0x4D43D0, 0, 5, mapPointAsm)
-	IEex_HookRestore(0x4D44B0, 0, 6, mapPointAsm)
+	]]})
 
 	--------------------------------------------------------------------------------
 	-- Cursor sizing: m_ptPointer stays physical, so the cursor already tracks the real

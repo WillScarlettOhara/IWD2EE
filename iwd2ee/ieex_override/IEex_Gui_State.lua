@@ -1385,8 +1385,20 @@ function IEex_Extern_BeforeWorldRender()
 
 			local rViewPortLeft, rViewPortTop, rViewPortRight, rViewPortBottom = IEex_GetViewportRect()
 			local _, _, panelWidth, panelHeight = IEex_GetPanelArea(newSpellInfoPanel)
-			local centeredX = rViewPortLeft + (rViewPortRight - rViewPortLeft) / 2 - panelWidth / 2
-			local centeredY = math.max(0, rViewPortTop + (IEex_GetMainViewportBottom() - rViewPortTop) / 2 - panelHeight / 2)
+
+			-- Desired on-screen centre of the popup: middle of the visible play area.
+			local centreX = rViewPortLeft + (rViewPortRight - rViewPortLeft) / 2
+			local centreY = rViewPortTop + (IEex_GetMainViewportBottom() - rViewPortTop) / 2
+
+			-- UI-scaling Stage 2: the world HUD (incl. this panel) renders through a bottom-
+			-- centre MODELVIEW scale, which would shove a panel stored at the play-area centre
+			-- off the top of the screen (cropped). Inverse-map the desired on-screen centre to
+			-- the stored coord so the forward render scale lands the panel centre back there.
+			-- Identity on the software renderer / native UI scale, so vanilla centring is
+			-- unchanged. Subtract NATIVE half-size: the panel's own scaling cancels out.
+			local mappedX, mappedY = IEex_Helper_UIScaleMapWorldCursor(centreX, centreY)
+			local centeredX = mappedX - panelWidth / 2
+			local centeredY = math.max(0, mappedY - panelHeight / 2)
 
 			IEex_SetPanelXY(newSpellInfoPanel, centeredX, centeredY)
 			IEex_PanelInvalidate(newSpellInfoPanel)

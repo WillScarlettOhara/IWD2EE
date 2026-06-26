@@ -95,24 +95,38 @@
 	-- 3.6x pre-scaled-CHU canvas (1x mode, newGui=0) it stays 1x -> wrong spot. Scale the 1x
 	-- immediates to x3.6 (106->382, 383->1379). The torch then renders in the panels' scaled
 	-- space because Export_UIScaleRenderEndUI leaves the MODELVIEW set through the overlay pass
-	-- (no RenderTorch hook). Gated on "UI Canvas Scale x10" = 36 so 1x/2x are untouched.
+	-- (no RenderTorch hook). Gated on "UI Canvas Scale" > 1 so stock/2x-tier are untouched; the
+	-- torch offset is scaled by the same factor (106*f, 383*f).
 	--   0x5FB0AF  BF 6A 00 00 00   mov edi,106 (pt.x) -> imm@0x5FB0B0 = 382  (0x17E)
 	--   0x5FB0B4  BE 7F 01 00 00   mov esi,383 (pt.y) -> imm@0x5FB0B5 = 1379 (0x563)
 	--------------------------------------------------------------------------------
-	if IEex_GetPrivateProfileInt("IEex Options", "UI Canvas Scale x10", 10, ".\\Icewind2.ini") >= 36 then
-		IEex_DisableCodeProtection()
-		IEex_WriteDword(0x5FB0B0, 382)
-		IEex_WriteDword(0x5FB0B5, 1379)
-		-- The torch renders AFTER pVidMode->Flip(TRUE), so MODELVIEW was reset to identity ->
-		-- it would land at raw screen coords. Re-apply the Stage-1 transform at RenderTorch entry
-		-- (0x5FB020) so the x3.6 torch maps like the bg. 5 displaced bytes: A1 DC F6 8C 00.
-		-- MUST be before EnableCodeProtection (HookRestore writes a jmp into .text).
-		IEex_HookRestore(0x5FB020, 0, 5, {[[
-			!push_all_registers_iwd2
-			!call >IEex_Helper_UIScaleTorchBegin
-			!pop_all_registers_iwd2
-		]]})
-		IEex_EnableCodeProtection()
+	local canvas = (IEex_GetPrivateProfileInt("IEex Options", "HD UI", 0, ".\\Icewind2.ini") ~= 0) and 2.0 or 1.0
+	IEex_DisableCodeProtection()
+	if canvas > 1.0 then
+		local f = canvas   -- HD UI = the shipped 2x tier (factor 2.0)
+		IEex_WriteDword(0x5FB0B0, math.floor(106 * f + 0.5))   -- pt.x = round(106*factor)
+		IEex_WriteDword(0x5FB0B5, math.floor(383 * f + 0.5))   -- pt.y = round(383*factor)
 	end
+	-- The torch renders AFTER pVidMode->Flip(TRUE), so MODELVIEW was reset to identity -> it would land
+	-- at raw screen coords. Hook RenderTorch entry (0x5FB020) ALWAYS (not only canvas>1): when HD UI is
+	-- ON, the helper re-applies the Stage-1 transform + we re-render pre-Flip (crisp 2x torch). When HD
+	-- UI is OFF (<1200p / vanilla tier), the helper NEUTRALISES the engine's torch -- otherwise the
+	-- shipped 2x MMTRCHB asset would render at native size = 2x too big. So the torch shows ONLY at HD-on
+	-- (+ New-GUI off, see g_menuTorchEnabled); off at HD-off. 5 displaced bytes: A1 DC F6 8C 00. MUST be
+	-- before EnableCodeProtection (HookRestore writes a jmp into .text).
+	IEex_HookRestore(0x5FB020, 0, 5, {[[
+		!push_all_registers_iwd2
+		!call >IEex_Helper_UIScaleTorchBegin
+		!pop_all_registers_iwd2
+	]]})
+	IEex_EnableCodeProtection()
+
+	-- TEMP TEST (remove after torch testing): force the NIGHT menu (STARTN + torch) regardless of
+	-- the system clock. CScreenConnection::UpdateMainPanel @0x5FEE50 picks day (START) for hour
+	-- 7..17 via `jle 0x5FEF2E` @0x5FEEBF (the else branch sets STARTN + m_bIsNight=TRUE). Flip the
+	-- conditional jump to an unconditional jmp so the night branch always runs.
+	IEex_DisableCodeProtection()
+	IEex_WriteByte(0x5FEEBF, 0xEB)   -- 0x7E (jle) -> 0xEB (jmp 0x5FEF2E = always night)
+	IEex_EnableCodeProtection()
 
 end)()

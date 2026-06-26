@@ -105,23 +105,26 @@
 
 	--------------------------------------------------------------------------------
 	-- GL FONT ATLAS FIX (opengl-only): CVidFont::LoadGlyphs @0x7A0B20 bakes glyphs into 256x256 atlas
-	-- textures, row pitch = node->m_nFontHeight. That pitch is 1px short of the font's true extent
-	-- (maxAscent + maxDescent), so the glyph packed ABOVE bleeds its bottom 1px row into the next
+	-- textures, row pitch = node->m_nFontHeight ([esi+0x40]). That pitch is 1px short of the font's true
+	-- extent (maxAscent + maxDescent), so the glyph packed ABOVE bleeds its bottom 1px row into the next
 	-- glyph's atlas cell-top -> a thin dash atop short letters (o/i/u). (Software renderer blits glyphs
-	-- directly = no atlas = no bleed, which is why feature/ui-2x-scaling was clean.) FIX: widen the
-	-- atlas row pitch by +2 -- but ONLY the loop's working copy at [esp+0x14], NOT node->m_nFontHeight,
-	-- so rendered line-spacing is untouched. Replace the pitch load with load+ADD2, then jump straight
-	-- to the store (the auto-restored displaced bytes after our jmp are dead, avoiding a re-load).
-	--   0x7A0D0F  8B 46 44     mov eax,[esi+0x44]   (m_nFontHeight)
-	--   0x7A0D12  33 FF        xor edi,edi
-	--   0x7A0D14  89 44 24 14  mov [esp+0x14],eax   (loop pitch copy; read at 0x7A0DBF for y-advance)
-	-- Harmless under the software renderer (LoadGlyphs @0x7A0B20 is the GL-only bake, never reached).
+	-- directly = no atlas = no bleed -- why feature/ui-2x-scaling was clean.) FIX: at the row-advance,
+	-- add +4 extra to y so atlas rows are spaced wider -- ATLAS-ONLY (this is the bake's local y, not
+	-- node->m_nFontHeight), so rendered line-spacing is untouched. Glyph coords + blit both use this y
+	-- so glyphs still pack/render correctly, just with more inter-row gap.
+	--   0x7A0D63  8B 4C 24 14  mov ecx,[esp+0x14]   (ecx = y, running atlas baseline)
+	--   0x7A0D67  8B 56 40     mov edx,[esi+0x40]   (edx = m_nFontHeight = row pitch)
+	--   0x7A0D6A  8B 46 3C     mov eax,[esi+0x3c]   (eax = texSize.cy, the row-limit for the cmp)
+	--   0x7A0D6D  03 CA        add ecx,edx          (y += pitch)  <- widen here
+	--   0x7A0D6F  33 FF / cmp ecx,eax / mov [esp+0x14],ecx ...
+	-- Hook 0x7A0D6A (5 bytes 8B 46 3C 03 CA): replicate eax-load + y+=pitch, add +4, jmp to 0x7A0D6F.
+	-- Harmless under the software renderer (LoadGlyphs is the GL-only bake, never reached).
 	--------------------------------------------------------------------------------
-	IEex_HookRestore(0x7A0D0F, 0, 5, {[[
-		8B 46 44
-		83 C0 02
-		33 FF
-		!jmp_dword :7A0D14
+	IEex_HookRestore(0x7A0D6A, 0, 5, {[[
+		8B 46 3C
+		03 CA
+		83 C1 04
+		!jmp_dword :7A0D6F
 	]]})
 
 	--------------------------------------------------------------------------------

@@ -1540,10 +1540,9 @@ function IEex_Extern_InitResolution()
 	IEex_WriteWord(0x8BA31C, nWidth)  -- g_resolution.width
 	IEex_WriteWord(0x8BA31E, nHeight) -- g_resolution.height
 	IEex_WritePrivateProfileInt("Program Options", "BitsPerPixel", 32, ".\\Icewind2.ini")
-	-- The IEex OpenGL renderer (and every HD-UI scaling hook) hard-requires hardware accel:
-	-- CChitin::m_cVideo.bHardwareAcceleration == 0 makes the helper bail (no GL). Force it on each
-	-- launch -- same mechanism as BitsPerPixel, read by the engine at video-mode creation (after this).
-	IEex_WritePrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini")
+	-- NOTE: the engine's OpenGL renderer is enabled by the ctor byte-patch in IEex_Render_Patch.lua
+	-- (m_cVideo.m_bIs3dAccelerated). The retail engine hardcodes that flag FALSE (mov [esi+0x91c],ebx,
+	-- ebx=0) and ignores the "3D Acceleration" ini key entirely, so there is nothing to set here.
 
 	------------------------------------------------------------------
 	-- Standardize when the engine non-instantaneously auto-scrolls --

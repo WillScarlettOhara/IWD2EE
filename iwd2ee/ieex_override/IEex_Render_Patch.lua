@@ -3,6 +3,21 @@
 
 	IEex_DisableCodeProtection()
 
+	------------------------------------------------------------------------------
+	-- Enable the engine's native OpenGL renderer (CVideo3d) -------------------- --
+	------------------------------------------------------------------------------
+	-- CBaldurChitin's ctor at 0x4220ED does `mov [esi+0x91c],ebx` (ebx=0) ->
+	-- m_cVideo.m_bIs3dAccelerated = FALSE -> CChitin::InitializeServices takes the
+	-- SOFTWARE renderer (no GL context). Patch the modrm 0x9E->0xB6 so it becomes
+	-- `mov [esi+0x91c],esi` (esi = this, always non-zero) -> the flag is truthy ->
+	-- the Initialize3d() GL path runs. Done in-memory (survives an exe verify+repair,
+	-- unlike the old on-disk exe byte patch). REQUIRES Proton CachyOS: plain Wine's
+	-- fullscreen 3D (SetDisplayMode mode-switch) crashes; and cnc-ddraw must be ABSENT
+	-- (the GL path uses opengl32 directly, NOT the ddraw->GL software wrapper).
+	if not IEex_Vanilla then
+		IEex_WriteByte(0x4220EE, 0xB6)
+	end
+
 	--------------------------------------------------------------------------
 	-- wined3d.dll + WINEDEBUG environment variable should log debug output --
 	--------------------------------------------------------------------------

@@ -613,12 +613,4 @@
 		IEex_EnableCodeProtection()
 	end
 
-	-- TEMP TEST (remove after torch testing): force the NIGHT menu (STARTN + torch) regardless of
-	-- the system clock. CScreenConnection::UpdateMainPanel @0x5FEE50 picks day (START) for hour
-	-- 7..17 via `jle 0x5FEF2E` @0x5FEEBF (the else branch sets STARTN + m_bIsNight=TRUE). Flip the
-	-- conditional jump to an unconditional jmp so the night branch always runs.
-	IEex_DisableCodeProtection()
-	IEex_WriteByte(0x5FEEBF, 0xEB)   -- 0x7E (jle) -> 0xEB (jmp 0x5FEF2E = always night)
-	IEex_EnableCodeProtection()
-
 end)()

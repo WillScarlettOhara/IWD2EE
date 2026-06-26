@@ -364,6 +364,21 @@ function IEex_SetControlHotkeyHintIndex(CUIControl, hotkeyIndex)
 end
 
 function IEex_SetControlXY(CUIControl, x, y)
+	-- HD UI (2K): every caller passes 1x-authored coords -- these nudge VANILLA controls aside to make
+	-- room for IEex additions (e.g. moving the "Return"/"Level Up" buttons). On a menu (manager NOT
+	-- double-size; the 2x comes from a pre-scaled CHU) those 1x coords land the control at 1x = top-left
+	-- of the 2x layout. Pre-scale x2 when the owning panel's manager is not double-size. World controls
+	-- use double-size managers (and engine-derived coords), so they are skipped.
+	if IEEX_HD_UI then
+		local panel = IEex_GetControlPanel(CUIControl)
+		if panel and panel ~= 0 then
+			local mgr = IEex_GetUIManagerFromPanel(panel)
+			if mgr and mgr ~= 0 and IEex_ReadDword(mgr + 0xAA) == 0 then
+				if x then x = x * 2 end
+				if y then y = y * 2 end
+			end
+		end
+	end
 	if x then IEex_WriteDword(CUIControl + 0xE, x) end
 	if y then IEex_WriteDword(CUIControl + 0x12, y) end
 end
@@ -1936,6 +1951,22 @@ end
 
 function IEex_AddControlToPanel(CUIPanel, args)
 
+	-- HD UI (2K): the control ctor (CUIControlBase, 0x4D47D0+) doubles x/y/w/h ONLY when the panel's
+	-- manager is in double-size mode. That is TRUE for the in-world HUD (engine field_4A2C 2x tier) but
+	-- FALSE for the menus, which scale via a PRE-SCALED CHU instead. So in a menu our 1x-authored control
+	-- coords would land at 1x inside the 2x layout (tiny / mis-placed custom controls). Pre-scale them x2
+	-- here when the target manager is NOT double-size, so they match the 2x menu. The world manager IS
+	-- double-size -> skip (the ctor doubles). Assets are 2x-authored, so they fill the scaled rects.
+	if IEEX_HD_UI then
+		local mgr = IEex_GetUIManagerFromPanel(CUIPanel)
+		if mgr and mgr ~= 0 and IEex_ReadDword(mgr + 0xAA) == 0 then
+			if args.x      then args.x      = args.x      * 2 end
+			if args.y      then args.y      = args.y      * 2 end
+			if args.width  then args.width  = args.width  * 2 end
+			if args.height then args.height = args.height * 2 end
+		end
+	end
+
 	local type = args.type
 	if not type then IEex_Error("type must be defined") end
 
@@ -2092,6 +2123,19 @@ function IEex_ReadControlSt(UI_Control_st)
 end
 
 function IEex_AddPanelToEngine(CBaldurEngine, args)
+
+	-- HD UI (2K): same as IEex_AddControlToPanel -- the CUIPanel ctor (0x4D2750) doubles x/y/w/h only when
+	-- the engine's manager is double-size (in-world HUD, field_4A2C). Menus use a pre-scaled CHU (manager
+	-- NOT double-size), so pre-scale our 1x panel args x2 there to match the 2x layout. World -> skip.
+	if IEEX_HD_UI then
+		local mgr = IEex_GetUIManagerFromEngine(CBaldurEngine)
+		if mgr and mgr ~= 0 and IEex_ReadDword(mgr + 0xAA) == 0 then
+			if args.x      then args.x      = args.x      * 2 end
+			if args.y      then args.y      = args.y      * 2 end
+			if args.width  then args.width  = args.width  * 2 end
+			if args.height then args.height = args.height * 2 end
+		end
+	end
 
 	local UI_PanelHeader_st = IEex_Malloc(0x1C)
 	IEex_WriteArgs(UI_PanelHeader_st, args, {
@@ -2985,13 +3029,20 @@ function IEex_InstallQuickloot()
 	local panel1Memory = IEex_GetPanelFromEngine(worldScreen, 1)
 	local panel8Memory = IEex_GetPanelFromEngine(worldScreen, 8)
 
+	-- HD UI (2K): every coord here is copied from LIVE engine panels/controls (panel 1 = action bar,
+	-- panel 8), which field_4A2C already returns at 2x. But this quickloot panel is added to the WORLD
+	-- engine (double-size manager), so the CUIPanel/control ctors DOUBLE these coords AGAIN -> 4x. Pre-
+	-- divide the engine-derived coords by the ctor's doubling factor so it lands them back at the true 2x
+	-- reference (and the quickloot stays aligned to the action bar). 1x install -> div=1, unchanged.
+	local div = (IEEX_HD_UI and IEex_ReadDword(IEex_GetUIManagerFromEngine(worldScreen) + 0xAA) ~= 0) and 2 or 1
+
 	local x1, y1, w1, h1 = IEex_GetPanelArea(panel1Memory)
 	local quicklootPanel = IEex_AddPanelToEngine(worldScreen, {
 		["id"]              = 23,
-		["x"]               = x1,
-		["y"]               = y1 - h1,
-		["width"]           = w1,
-		["height"]          = h1,
+		["x"]               = math.floor(x1 / div),
+		["y"]               = math.floor((y1 - h1) / div),
+		["width"]           = math.floor(w1 / div),
+		["height"]          = math.floor(h1 / div),
 		["hasBackground"]   = 1,
 		["backgroundImage"] = "B3QKLOOT"
 	})
@@ -3006,10 +3057,10 @@ function IEex_InstallQuickloot()
 
 		IEex_AddControlToPanel(quicklootPanel, {
 			["id"]     = IEex_GetControlID(copyControl),
-			["x"]      = referenceControlX + 1,
-			["y"]      = referenceControlY + 1,
-			["width"]  = copyControlW,
-			["height"] = copyControlH,
+			["x"]      = math.floor((referenceControlX + 1) / div),
+			["y"]      = math.floor((referenceControlY + 1) / div),
+			["width"]  = math.floor(copyControlW / div),
+			["height"] = math.floor(copyControlH / div),
 			["type"]   = IEex_ControlStructType.BUTTON,
 			["bam"]    = IEex_GetControlButtonBAM(copyControl),
 		})
@@ -3019,10 +3070,10 @@ function IEex_InstallQuickloot()
 	local leftArrowX, leftArrowY, leftArrowW, leftArrowH = IEex_GetControlArea(leftArrow)
 	IEex_AddControlToPanel(quicklootPanel, {
 		["id"]             = 10,
-		["x"]              = leftArrowX,
-		["y"]              = leftArrowY,
-		["width"]          = leftArrowW,
-		["height"]         = leftArrowH,
+		["x"]              = math.floor(leftArrowX / div),
+		["y"]              = math.floor(leftArrowY / div),
+		["width"]          = math.floor(leftArrowW / div),
+		["height"]         = math.floor(leftArrowH / div),
 		["type"]           = IEex_ControlStructType.BUTTON,
 		["bam"]            = "GUIBTACT",
 		["frameUnpressed"] = 48,
@@ -3033,10 +3084,10 @@ function IEex_InstallQuickloot()
 	local rightArrowX, rightArrowY, rightArrowW, rightArrowH = IEex_GetControlArea(rightArrow)
 	IEex_AddControlToPanel(quicklootPanel, {
 		["id"]             = 11,
-		["x"]              = rightArrowX,
-		["y"]              = rightArrowY,
-		["width"]          = rightArrowW,
-		["height"]         = rightArrowH,
+		["x"]              = math.floor(rightArrowX / div),
+		["y"]              = math.floor(rightArrowY / div),
+		["width"]          = math.floor(rightArrowW / div),
+		["height"]         = math.floor(rightArrowH / div),
 		["type"]           = IEex_ControlStructType.BUTTON,
 		["bam"]            = "GUIBTACT",
 		["frameUnpressed"] = 52,

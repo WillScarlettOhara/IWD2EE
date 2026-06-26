@@ -104,6 +104,27 @@
 	]]})
 
 	--------------------------------------------------------------------------------
+	-- GL FONT ATLAS FIX (opengl-only): CVidFont::LoadGlyphs @0x7A0B20 bakes glyphs into 256x256 atlas
+	-- textures, row pitch = node->m_nFontHeight. That pitch is 1px short of the font's true extent
+	-- (maxAscent + maxDescent), so the glyph packed ABOVE bleeds its bottom 1px row into the next
+	-- glyph's atlas cell-top -> a thin dash atop short letters (o/i/u). (Software renderer blits glyphs
+	-- directly = no atlas = no bleed, which is why feature/ui-2x-scaling was clean.) FIX: widen the
+	-- atlas row pitch by +2 -- but ONLY the loop's working copy at [esp+0x14], NOT node->m_nFontHeight,
+	-- so rendered line-spacing is untouched. Replace the pitch load with load+ADD2, then jump straight
+	-- to the store (the auto-restored displaced bytes after our jmp are dead, avoiding a re-load).
+	--   0x7A0D0F  8B 46 44     mov eax,[esi+0x44]   (m_nFontHeight)
+	--   0x7A0D12  33 FF        xor edi,edi
+	--   0x7A0D14  89 44 24 14  mov [esp+0x14],eax   (loop pitch copy; read at 0x7A0DBF for y-advance)
+	-- Harmless under the software renderer (LoadGlyphs @0x7A0B20 is the GL-only bake, never reached).
+	--------------------------------------------------------------------------------
+	IEex_HookRestore(0x7A0D0F, 0, 5, {[[
+		8B 46 44
+		83 C0 02
+		33 FF
+		!jmp_dword :7A0D14
+	]]})
+
+	--------------------------------------------------------------------------------
 	-- 3.6x canvas: the main-menu torch (CScreenConnection::RenderTorch @0x5FB020) uses a
 	-- HARDCODED 1x offset CPoint pt(106,383), only doubled for the 2x new-GUI tier. Under the
 	-- 3.6x pre-scaled-CHU canvas (1x mode, newGui=0) it stays 1x -> wrong spot. Scale the 1x

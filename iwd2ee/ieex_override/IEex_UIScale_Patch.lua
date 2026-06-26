@@ -219,6 +219,7 @@
 		-- The 255-frame stone fonts (STONEBIG/STONESM3) + STATES2 status icons stay 1x. See §11.
 		local btn_list = {
 			{0x52544D4D, 0x00424843}, -- MMTRCHB (main-menu torch animation; 2x asset -> de-double = crisp 2x)
+			{0x42475355, 0x4C514E54}, -- USGBTNQL (mod quickloot ACTIVATION button on the command dial; 2x asset)
 			{0x54554243, 0x00000000}, -- CBUT
 			{0x41454743, 0x00000052}, -- CGEAR
 			{0x4B494C43, 0x4E4F4332}, -- CLIK2CON

@@ -1,0 +1,25 @@
+// =====================================================================================
+// 2K UI - Plain panels  (optional sub-choice of the 2K UI component; install AFTER it)
+// =====================================================================================
+// The 2K UI ships DECORATED panel backgrounds: GCOMM118 / GCOMM128 (command bar), GMWDMMB0 /
+// GMWDSLB0 (world map), GUCONTB0 (container), GUDEATH0 (death), GUWBTP30 (worldmap travel) -- each
+// 2048px wide = the 1600px content centred + a decorative stone frame extending ~224px each side
+// into the letterbox void.
+//
+// This sub-choice swaps in PLAIN versions (mos/mos_2k_plain). They are the SAME content centred in the
+// SAME 2048 canvas, but the void margins are GREEN-KEYED (palette index 0) = TRANSPARENT, so the
+// world / menu scene shows through instead of the stone decoration. WHY keep 2048 + centre + pad
+// transparent (instead of just the narrower 1600 plain MOS): the engine renders a panel background at
+// the panel's TOP-LEFT origin (CUIPanel::Render), and these panels are laid out for the 2048 decorated
+// width -- a bare 1600 MOS would render left-aligned, mis-aligning the controls + leaving the right
+// margin uncovered. Padding the content to a centred 2048 keeps the controls aligned; the transparent
+// margins remove the decoration cleanly.
+//
+// Resref-for-resref overwrite of the decorated backgrounds, so the panels (which reference the
+// decorated resrefs) pick the plain art with no layout change. To wire into the installer, add a tp2
+// BEGIN block alongside the 2K UI component, e.g. a SUBCOMPONENT pairing "Decorated" (the 2K UI default)
+// with "Plain" (this), REQUIRE_COMPONENT the 2K UI.
+// =====================================================================================
+
+PRINT ~[2K UI] Plain panels: replacing the decorative void frame with transparent margins.~
+COPY ~%mod_folder%/mos/mos_2k_plain~ ~override~

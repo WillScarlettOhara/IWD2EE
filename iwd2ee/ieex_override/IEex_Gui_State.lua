@@ -1354,31 +1354,34 @@ function IEex_MoveHighResolutionPaddingPanels()
 	local bottomW, bottomH = getMosWidthHeight("STON10B")
 
 	local resW, resH = IEex_GetResolution()
-	local canvas = IEEX_HD_UI and 2.0 or 1.0
 
 	-- panel x/y are signed 16-bit; the border can sit at a NEGATIVE logical coord (off the UI,
 	-- into the letterbox void) or be taller than the UI (cropped top/bottom).
 	local sw16 = function(v) v = math.floor(v + 0.5); if v < 0 then v = v + 0x10000 end; return v end
 
-	if canvas > 1 then
-		-- HD UI canvas: the border panels render THROUGH the canvas MODELVIEW transform, which maps
-		-- a logical X -> fitX + scale*(X - baseLeft), where baseLeft = (SW - 800*mult)/2 is the
-		-- engine's ShiftPanels origin (mult=1 under the canvas). So position the borders in LOGICAL
-		-- coords RELATIVE TO that origin, just outside the content (800x600 * canvas); the transform
-		-- then frames the centered UI with them (cropped where the art overflows). Omitting baseLeft
-		-- anchored them at logical 0 = the screen top-left (the bug).
-		local baseW = 800 * canvas
-		local baseH = 600 * canvas
-		local baseLeft = (resW - 800) / 2
-		local baseTop  = (resH - 600) / 2
-		IEex_WriteWord(panelLeft_st + 0x4, sw16(baseLeft - leftW));            IEex_WriteWord(panelLeft_st + 0x6, sw16(baseTop + (baseH - leftH) / 2))
-		IEex_WriteWord(panelLeft_st + 0x8, leftW);                            IEex_WriteWord(panelLeft_st + 0xA, leftH)
-		IEex_WriteWord(panelRight_st + 0x4, sw16(baseLeft + baseW));           IEex_WriteWord(panelRight_st + 0x6, sw16(baseTop + (baseH - rightH) / 2))
-		IEex_WriteWord(panelRight_st + 0x8, rightW);                          IEex_WriteWord(panelRight_st + 0xA, rightH)
-		IEex_WriteWord(panelTop_st + 0x4, sw16(baseLeft + (baseW - topW) / 2)); IEex_WriteWord(panelTop_st + 0x6, sw16(baseTop - topH))
-		IEex_WriteWord(panelTop_st + 0x8, topW);                              IEex_WriteWord(panelTop_st + 0xA, topH)
-		IEex_WriteWord(panelBottom_st + 0x4, sw16(baseLeft + (baseW - bottomW) / 2)); IEex_WriteWord(panelBottom_st + 0x6, sw16(baseTop + baseH))
-		IEex_WriteWord(panelBottom_st + 0x8, bottomW);                        IEex_WriteWord(panelBottom_st + 0xA, bottomH)
+	if IEex_ReadByte(g_pBaldurChitin + 0x4A28) == 1 then
+		-- Engine NATIVE 2x tier (m_bUseNewGui pivot). The border panels are stored in LOGICAL coords --
+		-- the engine DOUBLES x/y/w/h at render (m_bDoubleSize) -- with the UI content = 800x600 centred in
+		-- the logical screen (= physical/2). The STON mosaics are FIXED-SIZE art (de-doubled -> render at
+		-- their native physical px), authored for the engine's own 2048 tier where the side void is exactly
+		-- 224px. They do NOT stretch: place each flush against the UI edge at its native size. At wider
+		-- resolutions black void remains beyond L/R, and the taller L/R pieces overshoot top/bottom
+		-- (cropped) -- expected. Native physical px -> logical = /2 (the engine re-doubles).
+		local DEFW, DEFH = 800, 600
+		local uiLeft = math.floor((resW / 2 - DEFW) / 2)
+		local uiTop  = math.floor((resH / 2 - DEFH) / 2)
+		local lW, lH = leftW / 2, leftH / 2
+		local rW, rH = rightW / 2, rightH / 2
+		local tW, tH = topW / 2, topH / 2
+		local bW, bH = bottomW / 2, bottomH / 2
+		IEex_WriteWord(panelLeft_st + 0x4, sw16(uiLeft - lW));            IEex_WriteWord(panelLeft_st + 0x6, sw16(uiTop + (DEFH - lH) / 2))
+		IEex_WriteWord(panelLeft_st + 0x8, sw16(lW));                    IEex_WriteWord(panelLeft_st + 0xA, sw16(lH))
+		IEex_WriteWord(panelRight_st + 0x4, sw16(uiLeft + DEFW));         IEex_WriteWord(panelRight_st + 0x6, sw16(uiTop + (DEFH - rH) / 2))
+		IEex_WriteWord(panelRight_st + 0x8, sw16(rW));                   IEex_WriteWord(panelRight_st + 0xA, sw16(rH))
+		IEex_WriteWord(panelTop_st + 0x4, sw16(uiLeft + (DEFW - tW) / 2)); IEex_WriteWord(panelTop_st + 0x6, sw16(uiTop - tH))
+		IEex_WriteWord(panelTop_st + 0x8, sw16(tW));                     IEex_WriteWord(panelTop_st + 0xA, sw16(tH))
+		IEex_WriteWord(panelBottom_st + 0x4, sw16(uiLeft + (DEFW - bW) / 2)); IEex_WriteWord(panelBottom_st + 0x6, sw16(uiTop + DEFH))
+		IEex_WriteWord(panelBottom_st + 0x8, sw16(bW));                  IEex_WriteWord(panelBottom_st + 0xA, sw16(bH))
 		return
 	end
 
@@ -1537,6 +1540,10 @@ function IEex_Extern_InitResolution()
 	IEex_WriteWord(0x8BA31C, nWidth)  -- g_resolution.width
 	IEex_WriteWord(0x8BA31E, nHeight) -- g_resolution.height
 	IEex_WritePrivateProfileInt("Program Options", "BitsPerPixel", 32, ".\\Icewind2.ini")
+	-- The IEex OpenGL renderer (and every HD-UI scaling hook) hard-requires hardware accel:
+	-- CChitin::m_cVideo.bHardwareAcceleration == 0 makes the helper bail (no GL). Force it on each
+	-- launch -- same mechanism as BitsPerPixel, read by the engine at video-mode creation (after this).
+	IEex_WritePrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini")
 
 	------------------------------------------------------------------
 	-- Standardize when the engine non-instantaneously auto-scrolls --
@@ -1595,9 +1602,12 @@ function IEex_Extern_InitHighResolutionPaddingPanels(pBaldurChitin)
 	end
 
 	-- Remove the high-res padding panels if the resolution can't display them, OR under engine double-size
-	-- (m_bUseNewGui): the STON border mosaics are authored for the 1x padding and can't fill the 2x margin,
-	-- so the doubled UI gets clean black margins instead (a partially-positioned padding panel crashes).
-	if resW < 1024 or resH < 768 or IEex_ReadByte(pBaldurChitin + 0x4A28) == 1 then
+	-- (m_bUseNewGui) when the player has NOT opted into decorative borders -> clean black margins (a
+	-- partially-positioned padding panel crashes). The STON10* mosaics now ship 2x-authored (L/R = 224px
+	-- wide = exactly the side void at 2048x1200), so with "UI Borders" on they frame the doubled UI;
+	-- IEex_MoveHighResolutionPaddingPanels positions them natively (top/bottom overshoot, cropped = fine).
+	local bordersOn = IEex_GetPrivateProfileInt("IEex Options", "UI Borders", 0, ".\\Icewind2.ini") ~= 0
+	if resW < 1024 or resH < 768 or (IEex_ReadByte(pBaldurChitin + 0x4A28) == 1 and not bordersOn) then
 
 		IEex_DisableCodeProtection()
 
@@ -2465,6 +2475,50 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 						IEex_Helper_SetBridge(workingOptions, "preventEquippingArmorDuringCombat", true)
 					end
 				end,
+				-- "Stretch UI to Screen" Toggle
+				[14] = function()
+					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
+					if IEex_Helper_GetBridge(workingOptions, "stretchUI") then
+						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
+						IEex_Helper_SetBridge(workingOptions, "stretchUI", false)
+					else
+						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
+						IEex_Helper_SetBridge(workingOptions, "stretchUI", true)
+					end
+				end,
+				-- "Show FPS" Toggle
+				[16] = function()
+					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
+					if IEex_Helper_GetBridge(workingOptions, "showFps") then
+						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
+						IEex_Helper_SetBridge(workingOptions, "showFps", false)
+					else
+						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
+						IEex_Helper_SetBridge(workingOptions, "showFps", true)
+					end
+				end,
+				-- "Vsync" Toggle
+				[18] = function()
+					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
+					if IEex_Helper_GetBridge(workingOptions, "vsync") then
+						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
+						IEex_Helper_SetBridge(workingOptions, "vsync", false)
+					else
+						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
+						IEex_Helper_SetBridge(workingOptions, "vsync", true)
+					end
+				end,
+				-- "UI Borders" Toggle
+				[20] = function()
+					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
+					if IEex_Helper_GetBridge(workingOptions, "uiBorders") then
+						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
+						IEex_Helper_SetBridge(workingOptions, "uiBorders", false)
+					else
+						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
+						IEex_Helper_SetBridge(workingOptions, "uiBorders", true)
+					end
+				end,
 			},
 		},
 		["GUIREC"] = {
@@ -3330,6 +3384,118 @@ function IEex_InstallIEexOptions()
 		["framePressed"] = 2,
 	})
 
+	-- "Stretch UI to Screen" Label - ID 13
+	IEex_AddControlOverride("GUIOPT", 14, 13, "IEex_UI_Label")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.LABEL,
+		["id"] = 13,
+		["x"] = 74,
+		["y"] = 181,
+		["width"] = 308,
+		["height"] = 18,
+		["fontBam"] = "NORMAL",
+		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
+	})
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 13), "Stretch UI to Screen")
+
+	-- "Stretch UI to Screen" Toggle - ID 14
+	IEex_AddControlOverride("GUIOPT", 14, 14, "IEex_UI_Button")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.BUTTON,
+		["id"] = 14,
+		["x"] = 394,
+		["y"] = 178,
+		["width"] = 23,
+		["height"] = 24,
+		["bam"] = "GBTNOPT3",
+		["frameUnpressed"] = 1,
+		["framePressed"] = 2,
+	})
+
+	-- "Show FPS" Label - ID 15
+	IEex_AddControlOverride("GUIOPT", 14, 15, "IEex_UI_Label")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.LABEL,
+		["id"] = 15,
+		["x"] = 74,
+		["y"] = 209,
+		["width"] = 308,
+		["height"] = 18,
+		["fontBam"] = "NORMAL",
+		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
+	})
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 15), "Show FPS")
+
+	-- "Show FPS" Toggle - ID 16
+	IEex_AddControlOverride("GUIOPT", 14, 16, "IEex_UI_Button")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.BUTTON,
+		["id"] = 16,
+		["x"] = 394,
+		["y"] = 206,
+		["width"] = 23,
+		["height"] = 24,
+		["bam"] = "GBTNOPT3",
+		["frameUnpressed"] = 1,
+		["framePressed"] = 2,
+	})
+
+	-- "Vsync" Label - ID 17
+	IEex_AddControlOverride("GUIOPT", 14, 17, "IEex_UI_Label")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.LABEL,
+		["id"] = 17,
+		["x"] = 74,
+		["y"] = 237,
+		["width"] = 308,
+		["height"] = 18,
+		["fontBam"] = "NORMAL",
+		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
+	})
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 17), "Vsync")
+
+	-- "Vsync" Toggle - ID 18
+	IEex_AddControlOverride("GUIOPT", 14, 18, "IEex_UI_Button")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.BUTTON,
+		["id"] = 18,
+		["x"] = 394,
+		["y"] = 234,
+		["width"] = 23,
+		["height"] = 24,
+		["bam"] = "GBTNOPT3",
+		["frameUnpressed"] = 1,
+		["framePressed"] = 2,
+	})
+
+	-- "UI Borders" Label - ID 19
+	IEex_AddControlOverride("GUIOPT", 14, 19, "IEex_UI_Label")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.LABEL,
+		["id"] = 19,
+		["x"] = 24,
+		["y"] = 265,
+		["width"] = 358,
+		["height"] = 18,
+		["fontBam"] = "NORMAL",
+		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
+	})
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 19), "Decorative UI Borders (restart required)")
+
+	-- "UI Borders" Toggle - ID 20
+	IEex_AddControlOverride("GUIOPT", 14, 20, "IEex_UI_Button")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.BUTTON,
+		["id"] = 20,
+		["x"] = 394,
+		["y"] = 262,
+		["width"] = 23,
+		["height"] = 24,
+		["bam"] = "GBTNOPT3",
+		["frameUnpressed"] = 1,
+		["framePressed"] = 2,
+	})
+
 	IEex_SetPanelActive(newOptionsPanel, false)
 end
 
@@ -3837,6 +4003,18 @@ function IEex_LoadOptions()
 
 	IEex_Helper_SetBridge(options, "preventEquippingArmorDuringCombat",
 		IEex_GetPrivateProfileInt("IEex Options", "Prevent Equipping Armor During Combat", 0, ".\\Icewind2.ini") ~= 0 and true or false)
+
+	IEex_Helper_SetBridge(options, "stretchUI",
+		IEex_GetPrivateProfileInt("IEex Options", "Stretch UI to Screen", 0, ".\\Icewind2.ini") ~= 0 and true or false)
+
+	IEex_Helper_SetBridge(options, "showFps",
+		IEex_GetPrivateProfileInt("IEex Options", "Show FPS", 0, ".\\Icewind2.ini") ~= 0 and true or false)
+
+	IEex_Helper_SetBridge(options, "vsync",
+		IEex_GetPrivateProfileInt("IEex Options", "Vsync", 1, ".\\Icewind2.ini") ~= 0 and true or false)
+
+	IEex_Helper_SetBridge(options, "uiBorders",
+		IEex_GetPrivateProfileInt("IEex Options", "UI Borders", 0, ".\\Icewind2.ini") ~= 0 and true or false)
 end
 
 function IEex_WriteOptions()
@@ -3854,6 +4032,18 @@ function IEex_WriteOptions()
 
 	IEex_WritePrivateProfileString("IEex Options", "Prevent Equipping Armor During Combat",
 		IEex_Helper_GetBridge(options, "preventEquippingArmorDuringCombat") and "1" or "0", ".\\Icewind2.ini")
+
+	IEex_WritePrivateProfileString("IEex Options", "Stretch UI to Screen",
+		IEex_Helper_GetBridge(options, "stretchUI") and "1" or "0", ".\\Icewind2.ini")
+
+	IEex_WritePrivateProfileString("IEex Options", "Show FPS",
+		IEex_Helper_GetBridge(options, "showFps") and "1" or "0", ".\\Icewind2.ini")
+
+	IEex_WritePrivateProfileString("IEex Options", "Vsync",
+		IEex_Helper_GetBridge(options, "vsync") and "1" or "0", ".\\Icewind2.ini")
+
+	IEex_WritePrivateProfileString("IEex Options", "UI Borders",
+		IEex_Helper_GetBridge(options, "uiBorders") and "1" or "0", ".\\Icewind2.ini")
 end
 
 function IEex_InitOptionButtons()
@@ -3875,6 +4065,18 @@ function IEex_InitOptionButtons()
 
 	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 12),
 		IEex_Helper_GetBridge(options, "preventEquippingArmorDuringCombat") and 3 or 1)
+
+	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 14),
+		IEex_Helper_GetBridge(options, "stretchUI") and 3 or 1)
+
+	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 16),
+		IEex_Helper_GetBridge(options, "showFps") and 3 or 1)
+
+	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 18),
+		IEex_Helper_GetBridge(options, "vsync") and 3 or 1)
+
+	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 20),
+		IEex_Helper_GetBridge(options, "uiBorders") and 3 or 1)
 end
 
 IEex_AbsoluteOnce("IEex_InitOptions", function()

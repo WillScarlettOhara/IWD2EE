@@ -157,6 +157,7 @@
                 <h4><a href="#traps">42. Ajouter plus de pièges</a></h4>
                 <h4><a href="#buffing">43. Ajouter des raccourcis clavier pour automatiser l’application de buffs</a>
                 </h4>
+                <h4><a href="#hdui">44. 2x UI (interface haute résolution HD)</a></h4>
             </div>
 
             <div class="back">
@@ -180,6 +181,10 @@
                         ultrawide, vous pouvez appliquer une résolution adaptée (comme 1835x768 ou 1433x600) dans le
                         fichier ddraw.ini à la section [iwd2].</li>
                     <li>IWD2EE inclut le programme ddraw fix. Cela devrait améliorer les performances.</li>
+                    <li>Le jeu est rendu via un moteur OpenGL intégré, plus rapide et mieux adapté aux écrans modernes.
+                        IWD2EE active automatiquement l’accélération 3D à chaque lancement, car le moteur de rendu en a
+                        besoin.</li>
+                    <li>Vous pouvez zoomer la caméra avec la molette de la souris.</li>
                     <li>Déplacer la caméra devrait être plus fluide sur certains appareils.</li>
                     <li>Il est possible de déplacer la caméra avec le bouton central de la souris.</li>
                     <li>Il existe désormais un bouton de ramassage rapide (le plus en bas à droite).</li>
@@ -191,9 +196,11 @@
                     <li>De nombreuses cinématiques peuvent être ignorées en appuyant sur ÉCHAP.</li>
                     <li>Le temps qu’il faut pour détecter les pièges est réduit.</li>
                     <li>L’écran de la fiche de personnage possède maintenant un bouton Reformer le groupe.</li>
-                    <li>L’écran des options possède maintenant un bouton pour accéder au nouveau menu Options IEex
-                        (actuellement, il inclut une option pour modifier le brouillard de guerre afin qu’il ne
-                        scintille pas).</li>
+                    <li>L’écran des options possède maintenant un bouton pour accéder au nouveau menu Options IEex. Il
+                        inclut une option pour modifier le brouillard de guerre afin qu’il ne scintille pas, ainsi que
+                        des bascules pour Étirer l’UI à l’écran (remplir tout l’écran au lieu d’un affichage
+                        letterboxé), Afficher les FPS et la Vsync &mdash; ces trois options s’appliquent
+                        immédiatement.</li>
                     <li>Si un membre du groupe a suffisamment d’expérience pour monter de niveau plusieurs fois, vous
                         pouvez choisir le nombre de niveaux à monter en une fois. Cela vous permet également de
                         répartir les montées en niveau entre plusieurs classes (bien que vous devez passer par le
@@ -1363,6 +1370,26 @@
                     devrait tout de même accélérer quelque peu les buffs et les rendre moins pénibles pour le
                     joueur. Une fois les sorts enregistrés, vous n’avez qu’à appuyer sur ";" sans avoir à faire
                     défiler les listes de sorts.</p>
+                <div class="back">
+                    <a class="novisit" href="#top">RETOUR EN HAUT</a>
+                </div>
+            </section>
+
+            <section id="hdui">
+
+                <h3>44. 2x UI (interface haute résolution HD)</h3>
+                <p>Une version 2x (haute résolution) optionnelle de toute l’interface &mdash; menus, ATH en jeu,
+                    inventaire, fiche de personnage, etc. &mdash; utilisant des graphismes conçus en 2x (icônes,
+                    boutons, polices, panneaux, portraits, curseurs, torche du menu) rendus au palier 2x natif du
+                    moteur. Optionnel ; correct à environ 2048x1200 et au-delà ; en dessous, l’interface 1x d’origine
+                    est conservée.</p>
+                <p>Vous choisissez comment les cadres des panneaux remplissent le vide letterbox sur les écrans larges :
+                    « Panneaux décorés » garde le cadre de pierre qui s’étend dans le vide, tandis que « Panneaux
+                    simples (marges transparentes) » rend ces marges transparentes pour laisser voir la scène
+                    derrière.</p>
+                <p>Avec ce composant installé, le menu Options IEex en jeu ajoute aussi « Bordures d’UI décoratives »
+                    &mdash; le cadre de pierre STON autour de toute l’interface (à activer ; nécessite un
+                    redémarrage).</p>
                 <div class="back">
                     <a class="novisit" href="#top">RETOUR EN HAUT</a>
                 </div>

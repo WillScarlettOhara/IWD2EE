@@ -63,6 +63,7 @@ Composants:
 41. Changer la façon dont les valeurs de caractéristiques sont attribuées à la création du personnage
 42. Ajouter plus de pièges
 43. Ajouter des raccourcis clavier pour automatiser l’application de buffs
+44. 2x UI (interface haute résolution HD)
 
 --Noyau d’IWD2EE--
 
@@ -71,6 +72,8 @@ Ce composant doit être installé pour que tout autre composant puisse l'être. 
 * Les temps de chargement sont beaucoup plus rapides.
 * IWD2EE inclut la compatibilité avec les moniteurs modernes, rendant le Widescreen Mod inutile. N'INSTALLEZ PAS LE WIDESCREEN MOD AVEC IWD2EE ; CELA FERA PLANTER LE JEU. Lorsque vous démarrez IWD2EE, un menu s’ouvre vous permettant de régler le jeu à une résolution plus élevée. Notez que les paramètres de résolution plus élevés n'ont pas d'influence sur les menus ; ils n'en ont que lorsque vous chargez une partie sauvegardée. Je conseille personnellement une résolution d'une hauteur de 600p ou 768p pour que l'interface en jeu prenne toute la hauteur de votre écran et pour garder du texte un minimum lisible. Pour les écrans 21:9 et autres ultrawide, vous pouvez appliquer une résolution adaptée (comme 1835x768 ou 1433x600) dans le fichier ddraw.ini à la section [iwd2].
 * IWD2EE inclut le programme ddraw fix. Cela devrait améliorer les performances.
+* Le jeu est rendu via un moteur OpenGL intégré, plus rapide et mieux adapté aux écrans modernes. IWD2EE active automatiquement l’accélération 3D à chaque lancement, car le moteur de rendu en a besoin.
+* Vous pouvez zoomer la caméra avec la molette de la souris.
 * Déplacer la caméra devrait être plus fluide sur certains appareils.
 * Il est possible de déplacer la caméra avec le bouton central de la souris.
 * Il existe désormais un bouton de ramassage rapide (le plus en bas à droite).
@@ -79,7 +82,7 @@ Ce composant doit être installé pour que tout autre composant puisse l'être. 
 * De nombreuses cinématiques peuvent être ignorées en appuyant sur ÉCHAP.
 * Le temps qu’il faut pour détecter les pièges est réduit.
 * L’écran de la fiche de personnage possède maintenant un bouton Reformer le groupe.
-* L’écran des options possède maintenant un bouton pour accéder au nouveau menu Options IEex (actuellement, il inclut une option pour modifier le brouillard de guerre afin qu’il ne scintille pas).
+* L’écran des options possède maintenant un bouton pour accéder au nouveau menu Options IEex. Il inclut une option pour modifier le brouillard de guerre afin qu’il ne scintille pas, ainsi que des bascules pour Étirer l’UI à l’écran (remplir tout l’écran au lieu d’un affichage letterboxé), Afficher les FPS et la Vsync — ces trois options s’appliquent immédiatement.
 * Si un membre du groupe a suffisamment d’expérience pour monter de niveau plusieurs fois, vous pouvez choisir le nombre de niveaux à monter en une fois. Cela vous permet également de répartir les montées en niveau entre plusieurs classes (bien que vous devez passer par le processus de montée de niveau une fois pour chaque classe).
 * Les parchemins sont affichés en surbrillance verte lorsqu’un magicien qui ne connaît pas le sort est sélectionné.
 * Si vous n’avez pas activé l’option pour se reposer jusqu’à être guéri, les personnages guérissent un nombre de PV égal à leur niveau, au lieu de ne soigner qu’un seul PV.
@@ -500,6 +503,14 @@ Après cela, appuyer sur la touche " ; " à tout moment fera en sorte que les me
 Appuyer sur la touche " ] " effacera l’enregistrement jusqu’à ce que vous en fassiez un nouveau.
 
 Ce système ne triche en aucune façon ; les sorts ne sont pas lancés instantanément et vous ne pouvez pas lancer plus d’un sort par round à moins d’avoir Promptitude améliorée. Cependant, cela devrait tout de même accélérer quelque peu les buffs et les rendre moins pénibles pour le joueur. Une fois les sorts enregistrés, vous n’avez qu’à appuyer sur ";" sans avoir à faire défiler les listes de sorts.
+
+--2x UI (interface haute résolution HD)--
+
+Une version 2x (haute résolution) optionnelle de toute l’interface -- menus, ATH en jeu, inventaire, fiche de personnage, etc. -- utilisant des graphismes conçus en 2x (icônes, boutons, polices, panneaux, portraits, curseurs, torche du menu) rendus au palier 2x natif du moteur. Optionnel ; correct à environ 2048x1200 et au-delà ; en dessous, l’interface 1x d’origine est conservée.
+
+Vous choisissez comment les cadres des panneaux remplissent le vide letterbox sur les écrans larges : « Panneaux décorés » garde le cadre de pierre qui s’étend dans le vide, tandis que « Panneaux simples (marges transparentes) » rend ces marges transparentes pour laisser voir la scène derrière.
+
+Avec ce composant installé, le menu Options IEex en jeu ajoute aussi « Bordures d’UI décoratives » -- le cadre de pierre STON autour de toute l’interface (à activer ; nécessite un redémarrage).
 
 Notes de compatibilité :
 

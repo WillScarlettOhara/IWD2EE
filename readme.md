@@ -70,6 +70,7 @@ If you are using any mods other than IWD2EE, you should also install the IWD2EE 
 41. Change the way ability scores are assigned at character creation
 42. Add more traps
 43. Add key bindings for automating buffing
+44. 2x UI (HD high-resolution interface)
 
 ## IWD2EE Core
 
@@ -78,13 +79,15 @@ The core component must be installed for any other component to be installed. It
 - Load times are much faster.
 - IWD2EE includes built-in widescreen compatibility, making the Widescreen Mod unnecessary. DO NOT INSTALL THE WIDESCREEN MOD WITH IWD2EE; IT WILL CRASH THE GAME. When you start IWD2EE, a menu opens that lets you set the game to a higher resolution. Note that higher resolution settings do not apply to menus; they only apply when you load a save game. You should play at 600p or 768p height to make the in-game UI take up the full height of your screen, and to keep the text somewhat readable. For 21:9 and other ultrawide displays, you can set a custom resolution (like 1835x768 or 1433x600) in the ddraw.ini file at the [iwd2] section.
 - IWD2EE includes a ddraw fix, which should improve performance.
+- The game is rendered through a built-in OpenGL renderer, which is faster and works better with modern displays. IWD2EE turns on 3D Acceleration automatically at each launch, since the renderer requires it.
+- You can zoom the camera in and out with the mouse wheel.
 - Scrolling the screen should be smoother on some devices.
 - It is possible to scroll with the middle mouse button.
 - There is now a quickloot button.
 - Right-clicking a spell or innate ability on the actionbar brings up its description (though most innate abilities don't have descriptions unless Class Revisions is installed).
 - You can now go through dialogue as fast as you want; there's no longer a brief delay each time you choose a dialogue option.
 - The character record screen includes a Reform Party button.
-- The options screen includes a button to access the IEex Options menu (currently it includes an option to alter the fog of war so that it doesn't flicker, if you were having problems with it flickering).
+- The options screen includes a button to access the IEex Options menu. It has an option to alter the fog of war so that it doesn't flicker, plus toggles for Stretch UI to Screen (fill the whole screen instead of letterboxing the UI), Show FPS and Vsync — these three apply immediately.
 - If a party member has enough experience to level up multiple times, you can choose how many times they level up at a time. This also allows you to divide the level ups among multiple classes (though you'll have to go through the level up process once for each class).
 - Scrolls are highlighted in green when a wizard is selected who doesn't know the spell.
 - If you do not have the vanilla option to rest until healed enabled, characters heal a number of HP equal to their level on rest, rather than only healing 1 HP.
@@ -487,3 +490,14 @@ After that, pressing the ";" button at any point will cause party members to cas
 Pressing the "]" button will erase the recording until you do a new one.
 
 This system doesn't cheat in any way; the spells aren't cast instantly nor can you cast more than one spell per round unless you have Improved Alacrity. However, it should still speed up buffing somewhat and make it require less effort by the player. Once you have the spells recorded, you just have to press ";" without having to scroll through spell lists.
+
+## 2x UI (HD high-resolution interface)
+
+An optional 2x (high-resolution) version of the whole interface — menus, the in-game HUD, inventory, character record and so on — using 2x-authored artwork (icons, buttons, fonts, panels, portraits, mouse cursors, the menu torch) rendered at the engine's native 2x tier. It is opt-in and looks correct at roughly 2048x1200 and above; below that the stock 1x UI is kept.
+
+You choose how the panel frames fill the letterbox void on wide screens:
+
+- **Decorated panels** keep the stone frame extending into the void.
+- **Plain panels (transparent margins)** make those margins transparent, so the world/scene shows through instead.
+
+With this component installed, the in-game IEex Options menu also gains **Decorative UI Borders** — the STON stone edge frame around the whole interface (toggle; needs a restart).

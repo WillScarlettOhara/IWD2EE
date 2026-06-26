@@ -387,6 +387,8 @@
 		-- bDoubleSize=0 (renders native = crisp 2x). The thin fill/bar strips (<90px tall) stay
 		-- NN-doubled (imperceptible, no detail to recover). Add a MOS here as its HD .MOS ships.
 		local mos_list = {
+			{0x4B513342, 0x544F4F4C}, -- B3QKLOOT (mod quickloot bar bg; 2x asset -> de-double = crisp native, not 4x)
+			{0x454B3342, 0x00005359}, -- B3KEYS (keyboard-config screen bg; 2x asset -> de-double = crisp native, not 4x)
 			{0x4F4C4F43, 0x00000052}, -- COLOR
 			{0x54434147, 0x3830304E}, -- GACTN008
 			{0x54434147, 0x3830314E}, -- GACTN108

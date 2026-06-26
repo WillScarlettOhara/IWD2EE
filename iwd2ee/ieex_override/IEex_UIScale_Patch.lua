@@ -125,36 +125,23 @@
 	]]})
 
 	--------------------------------------------------------------------------------
-	-- 3.6x canvas: the main-menu torch (CScreenConnection::RenderTorch @0x5FB020) uses a
-	-- HARDCODED 1x offset CPoint pt(106,383), only doubled for the 2x new-GUI tier. Under the
-	-- 3.6x pre-scaled-CHU canvas (1x mode, newGui=0) it stays 1x -> wrong spot. Scale the 1x
-	-- immediates to x3.6 (106->382, 383->1379). The torch then renders in the panels' scaled
-	-- space because Export_UIScaleRenderEndUI leaves the MODELVIEW set through the overlay pass
-	-- (no RenderTorch hook). Gated on "UI Canvas Scale" > 1 so stock/2x-tier are untouched; the
-	-- torch offset is scaled by the same factor (106*f, 383*f).
-	--   0x5FB0AF  BF 6A 00 00 00   mov edi,106 (pt.x) -> imm@0x5FB0B0 = 382  (0x17E)
-	--   0x5FB0B4  BE 7F 01 00 00   mov esi,383 (pt.y) -> imm@0x5FB0B5 = 1379 (0x563)
+	-- MENU TORCH (pivot). The animated main-menu torch (CScreenConnection::RenderTorch @0x5FB020) is
+	-- drawn POST-Flip, into the buffer just swapped away from the display. On Wine/Mesa (triple-
+	-- buffered) that frozen flame frame flickers through the live animation as the cursor moves -- the
+	-- "parasite frame". FIX = SINGLE-RENDER: re-issue the torch ourselves PRE-Flip (helper
+	-- Export_UIScaleRenderEndUI, every frame, on the buffer about to be presented) and NEUTRALISE the
+	-- engine's own post-Flip draw (helper Export_UIScaleTorchBegin collapses the MODELVIEW off-screen
+	-- when g_inMyTorchCall is false). So the torch is drawn exactly ONCE per frame, on the right buffer.
+	-- Under the m_bUseNewGui tier the engine doubles the offset (pt 106,383 -> 212,766) and the
+	-- de-doubled 2x MMTRCHB blits native = crisp 2x; the helper re-render gates on g_hdUI && UIMult()==2,
+	-- and ComputeUIScaleRect is identity there so the engine's own coords are used as-is.
+	-- Entry 0x5FB020: 5 displaced bytes (a1 dc f6 8c 00  mov eax,ds:0x8cf6dc) -> continue 0x5FB025.
 	--------------------------------------------------------------------------------
-	local canvas = IEEX_HD_UI and 2.0 or 1.0
-	IEex_DisableCodeProtection()
-	if canvas > 1.0 then
-		local f = canvas   -- HD UI = the shipped 2x tier (factor 2.0)
-		IEex_WriteDword(0x5FB0B0, math.floor(106 * f + 0.5))   -- pt.x = round(106*factor)
-		IEex_WriteDword(0x5FB0B5, math.floor(383 * f + 0.5))   -- pt.y = round(383*factor)
-	end
-	-- The torch renders AFTER pVidMode->Flip(TRUE), so MODELVIEW was reset to identity -> it would land
-	-- at raw screen coords. Hook RenderTorch entry (0x5FB020) ALWAYS (not only canvas>1): when HD UI is
-	-- ON, the helper re-applies the Stage-1 transform + we re-render pre-Flip (crisp 2x torch). When HD
-	-- UI is OFF (<1200p / vanilla tier), the helper NEUTRALISES the engine's torch -- otherwise the
-	-- shipped 2x MMTRCHB asset would render at native size = 2x too big. So the torch shows ONLY at HD-on
-	-- (+ New-GUI off, see g_menuTorchEnabled); off at HD-off. 5 displaced bytes: A1 DC F6 8C 00. MUST be
-	-- before EnableCodeProtection (HookRestore writes a jmp into .text).
 	IEex_HookRestore(0x5FB020, 0, 5, {[[
 		!push_all_registers_iwd2
 		!call >IEex_Helper_UIScaleTorchBegin
 		!pop_all_registers_iwd2
 	]]})
-	IEex_EnableCodeProtection()
 
 	--------------------------------------------------------------------------------
 	-- WORLD HUD 2x (HD UI) -- reproduce the engine's NATIVE 2x tier for the in-world HUD, the same
@@ -231,6 +218,7 @@
 		-- Each is AI-upscaled (Remacri) to 2x and de-doubled here by FULL 8-char resref (branches c8+).
 		-- The 255-frame stone fonts (STONEBIG/STONESM3) + STATES2 status icons stay 1x. See §11.
 		local btn_list = {
+			{0x52544D4D, 0x00424843}, -- MMTRCHB (main-menu torch animation; 2x asset -> de-double = crisp 2x)
 			{0x54554243, 0x00000000}, -- CBUT
 			{0x41454743, 0x00000052}, -- CGEAR
 			{0x4B494C43, 0x4E4F4332}, -- CLIK2CON

@@ -2246,3 +2246,10 @@ COMPILE ~%mod_folder%/dlg/USMULTIG.d~
 
 COPY ~iwd2.exe~ ~iwd2.exe~
 	REPLACE_TEXTUALLY CASE_INSENSITIVE ~An Assertion failed in %s at line number %d~ ~You must run IWD2EE.exe instead of IWD2.exe~
+	// Large Address Aware: set the PE COFF Characteristics LARGE_ADDRESS_AWARE bit (0x20) so the
+	// 32-bit engine can use the full address space. HD UI / OpenGL assets at 4K exceed the 2GB
+	// default ceiling. NOTE: a game-files verify/repair reverts iwd2.exe to vanilla and drops this,
+	// so it must be re-applied (re-run setup, or a per-launch script).
+	READ_LONG  0x3C e_lfanew
+	READ_SHORT (e_lfanew + 0x16) coff_chars
+	WRITE_SHORT (e_lfanew + 0x16) (coff_chars BOR 0x20)

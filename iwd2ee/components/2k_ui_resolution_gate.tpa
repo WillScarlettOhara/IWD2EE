@@ -1,49 +1,44 @@
 // =====================================================================================
-// 2K UI  -  the whole high-resolution interface (2x-authored, gated by resolution)
+// 2K UI  -  the whole high-resolution interface (2x-authored), install-time gated
 // =====================================================================================
 // Opt-in component, SEPARATE from the GUI-cosmetics component (DESIGNATED 37, gui.tpa).
 //
 // Installs ALL the 2x-authored HD UI art (item + spell/ability icons, buttons + action bar,
-// inventory chrome, fonts, stone panels/MOS, portraits, mouse cursors -- ~2360 files in
-// bam/bam_2k_ui + mos/mos_2k_ui) AND enables the matching de-double hooks (flips IEEX_HD_UI in the deployed
-// IEex_Gui_Patch.lua, which the core ships OFF). The de-double makes the 2x art render native =
-// crisp instead of NN-doubled to 4x. The HD assets + de-double are COUPLED: the core mod no
-// longer ships either by default, so a player WITHOUT this component gets the stock 1x UI
-// (correct at any resolution), and a player WITH it gets the crisp 2x UI.
+// inventory chrome, fonts, stone panels/MOS, portraits, mouse cursors, menu torch -- ~2200 files
+// in bam/bam_2k_ui + 171 MOS in mos/mos_2k_ui) PLUS the PRE-SCALED 2x CHU layout (chu_2.0x), and
+// turns the HD UI on by flipping IEEX_HD_UI in the deployed IEex lua. The core ships it OFF, so a
+// player WITHOUT this component gets the stock 1x UI (correct at any resolution).
 //
-// This is meant for the engine's 2x UI mode (the m_bUseNewGui doubling), which IEex enables only
-// at  resW >= 2048 AND resH >= 1200  (IEex_Gui_State.lua, IEex_Extern_InitHighResolutionPaddingPanels).
-// Below that the UI is 1x and 2x art renders at double size (too big). The player is WARNED of
-// this (component name + the check below); the component still installs (opt-in -- the player may
-// set a higher resolution later).
+// OPENGL APPROACH (this branch): the HD UI = PRE-SCALED 2x CHU + 2x assets, rendered on the GL
+// canvas at factor 2.0 (IEexHelper GetUICanvasScale / Export_UIScaleRenderBegin). This is NOT the
+// old software-renderer m_bUseNewGui doubling -- the CHU itself carries the 2x layout, so the 2x
+// CHU MUST be copied in. Because of that, HD UI CANNOT be a runtime ini toggle: a 2x CHU left in
+// override renders oversized/broken at canvas 1.0. It is purely an INSTALL choice (this component).
 //
-// Interaction with DESIGNATED 37 (gui.tpa): that component ships custom 1x GUI panel MOS
-// (mos/mos_new_gui = START, STARTN, GUICHP0B-6B). Under 2x those double = blocky, so if BOTH
-// components are installed we additionally drop in 2x-authored versions (mos/mos_2k_newgui) so
-// they stay crisp. (Its BAMs MMTRCHA/B are 1x1 placeholders -- nothing to upscale.)
+// RESOLUTION: chosen by the player AT LAUNCH (IEex asks each run), so nothing reliable to gate on
+// at install time -- purely OPT-IN. The 2x UI looks correct at ~1080p and above; at 720p it is
+// oversized -> 720p players should NOT install this (they keep the stock 1x UI).
 //
-// Resolution is read from icewind2.ini [Program Options] ("Last Resolution=WxH", fallback "Resolution=W").
+// DESIGNATED 37 (gui.tpa, "New GUI") interaction: it ships custom 1x GUI panel MOS
+// (mos/mos_new_gui = START, STARTN, GUICHP0B-6B). If BOTH are installed we drop in 2x-authored
+// versions (mos/mos_2k_newgui) so they stay crisp, AND we disable our menu torch (the New-GUI menu
+// art has no torch holder -> ours would float).
 // =====================================================================================
 
-// NOTE: the resolution is chosen by the player AT LAUNCH (IEex asks it each run), so there is
-// nothing reliable to gate on at install time -- this component is purely OPT-IN. The doubling it
-// turns on (m_bUseNewGui in IEex_Gui_State.lua) is itself runtime-gated to >= 2048x1200, so the
-// 2x UI only engages at high resolution; at lower launch resolutions the 2x art is oversized.
-// Install only if you play at 2048x1200 or higher (the component name warns of this).
-PRINT ~[2K UI] Installing the 2x high-resolution UI (the player chooses resolution at launch).~
-PRINT ~[2K UI] This looks correct at 2048x1200 and above; at lower resolutions the UI is oversized.~
+PRINT ~[2K UI] Installing the 2x high-resolution UI (pre-scaled CHU + 2x assets, GL canvas).~
+PRINT ~[2K UI] Correct at ~~1080p and above; at 720p the UI is oversized -- do not install at 720p.~
 
-// --- install ALL the 2x-authored HD UI assets (item + spell icons, buttons/action bar, fonts,
-//     stone panels, portraits, cursors). Kept in the mod's per-component asset dirs, like the
-//     other components: bam/bam_2k_ui = BAMs + portrait BMPs (~2200), mos/mos_2k_ui = MOS (171). ---
+// --- install the 2x art (BAM + portrait BMP + MOS) AND the pre-scaled 2x CHU layout into override ---
 COPY ~%mod_folder%/bam/bam_2k_ui~ ~override~
 COPY ~%mod_folder%/mos/mos_2k_ui~ ~override~
+COPY ~%mod_folder%/chu_2.0x~      ~override~
 
-// --- turn the 2K UI on: flip IEEX_HD_UI = true in the two deployed IEex lua files. The core ships
-//     both OFF, so a player WITHOUT this component gets the stock 1x UI (no doubling) at any res.
-//       IEex_Gui_State.lua : enables the engine's 2x doubling (m_bUseNewGui), runtime-gated >=2048x1200
-//       IEex_Gui_Patch.lua : enables the matching de-double hooks (so the 2x assets render native) ---
-ACTION_FOR_EACH luafile IN ~IEex_Gui_State.lua~ ~IEex_Gui_Patch.lua~ BEGIN
+// --- turn the 2K UI on: flip IEEX_HD_UI = true in the deployed IEex lua. The core ships it OFF, so
+//     a player WITHOUT this component gets the stock 1x UI at any res. The flag drives both the lua
+//     (border-panel placement) and -- via IEex_Helper_SetHDUI -- the helper's GL canvas factor.
+//       IEex_UIScale_Patch.lua : canvas factor + torch/cursor hooks
+//       IEex_Gui_State.lua     : HD border-panel placement ---
+ACTION_FOR_EACH luafile IN ~IEex_UIScale_Patch.lua~ ~IEex_Gui_State.lua~ BEGIN
   ACTION_IF FILE_EXISTS ~override/%luafile%~ BEGIN
     COPY_EXISTING ~override/%luafile%~ ~override~
       REPLACE_TEXTUALLY ~local IEEX_HD_UI = false~ ~local IEEX_HD_UI = true~
@@ -53,15 +48,18 @@ ACTION_FOR_EACH luafile IN ~IEex_Gui_State.lua~ ~IEex_Gui_Patch.lua~ BEGIN
   END
 END
 
-// --- if the GUI-cosmetics component (DESIGNATED 37) is also installed, 2x its custom MOS too
-//     (overwrites the HD-stock GUICHP*/START with the HD versions of 37's custom art) ---
+// --- if the "New GUI" component (DESIGNATED 37) is also installed: 2x its custom panel MOS, and
+//     disable our menu torch (its menu art has no torch holder) ---
 ACTION_IF MOD_IS_INSTALLED ~iwd2ee.tp2~ ~37~ BEGIN
   ACTION_IF FILE_EXISTS ~%mod_folder%/mos/mos_2k_newgui/START.MOS~ BEGIN
-    PRINT ~[2K UI] DESIGNATED 37 detected -- installing 2K versions of its GUI panel MOS.~
+    PRINT ~[2K UI] New GUI (DESIGNATED 37) detected -- installing 2K versions of its panel MOS + disabling the menu torch.~
     COPY ~%mod_folder%/mos/mos_2k_newgui~ ~override~
-    // (DESIGNATED 37's BAMs MMTRCHA/B are 1x1 placeholders -- nothing to upscale)
+    ACTION_IF FILE_EXISTS ~override/IEex_UIScale_Patch.lua~ BEGIN
+      COPY_EXISTING ~override/IEex_UIScale_Patch.lua~ ~override~
+        REPLACE_TEXTUALLY ~local IEEX_MENU_TORCH = true~ ~local IEEX_MENU_TORCH = false~
+      BUT_ONLY_IF_IT_CHANGES
+    END
   END ELSE BEGIN
-    WARN ~[2K UI] DESIGNATED 37 is installed but the 2K MOS set (mos/mos_2k_newgui) has not been
-          generated yet -- its panels (START/GUICHP*/MMTRCH*) will stay 1x. (asset-gen pending)~
+    WARN ~[2K UI] DESIGNATED 37 is installed but mos/mos_2k_newgui is missing -- its panels stay 1x.~
   END
 END

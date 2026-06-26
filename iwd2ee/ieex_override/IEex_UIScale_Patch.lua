@@ -1,6 +1,20 @@
 
 (function()
 
+	-- HD UI master gate. INSTALL-time decision, NOT a player ini: the WeiDU "2K UI" component
+	-- (2k_ui_resolution_gate.tpa) COPIES the 2x assets + pre-scaled CHU into override AND flips this
+	-- flag false->true. The core ships it OFF (stock 1x UI, correct at any res). Push it to the helper
+	-- so GetUICanvasScale (the GL canvas factor) tracks the install, not a togglable key. A runtime
+	-- toggle can't work: a 2x CHU left in override renders oversized/broken when the canvas is 1x.
+	local IEEX_HD_UI = false
+	IEex_Helper_SetHDUI(IEEX_HD_UI and 1 or 0)
+
+	-- Menu torch gate (install-time). The default menu art has the torch holder -> ON by default. The
+	-- New-GUI component (DESIGNATED 37) has no torch in its menu art, so it flips this false. The torch
+	-- only renders at HD-on anyway (GetUICanvasScale>1), so at <1200p / no-2K it stays off regardless.
+	local IEEX_MENU_TORCH = true
+	IEex_Helper_SetMenuTorch(IEEX_MENU_TORCH and 1 or 0)
+
 	IEex_DisableCodeProtection()
 
 	--------------------------------------------------------------------------------
@@ -100,7 +114,7 @@
 	--   0x5FB0AF  BF 6A 00 00 00   mov edi,106 (pt.x) -> imm@0x5FB0B0 = 382  (0x17E)
 	--   0x5FB0B4  BE 7F 01 00 00   mov esi,383 (pt.y) -> imm@0x5FB0B5 = 1379 (0x563)
 	--------------------------------------------------------------------------------
-	local canvas = (IEex_GetPrivateProfileInt("IEex Options", "HD UI", 0, ".\\Icewind2.ini") ~= 0) and 2.0 or 1.0
+	local canvas = IEEX_HD_UI and 2.0 or 1.0
 	IEex_DisableCodeProtection()
 	if canvas > 1.0 then
 		local f = canvas   -- HD UI = the shipped 2x tier (factor 2.0)

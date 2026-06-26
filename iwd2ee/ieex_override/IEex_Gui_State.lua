@@ -1,4 +1,8 @@
 
+-- HD UI master gate (install-time, flipped false->true by the WeiDU 2K UI component). See the same
+-- flag in IEex_UIScale_Patch.lua. Core ships OFF = stock 1x UI.
+local IEEX_HD_UI = false
+
 -----------------------
 -- General Functions --
 -----------------------
@@ -1339,6 +1343,34 @@ function IEex_MoveHighResolutionPaddingPanels()
 	local bottomW, bottomH = getMosWidthHeight("STON10B")
 
 	local resW, resH = IEex_GetResolution()
+	local canvas = IEEX_HD_UI and 2.0 or 1.0
+
+	-- panel x/y are signed 16-bit; the border can sit at a NEGATIVE logical coord (off the UI,
+	-- into the letterbox void) or be taller than the UI (cropped top/bottom).
+	local sw16 = function(v) v = math.floor(v + 0.5); if v < 0 then v = v + 0x10000 end; return v end
+
+	if canvas > 1 then
+		-- HD UI canvas: the border panels render THROUGH the canvas MODELVIEW transform, which maps
+		-- a logical X -> fitX + scale*(X - baseLeft), where baseLeft = (SW - 800*mult)/2 is the
+		-- engine's ShiftPanels origin (mult=1 under the canvas). So position the borders in LOGICAL
+		-- coords RELATIVE TO that origin, just outside the content (800x600 * canvas); the transform
+		-- then frames the centered UI with them (cropped where the art overflows). Omitting baseLeft
+		-- anchored them at logical 0 = the screen top-left (the bug).
+		local baseW = 800 * canvas
+		local baseH = 600 * canvas
+		local baseLeft = (resW - 800) / 2
+		local baseTop  = (resH - 600) / 2
+		IEex_WriteWord(panelLeft_st + 0x4, sw16(baseLeft - leftW));            IEex_WriteWord(panelLeft_st + 0x6, sw16(baseTop + (baseH - leftH) / 2))
+		IEex_WriteWord(panelLeft_st + 0x8, leftW);                            IEex_WriteWord(panelLeft_st + 0xA, leftH)
+		IEex_WriteWord(panelRight_st + 0x4, sw16(baseLeft + baseW));           IEex_WriteWord(panelRight_st + 0x6, sw16(baseTop + (baseH - rightH) / 2))
+		IEex_WriteWord(panelRight_st + 0x8, rightW);                          IEex_WriteWord(panelRight_st + 0xA, rightH)
+		IEex_WriteWord(panelTop_st + 0x4, sw16(baseLeft + (baseW - topW) / 2)); IEex_WriteWord(panelTop_st + 0x6, sw16(baseTop - topH))
+		IEex_WriteWord(panelTop_st + 0x8, topW);                              IEex_WriteWord(panelTop_st + 0xA, topH)
+		IEex_WriteWord(panelBottom_st + 0x4, sw16(baseLeft + (baseW - bottomW) / 2)); IEex_WriteWord(panelBottom_st + 0x6, sw16(baseTop + baseH))
+		IEex_WriteWord(panelBottom_st + 0x8, bottomW);                        IEex_WriteWord(panelBottom_st + 0xA, bottomH)
+		return
+	end
+
 	local baseResolutionW = 800
 	local baseResolutionH = 600
 
@@ -1537,8 +1569,7 @@ function IEex_Extern_InitHighResolutionPaddingPanels(pBaldurChitin)
 
 	local resW, resH = IEex_GetResolution()
 
-	-- If the selected resolution can't display the
-	-- high-resolution padding panels, remove them.
+	-- If the selected resolution can't display the high-resolution padding panels, remove them.
 	if resW < 1024 or resH < 768 then
 
 		IEex_DisableCodeProtection()

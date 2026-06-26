@@ -156,6 +156,69 @@
 	]]})
 	IEex_EnableCodeProtection()
 
+	--------------------------------------------------------------------------------
+	-- WORLD HUD 2x (HD UI) -- reproduce the engine's NATIVE 2x tier for the in-world HUD, the same
+	-- mechanism the game ships at the 1600/2048 resolution tiers. The menus scale via a pre-scaled
+	-- CHU; the world HUD CANNOT (it positions its panels itself, AND the message log [CInfinity] +
+	-- action bar [CInfButtonArray] scale off g_pBaldurChitin->field_4A2C, NOT the CHU). So flip
+	-- field_4A2C=1 for the WORLD engine: the engine then doubles the HUD panel positions/sizes
+	-- (CUIPanel ctor), the message screen and the action bar ALL together = one consistent 2x HUD,
+	-- using the engine's OWN hit-test (so the mouse-wheel viewport/log gate + clicks stay correct --
+	-- we do NOT touch them). field_4A2C is read ONLY by world-HUD code; the menus key off a DIFFERENT
+	-- flag (m_bUseNewGui), so they are completely untouched.
+	--
+	-- field_4A2C=1 also makes CResCell pixel-DOUBLE every asset (GetFrameData: nearest 2x2). With our
+	-- 2x-authored art that is 4x + blocky. So DE-DOUBLE: force bDoubleSize=FALSE in the three CResCell
+	-- accessors -> the 2x asset draws at its native size (crisp 2x) while the panel/control GEOMETRY
+	-- stays doubled. Net: crisp 2x HUD, same spirit as the menus (2x art at native pixels). The
+	-- de-double is global but only bites when something renders bDoubleSize=TRUE, and at our
+	-- resolution the ONLY such consumer is this world HUD.
+	--
+	-- Gated on IEEX_HD_UI: without the 2x assets this would put 1x art in 2x slots, so it stays off
+	-- when HD is off (the world HUD then renders stock 1x, correct at any resolution). This SUPERSEDES
+	-- the Stage-2 world render-scale (now identity in the helper) -- the engine does the 2x natively.
+	--   field_4A2C @ [ [0x8CF6DC] + 0x4A2C ]  (g_pBaldurChitin)
+	--   CScreenWorld::EngineGameInit 0x686DE0 : SEH prologue, 7 displaced (6A FF / 68 B6 24 83 00)
+	--   CResCell::GetFrame      0x77F520 : bDoubleSize @[esp+0x0C], 7 displaced
+	--   CResCell::GetCompressed 0x77F5C0 : bDoubleSize @[esp+0x08], 6 displaced (stop before the jne)
+	--   CResCell::GetFrameData  0x77F5F0 : bDoubleSize @[esp+0x08], 7 displaced
+	--------------------------------------------------------------------------------
+	if IEEX_HD_UI then
+		IEex_DisableCodeProtection()
+		-- set g_pBaldurChitin->field_4A2C = 1 at world-engine init (before fInit reads it)
+		IEex_HookRestore(0x686DE0, 0, 7, {[[
+			50
+			A1 DC F6 8C 00
+			C7 80 2C 4A 00 00 01 00 00 00
+			58
+		]]})
+		-- de-double the BAM/cell path (CResCell): force bDoubleSize=FALSE so 2x assets render at native
+		-- size (crisp) while geometry stays 2x. Covers buttons, action-bar icons, portraits, fonts.
+		IEex_HookRestore(0x77F520, 0, 7, {[[ C7 44 24 0C 00 00 00 00 ]]})   -- GetFrame      [esp+0x0C]=0
+		IEex_HookRestore(0x77F5C0, 0, 6, {[[ C7 44 24 08 00 00 00 00 ]]})   -- GetCompressed [esp+0x08]=0
+		IEex_HookRestore(0x77F5F0, 0, 7, {[[ C7 44 24 08 00 00 00 00 ]]})   -- GetFrameData  [esp+0x08]=0
+		-- de-double the MOS path (CResMosaic) too -- panel BACKGROUNDS (GCOMM, stone chrome) render via
+		-- CVidMosaic->CResMosaic, a SEPARATE class CResCell de-double misses, so GCOMM stayed 4x. These
+		-- accessors are tiny `if(bDoubleSize) return 2*x; return x;`. Neuter the bDoubleSize test in place
+		-- so each returns the NATIVE dimension/tile -> the 2x MOS draws at native size (crisp 2x), matching
+		-- the doubled geometry. (mov eax,[esp+4] -> xor eax,eax makes the `je` take the native branch.)
+		IEex_WriteAssembly(0x780310, {[[ 31 C0 90 90 ]]})   -- CResMosaic::GetMosaicWidth
+		IEex_WriteAssembly(0x780340, {[[ 31 C0 90 90 ]]})   -- CResMosaic::GetMosaicHeight
+		IEex_WriteAssembly(0x780370, {[[ 31 C0 90 90 ]]})   -- CResMosaic::GetTileSize
+		IEex_WriteAssembly(0x7803D5, {[[ 90 90 ]]})         -- CResMosaic::GetTileData : jne(double) -> nop -> native
+		-- de-double the BMP path (CResBitmap) -- party PORTRAITS are CVidBitmap, a 3rd resource class the
+		-- cell/MOS de-doubles miss, so the 2x portrait BMP was pixel-doubled to 4x (too big). Force the GL
+		-- accessors to native so the 2x BMP draws crisp at native size.
+		IEex_HookRestore(0x77ECF0, 0, 7, {[[ C7 44 24 04 00 00 00 00 ]]})   -- GetImageData       [esp+0x04]=0
+		IEex_HookRestore(0x77EF70, 0, 5, {[[ C7 44 24 08 00 00 00 00 ]]})   -- GetImageDimensions [esp+0x08]=0
+		-- portrait GEOMETRY: CGameSprite::RenderPortrait sizes the image rect + HP bar by nScale=(bDoubleSize
+		-- ?2:1). The menus pass bDoubleSize=FALSE (nScale=1) -> 1x portrait + tiny HP bar in a 2x slot
+		-- (cropped/small). Force bDoubleSize=TRUE -> nScale=2 everywhere: 2x image rect (filled by the now-
+		-- native 2x BMP) + 2x HP bar. Works in BOTH the world HUD and the pre-scaled-CHU menus (2x slots).
+		IEex_HookRestore(0x704D40, 0, 7, {[[ C7 44 24 1C 01 00 00 00 ]]})   -- RenderPortrait bDoubleSize@[esp+0x1C]=1
+		IEex_EnableCodeProtection()
+	end
+
 	-- TEMP TEST (remove after torch testing): force the NIGHT menu (STARTN + torch) regardless of
 	-- the system clock. CScreenConnection::UpdateMainPanel @0x5FEE50 picks day (START) for hour
 	-- 7..17 via `jle 0x5FEF2E` @0x5FEEBF (the else branch sets STARTN + m_bIsNight=TRUE). Flip the

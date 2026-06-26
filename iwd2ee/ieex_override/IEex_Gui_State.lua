@@ -1,5 +1,5 @@
 
--- HD UI master gate (install-time, flipped false->true by the WeiDU 2K UI component). See the same
+-- HD UI master gate (install-time, flipped false->true by the WeiDU 2x UI component). See the same
 -- flag in IEex_UIScale_Patch.lua. Core ships OFF = stock 1x UI.
 local IEEX_HD_UI = false
 
@@ -364,7 +364,7 @@ function IEex_SetControlHotkeyHintIndex(CUIControl, hotkeyIndex)
 end
 
 function IEex_SetControlXY(CUIControl, x, y)
-	-- HD UI (2K): every caller passes 1x-authored coords -- these nudge VANILLA controls aside to make
+	-- HD UI (2x): every caller passes 1x-authored coords -- these nudge VANILLA controls aside to make
 	-- room for IEex additions (e.g. moving the "Return"/"Level Up" buttons). SetControlXY writes m_ptOrigin
 	-- DIRECTLY, bypassing the ctor doubling, so the coord must always be in the 2x layout space -- and the
 	-- layout is 2x EITHER via a pre-scaled CHU (most menus) OR engine doubling (the inventory-class screens
@@ -1587,14 +1587,14 @@ function IEex_Extern_InitHighResolutionPaddingPanels(pBaldurChitin)
 
 	local resW, resH = IEex_GetResolution()
 
-	-- HD UI (2K) -- enable the engine's NATIVE 2x tier GLOBALLY so the WHOLE UI (menus, world HUD,
+	-- HD UI (2x) -- enable the engine's NATIVE 2x tier GLOBALLY so the WHOLE UI (menus, world HUD,
 	-- inventory content, borders, centring) doubles consistently. m_bUseNewGui @+0x4A28 (BOOLEAN) +
 	-- field_4A2C @+0x4A2C (= GetDoubleSize()) both gate CUIManager::fInit(...,bDoubleSize) -> the engine
 	-- renders all UI geometry + art x2. The engine sets these only at width 1600/2048; IEex's resolution
 	-- path bypasses that, so set them here (the CBaldurChitin ctor stage -- use pBaldurChitin, NOT
 	-- [0x8CF6DC] which isn't assigned yet). Only at >=2048x1200 (below that the centred record screen
 	-- clips). UIMult() reads 0x4A28, so the GL render-scale auto-fits the 2x UI to the screen (+ Stretch);
-	-- the selective de-double keeps the 2x art crisp. Gated on IEEX_HD_UI (the 2K UI WeiDU component flips
+	-- the selective de-double keeps the 2x art crisp. Gated on IEEX_HD_UI (the 2x UI WeiDU component flips
 	-- it true; core ships 1x). This is the canonical 2x mechanism -- supersedes the pre-scaled-CHU hybrid.
 	if IEEX_HD_UI and resW >= 2048 and resH >= 1200 then
 		IEex_WriteByte(pBaldurChitin + 0x4A28, 1)   -- m_bUseNewGui -> fInit bDoubleSize
@@ -1973,7 +1973,7 @@ end
 
 function IEex_AddControlToPanel(CUIPanel, args)
 
-	-- HD UI (2K): the control ctor (CUIControlBase, 0x4D47D0+) doubles x/y/w/h ONLY when the panel's
+	-- HD UI (2x): the control ctor (CUIControlBase, 0x4D47D0+) doubles x/y/w/h ONLY when the panel's
 	-- manager is in double-size mode. That is TRUE for the in-world HUD (engine field_4A2C 2x tier) but
 	-- FALSE for the menus, which scale via a PRE-SCALED CHU instead. So in a menu our 1x-authored control
 	-- coords would land at 1x inside the 2x layout (tiny / mis-placed custom controls). Pre-scale them x2
@@ -2146,7 +2146,7 @@ end
 
 function IEex_AddPanelToEngine(CBaldurEngine, args)
 
-	-- HD UI (2K): same as IEex_AddControlToPanel -- the CUIPanel ctor (0x4D2750) doubles x/y/w/h only when
+	-- HD UI (2x): same as IEex_AddControlToPanel -- the CUIPanel ctor (0x4D2750) doubles x/y/w/h only when
 	-- the engine's manager is double-size (in-world HUD, field_4A2C). Menus use a pre-scaled CHU (manager
 	-- NOT double-size), so pre-scale our 1x panel args x2 there to match the 2x layout. World -> skip.
 	if IEEX_HD_UI then
@@ -3095,7 +3095,7 @@ function IEex_InstallQuickloot()
 	local panel1Memory = IEex_GetPanelFromEngine(worldScreen, 1)
 	local panel8Memory = IEex_GetPanelFromEngine(worldScreen, 8)
 
-	-- HD UI (2K): every coord here is copied from LIVE engine panels/controls (panel 1 = action bar,
+	-- HD UI (2x): every coord here is copied from LIVE engine panels/controls (panel 1 = action bar,
 	-- panel 8), which field_4A2C already returns at 2x. But this quickloot panel is added to the WORLD
 	-- engine (double-size manager), so the CUIPanel/control ctors DOUBLE these coords AGAIN -> 4x. Pre-
 	-- divide the engine-derived coords by the ctor's doubling factor so it lands them back at the true 2x

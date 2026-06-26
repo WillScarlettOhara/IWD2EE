@@ -1,8 +1,8 @@
 
 (function()
 
-	-- HD UI master gate. INSTALL-time decision, NOT a player ini: the WeiDU "2K UI" component
-	-- (2k_ui_resolution_gate.tpa) COPIES the 2x assets + pre-scaled CHU into override AND flips this
+	-- HD UI master gate. INSTALL-time decision, NOT a player ini: the WeiDU "2x UI" component
+	-- (2x_ui_resolution_gate.tpa) COPIES the 2x assets + pre-scaled CHU into override AND flips this
 	-- flag false->true. The core ships it OFF (stock 1x UI, correct at any res). Push it to the helper
 	-- so GetUICanvasScale (the GL canvas factor) tracks the install, not a togglable key. A runtime
 	-- toggle can't work: a 2x CHU left in override renders oversized/broken when the canvas is 1x.
@@ -11,7 +11,7 @@
 
 	-- Menu torch gate (install-time). The default menu art has the torch holder -> ON by default. The
 	-- New-GUI component (DESIGNATED 37) has no torch in its menu art, so it flips this false. The torch
-	-- only renders at HD-on anyway (GetUICanvasScale>1), so at <1200p / no-2K it stays off regardless.
+	-- only renders at HD-on anyway (GetUICanvasScale>1), so at <1200p / no-2x it stays off regardless.
 	local IEEX_MENU_TORCH = true
 	IEex_Helper_SetMenuTorch(IEEX_MENU_TORCH and 1 or 0)
 
@@ -177,7 +177,7 @@
 		-- the fInit@0x4D3B80 force for the inventory-class screens -- are REMOVED (redundant + conflicting
 		-- with the global tier). UIMult() now reads 0x4A28=1 -> the render-scale auto-fits the 2x UI.
 		-- =====================================================================================
-		-- SELECTIVE 2K UI de-double (ported from feature/ui-2x-scaling). Replaces the earlier GLOBAL
+		-- SELECTIVE 2x UI de-double (ported from feature/ui-2x-scaling). Replaces the earlier GLOBAL
 		-- de-double, which forced bDoubleSize=FALSE on EVERY asset and so cancelled the engine's
 		-- doubling for VANILLA 1x art (action-bar item/spell icons rendered 1x = absent). This is
 		-- resref/dimension-gated: ONLY the HD-authored set (fonts, ~90 UI BAMs incl. FORM*/GUIHITPT,
@@ -360,7 +360,7 @@
 
 		-- === HD portrait status icons (STATES): force the portrait cell to NOT engine-double ===
 		-- The buff/status icons on portraits are CGameSprite.m_portraitIconVidCell (resref "STATES"), AI-upscaled
-		-- to 2x (Nomos8kDAT). The cell is built with bDoubleSize = m_bUseNewGui, so at 2K UI it doubled our 2x BAM
+		-- to 2x (Nomos8kDAT). The cell is built with bDoubleSize = m_bUseNewGui, so at 2x UI it doubled our 2x BAM
 		-- -> 4x (icons 2x too big). De-doubling via the CResCell/CResCellHeader GetFrame hooks is unsafe here:
 		-- CGameSprite INLINES the cell ctor (SetResRef 0x58FC70 is never called) and draws via an inlined
 		-- GetResFrame -> the header doubler 0x77FDA0; hooking 0x77FDA0 corrupted other header-cached UI. Instead
@@ -598,7 +598,7 @@
 			.. "!mov(eax,[ecx+0x64]) !mov(eax,[eax+0x8]) !cmp_eax_dword #00000054 !jz_dword >hit "        -- biHeight==84 -> HD _S
 			.. "@c42 !mov(eax,[ecx+0x10]) !test_eax_eax !jne_dword >skip "                          -- m_pDimmKeyTableEntry != NULL: a NAMED 42x42 resource = an in-game/custom _S portrait (stock small portraits are 42x42 too). Leave it doubled. ONLY the save-screen copy de-doubles -- it is loaded by CDimm::ServiceFromFile (CResRef(""), no key-table entry -> +0x10 == NULL), so this guard separates it from real portraits sharing the size.
 			.. "!mov(eax,[ecx+0x64]) !mov(eax,[eax+0x4]) !cmp_eax_dword #0000002A !jne_dword >skip " -- biWidth==42?
-			.. "!mov(eax,[ecx+0x64]) !mov(eax,[eax+0x8]) !cmp_eax_dword #0000002A !jne_dword >skip "       -- biHeight==42 -> the 2x portrait copy a 2K-UI save writes into MPSave/<slot>/PORTRTn.BMP. De-double so the Load/Save list shows it native (not 4x/garbled). Display-only: the saved BMP is untouched, so the save stays vanilla-compatible. Old 1x (21x21) saves don't match here -> still doubled -> still correct.
+			.. "!mov(eax,[ecx+0x64]) !mov(eax,[eax+0x8]) !cmp_eax_dword #0000002A !jne_dword >skip "       -- biHeight==42 -> the 2x portrait copy a 2x-UI save writes into MPSave/<slot>/PORTRTn.BMP. De-double so the Load/Save list shows it native (not 4x/garbled). Display-only: the saved BMP is untouched, so the save stays vanilla-compatible. Old 1x (21x21) saves don't match here -> still doubled -> still correct.
 			.. "@hit "
 		IEex_AttemptHook(0x77ECF0,  -- CResBitmap::GetImageData; bDoubleSize @[esp+4] (->+8 after push eax)
 			{bmp_match .. "!mov([esp+8],0) @skip !pop(eax)"},

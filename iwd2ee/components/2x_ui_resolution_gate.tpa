@@ -1,11 +1,11 @@
 // =====================================================================================
-// 2K UI  -  the whole high-resolution interface (2x-authored), install-time gated
+// 2x UI  -  the whole high-resolution interface (2x-authored), install-time gated
 // =====================================================================================
 // Opt-in component, SEPARATE from the GUI-cosmetics component (DESIGNATED 37, gui.tpa).
 //
 // Installs ALL the 2x-authored HD UI art (item + spell/ability icons, buttons + action bar,
 // inventory chrome, fonts, stone panels/MOS, portraits, mouse cursors, menu torch -- ~2200 files
-// in bam/bam_2k_ui + 171 MOS in mos/mos_2k_ui) PLUS the PRE-SCALED 2x CHU layout (chu_2.0x), and
+// in bam/bam_2x_ui + 171 MOS in mos/mos_2x_ui) PLUS the PRE-SCALED 2x CHU layout (chu_2.0x), and
 // turns the HD UI on by flipping IEEX_HD_UI in the deployed IEex lua. The core ships it OFF, so a
 // player WITHOUT this component gets the stock 1x UI (correct at any resolution).
 //
@@ -21,21 +21,21 @@
 //
 // DESIGNATED 37 (gui.tpa, "New GUI") interaction: it ships custom 1x GUI panel MOS
 // (mos/mos_new_gui = START, STARTN, GUICHP0B-6B). If BOTH are installed we drop in 2x-authored
-// versions (mos/mos_2k_newgui) so they stay crisp, AND we disable our menu torch (the New-GUI menu
+// versions (mos/mos_2x_newgui) so they stay crisp, AND we disable our menu torch (the New-GUI menu
 // art has no torch holder -> ours would float).
 // =====================================================================================
 
-PRINT ~[2K UI] Installing the 2x high-resolution UI (engine-native 2x tier + 2x assets, GL canvas).~
-PRINT ~[2K UI] Correct at ~~2048x1200 and above; below that the engine keeps the stock 1x UI.~
+PRINT ~[2x UI] Installing the 2x high-resolution UI (engine-native 2x tier + 2x assets, GL canvas).~
+PRINT ~[2x UI] Correct at ~~2048x1200 and above; below that the engine keeps the stock 1x UI.~
 
 // --- install the 2x art (BAM + portrait BMP + MOS) into override. NO pre-scaled CHU: the 2x layout
 //     now comes from the engine's NATIVE 2x tier (m_bUseNewGui+field_4A2C set by
 //     IEex_Extern_InitHighResolutionPaddingPanels when IEEX_HD_UI + res>=2048x1200), which doubles the
 //     stock CHU. The selective de-double (IEex_UIScale_Patch.lua) keeps the 2x art crisp. ---
-COPY ~%mod_folder%/bam/bam_2k_ui~ ~override~
-COPY ~%mod_folder%/mos/mos_2k_ui~ ~override~
+COPY ~%mod_folder%/bam/bam_2x_ui~ ~override~
+COPY ~%mod_folder%/mos/mos_2x_ui~ ~override~
 
-// --- turn the 2K UI on: flip IEEX_HD_UI = true in the deployed IEex lua. The core ships it OFF, so
+// --- turn the 2x UI on: flip IEEX_HD_UI = true in the deployed IEex lua. The core ships it OFF, so
 //     a player WITHOUT this component gets the stock 1x UI at any res. The flag drives both the lua
 //     (border-panel placement) and -- via IEex_Helper_SetHDUI -- the helper's GL canvas factor.
 //       IEex_UIScale_Patch.lua : canvas factor + torch/cursor hooks
@@ -46,22 +46,22 @@ ACTION_FOR_EACH luafile IN ~IEex_UIScale_Patch.lua~ ~IEex_Gui_State.lua~ BEGIN
       REPLACE_TEXTUALLY ~local IEEX_HD_UI = false~ ~local IEEX_HD_UI = true~
     BUT_ONLY_IF_IT_CHANGES
   END ELSE BEGIN
-    WARN ~[2K UI] override/%luafile% not found (install the IWD2EE core first) -- 2K UI NOT fully enabled.~
+    WARN ~[2x UI] override/%luafile% not found (install the IWD2EE core first) -- 2x UI NOT fully enabled.~
   END
 END
 
 // --- if the "New GUI" component (DESIGNATED 37) is also installed: 2x its custom panel MOS, and
 //     disable our menu torch (its menu art has no torch holder) ---
 ACTION_IF MOD_IS_INSTALLED ~iwd2ee.tp2~ ~37~ BEGIN
-  ACTION_IF FILE_EXISTS ~%mod_folder%/mos/mos_2k_newgui/START.MOS~ BEGIN
-    PRINT ~[2K UI] New GUI (DESIGNATED 37) detected -- installing 2K versions of its panel MOS + disabling the menu torch.~
-    COPY ~%mod_folder%/mos/mos_2k_newgui~ ~override~
+  ACTION_IF FILE_EXISTS ~%mod_folder%/mos/mos_2x_newgui/START.MOS~ BEGIN
+    PRINT ~[2x UI] New GUI (DESIGNATED 37) detected -- installing 2K versions of its panel MOS + disabling the menu torch.~
+    COPY ~%mod_folder%/mos/mos_2x_newgui~ ~override~
     ACTION_IF FILE_EXISTS ~override/IEex_UIScale_Patch.lua~ BEGIN
       COPY_EXISTING ~override/IEex_UIScale_Patch.lua~ ~override~
         REPLACE_TEXTUALLY ~local IEEX_MENU_TORCH = true~ ~local IEEX_MENU_TORCH = false~
       BUT_ONLY_IF_IT_CHANGES
     END
   END ELSE BEGIN
-    WARN ~[2K UI] DESIGNATED 37 is installed but mos/mos_2k_newgui is missing -- its panels stay 1x.~
+    WARN ~[2x UI] DESIGNATED 37 is installed but mos/mos_2x_newgui is missing -- its panels stay 1x.~
   END
 END

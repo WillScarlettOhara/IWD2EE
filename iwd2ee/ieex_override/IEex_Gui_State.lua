@@ -3918,35 +3918,50 @@ function IEex_OnCHUInitialized(chuResref)
 				local firstValueControlOfColumn = IEex_GetControlFromPanel(panel0, curValueControlId)
 				local firstValueControlOfColumnX, firstValueControlOfColumnY, firstValueControlOfColumnW = IEex_GetControlArea(firstValueControlOfColumn)
 
-				-- Install left divider for column
+				-- Divider placement under HD UI (2x): this menu's UI manager is in double-size mode
+				-- (mgrDbl == 1), so the control ctor inside IEex_AddControlToPanel DOUBLES x/y/w/h.
+				-- The coords we read via IEex_GetControlArea are already in that final 2x space, so
+				-- passing one straight back stores it at 2x the intended spot -- the divider lands a
+				-- whole column to the right and slices the names there (that was the "cut text" bug,
+				-- NOT name overflow -- the names fit). So: let the ctor double width/height (the 5x399
+				-- bars fill the resulting 10x798 rect and span the full list), then overwrite x/y with
+				-- IEex_SetControlArea, which writes m_ptOrigin DIRECTLY (no doubling) -- placing each
+				-- divider exactly where the stock layout wants it (left bar between name and key, right
+				-- bar just past the key), matching the stock keyboard screen.
+
+				-- Install left divider for column (between the name and key)
 				local lDividerId = 6 + columnI * 2
 				IEex_AddControlOverride("GUIKEYS", 0, lDividerId, "IEex_UI_Button")
 				IEex_AddControlToPanel(panel0, {
 					["type"] = IEex_ControlStructType.BUTTON,
 					["id"] = lDividerId,
-					["x"] = firstValueControlOfColumnX - IEex_Hotkeys_ValueControlExpansion - 5,
-					["y"] = firstValueControlOfColumnY - 1,
+					["x"] = 0,
+					["y"] = 0,
 					["width"] = 5,
 					["height"] = 399,
 					["bam"] = "B3LDVIDR",
 					["sequence"] = columnI % 3,
 					["playLButtonDownSound"] = false,
 				})
+				IEex_SetControlArea(IEex_GetControlFromPanel(panel0, lDividerId),
+					firstValueControlOfColumnX - IEex_Hotkeys_ValueControlExpansion - 5, firstValueControlOfColumnY - 1)
 
-				-- Install right divider for column
+				-- Install right divider for column (just past the key)
 				local rDividerId = 7 + columnI * 2
 				IEex_AddControlOverride("GUIKEYS", 0, rDividerId, "IEex_UI_Button")
 				IEex_AddControlToPanel(panel0, {
 					["type"] = IEex_ControlStructType.BUTTON,
 					["id"] = rDividerId,
-					["x"] = firstValueControlOfColumnX + firstValueControlOfColumnW,
-					["y"] = firstValueControlOfColumnY - 1,
+					["x"] = 0,
+					["y"] = 0,
 					["width"] = 5,
 					["height"] = 399,
 					["bam"] = "B3RDVIDR",
 					["sequence"] = columnI % 2,
 					["playLButtonDownSound"] = false,
 				})
+				IEex_SetControlArea(IEex_GetControlFromPanel(panel0, rDividerId),
+					firstValueControlOfColumnX + firstValueControlOfColumnW, firstValueControlOfColumnY - 1)
 
 				-- Increase keybind mapping widths (taken from name labels)
 				for i = 1, 20 do

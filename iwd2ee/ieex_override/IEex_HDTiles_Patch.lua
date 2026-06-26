@@ -33,4 +33,13 @@
 		F6 40 70 02 !jmp_dword :5D2A36
 	]]}, {0x8D, 0x59, 0x09, 0xF6, 0x40})
 
+	-- Pool SIZE bump (the other half): CVidInf::CreateSurfaces3d @0x7BE023 hardcodes
+	--   mov [esi+0x67c], 780   (m_nVRamSurfaces = the tile-texture cache slot count)
+	-- 780 overflows above ~1440p (1440p ~984-1476 visible tiles, 4K ~2135 + scroll/anim
+	-- churn), and overflow tiles take the per-frame glTexImage2D re-upload path -> heavy
+	-- world lag scaling with resolution. Raise the imm32 (VA 0x7BE029) to 4096 -> covers
+	-- 4K with headroom. In-memory (survives verify+repair). Safe with the tile-id base
+	-- relocation above (ids 8192..8192+pool stay clear of dynamic font/UI texture ids).
+	IEex_WriteDword(0x7BE029, 4096)
+
 end)()

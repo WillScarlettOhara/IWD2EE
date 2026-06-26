@@ -365,19 +365,15 @@ end
 
 function IEex_SetControlXY(CUIControl, x, y)
 	-- HD UI (2K): every caller passes 1x-authored coords -- these nudge VANILLA controls aside to make
-	-- room for IEex additions (e.g. moving the "Return"/"Level Up" buttons). On a menu (manager NOT
-	-- double-size; the 2x comes from a pre-scaled CHU) those 1x coords land the control at 1x = top-left
-	-- of the 2x layout. Pre-scale x2 when the owning panel's manager is not double-size. World controls
-	-- use double-size managers (and engine-derived coords), so they are skipped.
+	-- room for IEex additions (e.g. moving the "Return"/"Level Up" buttons). SetControlXY writes m_ptOrigin
+	-- DIRECTLY, bypassing the ctor doubling, so the coord must always be in the 2x layout space -- and the
+	-- layout is 2x EITHER via a pre-scaled CHU (most menus) OR engine doubling (the inventory-class screens
+	-- GUIINV/GUIREC/GUISTORE/GUICG, forced bDoubleSize=TRUE). So always scale x2 when HD, regardless of the
+	-- manager's double-size flag. (All callers pass 1x hardcoded coords -- 655/361, 612/338, 0/0 -- so this
+	-- never double-scales an already-2x value.)
 	if IEEX_HD_UI then
-		local panel = IEex_GetControlPanel(CUIControl)
-		if panel and panel ~= 0 then
-			local mgr = IEex_GetUIManagerFromPanel(panel)
-			if mgr and mgr ~= 0 and IEex_ReadDword(mgr + 0xAA) == 0 then
-				if x then x = x * 2 end
-				if y then y = y * 2 end
-			end
-		end
+		if x then x = x * 2 end
+		if y then y = y * 2 end
 	end
 	if x then IEex_WriteDword(CUIControl + 0xE, x) end
 	if y then IEex_WriteDword(CUIControl + 0x12, y) end
@@ -1584,8 +1580,24 @@ function IEex_Extern_InitHighResolutionPaddingPanels(pBaldurChitin)
 
 	local resW, resH = IEex_GetResolution()
 
-	-- If the selected resolution can't display the high-resolution padding panels, remove them.
-	if resW < 1024 or resH < 768 then
+	-- HD UI (2K) -- enable the engine's NATIVE 2x tier GLOBALLY so the WHOLE UI (menus, world HUD,
+	-- inventory content, borders, centring) doubles consistently. m_bUseNewGui @+0x4A28 (BOOLEAN) +
+	-- field_4A2C @+0x4A2C (= GetDoubleSize()) both gate CUIManager::fInit(...,bDoubleSize) -> the engine
+	-- renders all UI geometry + art x2. The engine sets these only at width 1600/2048; IEex's resolution
+	-- path bypasses that, so set them here (the CBaldurChitin ctor stage -- use pBaldurChitin, NOT
+	-- [0x8CF6DC] which isn't assigned yet). Only at >=2048x1200 (below that the centred record screen
+	-- clips). UIMult() reads 0x4A28, so the GL render-scale auto-fits the 2x UI to the screen (+ Stretch);
+	-- the selective de-double keeps the 2x art crisp. Gated on IEEX_HD_UI (the 2K UI WeiDU component flips
+	-- it true; core ships 1x). This is the canonical 2x mechanism -- supersedes the pre-scaled-CHU hybrid.
+	if IEEX_HD_UI and resW >= 2048 and resH >= 1200 then
+		IEex_WriteByte(pBaldurChitin + 0x4A28, 1)   -- m_bUseNewGui -> fInit bDoubleSize
+		IEex_WriteDword(pBaldurChitin + 0x4A2C, 1)  -- field_4A2C   -> GetDoubleSize()
+	end
+
+	-- Remove the high-res padding panels if the resolution can't display them, OR under engine double-size
+	-- (m_bUseNewGui): the STON border mosaics are authored for the 1x padding and can't fill the 2x margin,
+	-- so the doubled UI gets clean black margins instead (a partially-positioned padding panel crashes).
+	if resW < 1024 or resH < 768 or IEex_ReadByte(pBaldurChitin + 0x4A28) == 1 then
 
 		IEex_DisableCodeProtection()
 

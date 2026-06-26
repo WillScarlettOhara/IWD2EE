@@ -25,13 +25,15 @@
 // art has no torch holder -> ours would float).
 // =====================================================================================
 
-PRINT ~[2K UI] Installing the 2x high-resolution UI (pre-scaled CHU + 2x assets, GL canvas).~
-PRINT ~[2K UI] Correct at ~~1080p and above; at 720p the UI is oversized -- do not install at 720p.~
+PRINT ~[2K UI] Installing the 2x high-resolution UI (engine-native 2x tier + 2x assets, GL canvas).~
+PRINT ~[2K UI] Correct at ~~2048x1200 and above; below that the engine keeps the stock 1x UI.~
 
-// --- install the 2x art (BAM + portrait BMP + MOS) AND the pre-scaled 2x CHU layout into override ---
+// --- install the 2x art (BAM + portrait BMP + MOS) into override. NO pre-scaled CHU: the 2x layout
+//     now comes from the engine's NATIVE 2x tier (m_bUseNewGui+field_4A2C set by
+//     IEex_Extern_InitHighResolutionPaddingPanels when IEEX_HD_UI + res>=2048x1200), which doubles the
+//     stock CHU. The selective de-double (IEex_UIScale_Patch.lua) keeps the 2x art crisp. ---
 COPY ~%mod_folder%/bam/bam_2k_ui~ ~override~
 COPY ~%mod_folder%/mos/mos_2k_ui~ ~override~
-COPY ~%mod_folder%/chu_2.0x~      ~override~
 
 // --- turn the 2K UI on: flip IEEX_HD_UI = true in the deployed IEex lua. The core ships it OFF, so
 //     a player WITHOUT this component gets the stock 1x UI at any res. The flag drives both the lua

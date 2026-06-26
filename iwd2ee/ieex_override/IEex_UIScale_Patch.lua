@@ -185,13 +185,10 @@
 	--------------------------------------------------------------------------------
 	if IEEX_HD_UI then
 		IEex_DisableCodeProtection()
-		-- set g_pBaldurChitin->field_4A2C = 1 at world-engine init (before fInit reads it)
-		IEex_HookRestore(0x686DE0, 0, 7, {[[
-			50
-			A1 DC F6 8C 00
-			C7 80 2C 4A 00 00 01 00 00 00
-			58
-		]]})
+		-- NOTE: m_bUseNewGui + field_4A2C are now set GLOBALLY by IEex_Extern_InitHighResolutionPaddingPanels
+		-- (the engine's native 2x tier), so the old per-screen forces here -- field_4A2C@0x686DE0 (world) and
+		-- the fInit@0x4D3B80 force for the inventory-class screens -- are REMOVED (redundant + conflicting
+		-- with the global tier). UIMult() now reads 0x4A28=1 -> the render-scale auto-fits the 2x UI.
 		-- =====================================================================================
 		-- SELECTIVE 2K UI de-double (ported from feature/ui-2x-scaling). Replaces the earlier GLOBAL
 		-- de-double, which forced bDoubleSize=FALSE on EVERY asset and so cancelled the engine's

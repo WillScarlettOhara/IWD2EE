@@ -104,27 +104,24 @@
 	]]})
 
 	--------------------------------------------------------------------------------
-	-- GL FONT ATLAS FIX (opengl-only): CVidFont::LoadGlyphs @0x7A0B20 bakes glyphs into 256x256 atlas
-	-- textures, row pitch = node->m_nFontHeight ([esi+0x40]). That pitch is 1px short of the font's true
-	-- extent (maxAscent + maxDescent), so the glyph packed ABOVE bleeds its bottom 1px row into the next
-	-- glyph's atlas cell-top -> a thin dash atop short letters (o/i/u). (Software renderer blits glyphs
-	-- directly = no atlas = no bleed -- why feature/ui-2x-scaling was clean.) FIX: at the row-advance,
-	-- add +4 extra to y so atlas rows are spaced wider -- ATLAS-ONLY (this is the bake's local y, not
-	-- node->m_nFontHeight), so rendered line-spacing is untouched. Glyph coords + blit both use this y
-	-- so glyphs still pack/render correctly, just with more inter-row gap.
-	--   0x7A0D63  8B 4C 24 14  mov ecx,[esp+0x14]   (ecx = y, running atlas baseline)
-	--   0x7A0D67  8B 56 40     mov edx,[esi+0x40]   (edx = m_nFontHeight = row pitch)
-	--   0x7A0D6A  8B 46 3C     mov eax,[esi+0x3c]   (eax = texSize.cy, the row-limit for the cmp)
-	--   0x7A0D6D  03 CA        add ecx,edx          (y += pitch)  <- widen here
-	--   0x7A0D6F  33 FF / cmp ecx,eax / mov [esp+0x14],ecx ...
-	-- Hook 0x7A0D6A (5 bytes 8B 46 3C 03 CA): replicate eax-load + y+=pitch, add +4, jmp to 0x7A0D6F.
-	-- Harmless under the software renderer (LoadGlyphs is the GL-only bake, never reached).
+	-- GL FONT FIX (opengl-only): the GL glyph atlas (CVidFont::LoadGlyphs @0x7A0B20) packs glyphs at row
+	-- pitch = node->m_nFontHeight ([esi+0x40]), AND RenderCharacters (the GL text draw) samples each
+	-- glyph as a node->m_nFontHeight-tall cell. That value (frame-1 height = 26) is too short two ways:
+	--   (1) 1px under maxAscent+maxDescent (=27) -> atlas rows overlap -> a dash bleeds atop short
+	--       letters (o/i/u);
+	--   (2) the cell reaches only baseLine+4 below the baseline but descenders need 7 -> g/p/y/j tails
+	--       are CROPPED.
+	-- (Software renderer blits glyphs directly = no atlas, no per-cell sample = neither bug, which is
+	-- why feature/ui-2x-scaling was clean.) FIX: bump the CACHED node->m_nFontHeight by +4 at the bake
+	-- (right after it is set @0x7A0BD4). That widens BOTH the atlas pitch (kills the dash) and the render
+	-- cell (restores descenders). Rendered LINE-SPACING is UNAFFECTED -- multi-line layout uses the
+	-- recomputed GetFontHeight() (frame-1 height = 26), not node->m_nFontHeight -- so no single-line
+	-- risk. Hook 0x7A0BDF (5 displaced bytes 89 4E 44 6A 01 = mov [esi+0x44],ecx / push 1), prepend
+	--   83 46 40 04   add dword [esi+0x40], 4    (node->m_nFontHeight += 4)
+	-- GL-only (LoadGlyphs is the GL bake); harmless / never reached under the software renderer.
 	--------------------------------------------------------------------------------
-	IEex_HookRestore(0x7A0D6A, 0, 5, {[[
-		8B 46 3C
-		03 CA
-		83 C1 04
-		!jmp_dword :7A0D6F
+	IEex_HookRestore(0x7A0BDF, 0, 5, {[[
+		83 46 40 04
 	]]})
 
 	--------------------------------------------------------------------------------

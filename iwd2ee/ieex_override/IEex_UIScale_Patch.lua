@@ -205,7 +205,10 @@
 		-- inventory stone graphics (STONARM/STONSLOT/STONWEAP/STONQUIV/...) and "TOOL" with TOOLTIP -- a prefix
 		-- filter de-doubled those too and broke the inventory. Each font: if resref[0:4]==dword1 AND
 		-- resref[4:8]==dword2 -> hit. dword2 = chars 5-8 LE (null-padded). Add a font here when its HD BAM ships.
-		-- NORMAL "NORM"/"AL\0\0" · TOOLFONT "TOOL"/"FONT" · STONESML "STON"/"ESML" · INFOFONT "INFO"/"FONT"
+		-- NORMAL "NORM"/"AL\0\0" · TOOLFONT "TOOL"/"FONT" · STONESML "STON"/"ESML"
+		-- (INFOFONT removed: it's a 1-bit pixel font -> the engine's NN 2x double is already sharp, so it
+		--  uses the player's plain stock font (Western or Russian) doubled, NOT a custom HD BAM -- like a
+		--  1-bit font should. Shipping an AA BAM for it softened it; de-doubling it would shrink it to 1x.)
 		-- · NUMFONT "NUMF"/"ONT\0" (portrait HP numbers -- replaced the stock 1-bit bevel digits with a crisp
 		-- silly_pixel BAM authored at final px, so it must de-double too, else the 1px outline renders 2px).
 		-- · REALMS "REAL"/"MS\0\0" (uncial display/title face; HD BAM repacked from an auto-traced TTF of the
@@ -218,7 +221,6 @@
 			.. "!mov(eax,[eax]) !cmp_eax_dword #4D524F4E !jne_dword >c1 !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #00004C41 !jz_dword >hit @c1 "
 			.. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) !cmp_eax_dword #4C4F4F54 !jne_dword >c2 !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #544E4F46 !jz_dword >hit @c2 "
 			.. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) !cmp_eax_dword #4E4F5453 !jne_dword >c3 !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #4C4D5345 !jz_dword >hit @c3 "
-			.. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) !cmp_eax_dword #4F464E49 !jne_dword >c4 !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #544E4F46 !jz_dword >hit @c4 "
 			.. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) !cmp_eax_dword #464D554E !jne_dword >c5 !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #00544E4F !jz_dword >hit @c5 "
 			.. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) !cmp_eax_dword #4C414552 !jne_dword >c6 !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #0000534D !jz_dword >hit @c6 "
 			.. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) !cmp_eax_dword #54494E49 !jne_dword >c7 !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #534C4149 !jz_dword >hit @c7 "
@@ -339,8 +341,12 @@
 		-- SPLBUT (both HD); spell-effect/projectile SP* BAMs are NOT cell-drawn so never reach here.
 		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) 25 FF FF 00 00 !cmp_eax_dword #00005053 !jz_dword >hit "
 		-- HD item icons: PREFIX gate -- one branch covers all I* item icons (and eax,0xFF (char0); cmp 'I').
-		-- I* via CResCell = item icons + INITIALS/INVBUT/INFOFONT (all already HD/de-doubled). SP* scroll
-		-- item icons are caught by the SP* branch above; FIST/TEMP/USPLAT15 by resref.
+		-- I* via CResCell = item icons + INITIALS/INVBUT (HD/de-doubled). SP* scroll item icons are caught
+		-- by the SP* branch above; FIST/TEMP/USPLAT15 by resref. INFOFONT (also starts with 'I') is now
+		-- EXCLUDED below: it's a 1-bit pixel font with NO custom 2x BAM (plain stock -> engine NN 2x double
+		-- = already sharp), so it must NOT be de-doubled (that would render it at 1x). Check it BEFORE the
+		-- I* prefix gate and send it to >skip.
+		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) !cmp_eax_dword #4F464E49 !jne_dword >notinfo !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #544E4F46 !jz_dword >skip @notinfo "
 		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) 25 FF 00 00 00 !cmp_eax_dword #00000049 !jz_dword >hit "
 		hd_match = hd_match .. "!jmp_dword >skip @hit "
 		-- === HD cursor save-under: enlarge the pointer backup surfaces (height 64 -> 256) ===

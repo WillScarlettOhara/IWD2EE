@@ -14,7 +14,19 @@
 	-- unlike the old on-disk exe byte patch). REQUIRES Proton CachyOS: plain Wine's
 	-- fullscreen 3D (SetDisplayMode mode-switch) crashes; and cnc-ddraw must be ABSENT
 	-- (the GL path uses opengl32 directly, NOT the ddraw->GL software wrapper).
-	if not IEex_Vanilla then
+	--
+	-- Player opt-out: the STOCK ini key [Program Options] "3D Acceleration" gates this patch
+	-- (reused, not a new key -- it IS the 3D-renderer toggle). = 0 SKIPS the patch -> the
+	-- engine stays on its stock software (DirectDraw) renderer, for anyone whose system has
+	-- GL trouble. Self-consistent with the engine: retail HARDCODES m_bIs3dAccelerated=FALSE
+	-- at the ctor (it does NOT read this key) and WRITES it back on shutdown from the runtime
+	-- field (CBaldurChitin 0x4220ED read / 0x422xxx write). So gate=1 -> we patch -> field
+	-- non-zero -> engine persists "1"; gate=0 -> no patch -> field 0 -> engine persists "0".
+	-- Software mode forgoes every GL-track feature (HD UI / UI stretch / camera zoom / cursor +
+	-- font scaling), which self-disable on the SAME key: IEex_Gui_State.lua (HD UI off),
+	-- IEex_UIScale_Patch.lua + IEex_CameraZoom_Patch.lua + IEex_HDTiles_Patch.lua (no hooks).
+	-- Default 1 = GL on (current behaviour, unchanged).
+	if not IEex_Vanilla and IEex_GetPrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini") ~= 0 then
 		IEex_WriteByte(0x4220EE, 0xB6)
 	end
 

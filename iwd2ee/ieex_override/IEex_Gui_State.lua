@@ -31,6 +31,16 @@ function IEex_GetPrivateProfileInt(lpAppName, lpKeyName, nDefault, lpFileName)
 	return toReturn
 end
 
+-- Software-renderer opt-out (stock ini key [Program Options] "3D Acceleration" = 0): the software
+-- (DirectDraw) renderer has no GL canvas to downscale a 2x UI, so force HD UI off here -> the whole
+-- 2x machinery (engine m_bUseNewGui doubling @1598 + every IEex coord *2 @374/1981/2151 + divider
+-- read @3102) stays disabled and the stock 1x UI renders correctly. Mirrors the GL-enable gate in
+-- IEex_Render_Patch.lua and the hook gate in IEex_UIScale_Patch.lua. (No `local` -> NOT touched by
+-- the 2x UI component's REPLACE_TEXTUALLY of `local IEEX_HD_UI = false`.)
+if IEEX_HD_UI and IEex_GetPrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini") == 0 then
+	IEEX_HD_UI = false
+end
+
 function IEex_GetPrivateProfileString(lpAppName, lpKeyName, lpDefault, lpFileName)
 	local toReturn
 	IEex_RunWithStackManager({

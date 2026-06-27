@@ -17,6 +17,16 @@
 
 	IEex_DisableCodeProtection()
 
+	-- Software-renderer opt-out (stock ini key [Program Options] "3D Acceleration" = 0): every hook
+	-- below is a GL-rendering feature (menu + world UI scale, hit-test remap, cursor + font sizing,
+	-- torch pivot) and is meaningless / mis-aligning without the GL canvas. Force HD UI off and install
+	-- NONE of them, leaving the stock 1x software UI (the engine draws its own torch normally). Matches
+	-- the GL-enable gate in IEex_Render_Patch.lua. Default 1 = GL on (current behaviour, unchanged).
+	if IEex_GetPrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini") == 0 then
+		IEex_Helper_SetHDUI(0)
+		return
+	end
+
 	--------------------------------------------------------------------------------
 	-- UI scaling (GRAND PROJECT "C", STAGE 1): bracket CUIManager::Render (0x4D4540)
 	-- with a GL MODELVIEW scale so a full-screen UI engine (inventory, main menu,

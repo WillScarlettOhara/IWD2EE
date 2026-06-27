@@ -3,6 +3,13 @@
 
 	IEex_DisableCodeProtection()
 
+	-- Software-renderer opt-out (stock ini key [Program Options] "3D Acceleration" = 0): the GL
+	-- tile-texture cache (CreateSurfaces3d / Render3d) is unused under the software renderer -- skip
+	-- both patches. See IEex_Render_Patch.lua. Default 1 = GL on (current behaviour, unchanged).
+	if IEex_GetPrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini") == 0 then
+		return
+	end
+
 	--------------------------------------------------------------------------------
 	-- HD tiles: enlarge the GL tile-texture cache for high resolutions (up to 4K)
 	--

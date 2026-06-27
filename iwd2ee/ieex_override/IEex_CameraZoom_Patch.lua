@@ -3,6 +3,13 @@
 
 	IEex_DisableCodeProtection()
 
+	-- Software-renderer opt-out (stock ini key [Program Options] "3D Acceleration" = 0): camera zoom is
+	-- a GL MODELVIEW feature; install none of it under the software renderer. See IEex_Render_Patch.lua.
+	-- Default 1 = GL on (current behaviour, unchanged).
+	if IEex_GetPrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini") == 0 then
+		return
+	end
+
 	--------------------------------------------------------------------------------
 	-- Camera zoom (STAGE 1, zoom-in): bracket CGameArea::Render (0x477740) with a
 	-- GL MODELVIEW scale around the viewport centre. See IEexHelper

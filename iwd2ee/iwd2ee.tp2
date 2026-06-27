@@ -590,12 +590,18 @@ BEGIN @90 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 92
 // that the engine keeps the stock 1x UI). Decorated vs Plain is a sub-choice of how the panel
 // backgrounds fill the letterbox void: Decorated keeps the stone frame extending into the void, Plain
 // makes those margins transparent (the world/scene shows through).
-BEGIN @101 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 99
+// RUSSIAN GATE: the 2x HD fonts (bam_2x_ui NORMAL/REALMS/STONE*) are rendered cp1252-only (Latin) by
+// scripts/bam_font_pack.py (cp1252_char) and the source TTFs have no Cyrillic, so they cannot display
+// the cp1251 Russian text (a 2x install would overwrite the stock Cyrillic NORMAL.BAM with Latin
+// glyphs -> garbled Russian). REQUIRE_PREDICATE makes BOTH 2x UI subcomponents unavailable when
+// installing in Russian -> Russian keeps the stock 1x interface (correct Cyrillic). EN/FR/IT/PT are
+// cp1252 = unaffected. (To support RU later: regen the fonts in cp1251 with Cyrillic TTFs.)
+BEGIN @101 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 REQUIRE_PREDICATE NOT (~%LANGUAGE%~ STRING_EQUAL ~Russian~) ~The 2x UI uses HD fonts that are Latin-only (cp1252) and cannot display Cyrillic, so it is unavailable for the Russian installation; the stock 1x interface (correct Cyrillic text) is kept.~ DESIGNATED 99
 SUBCOMPONENT @102
 
       INCLUDE ~%mod_folder%/components/2x_ui_resolution_gate.tpa~
 
-BEGIN @103 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 100
+BEGIN @103 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 REQUIRE_PREDICATE NOT (~%LANGUAGE%~ STRING_EQUAL ~Russian~) ~The 2x UI uses HD fonts that are Latin-only (cp1252) and cannot display Cyrillic, so it is unavailable for the Russian installation; the stock 1x interface (correct Cyrillic text) is kept.~ DESIGNATED 100
 SUBCOMPONENT @102
 
       INCLUDE ~%mod_folder%/components/2x_ui_resolution_gate.tpa~

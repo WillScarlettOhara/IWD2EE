@@ -3621,3 +3621,8 @@
 @55821=~Ќельз€ помен€ть доспех во врем€ бо€.~
 @55931=~«апрет на смену доспехов во врем€ бо€~
 @55932=~Ќе позвол€ет участникам отр€да мен€ть доспехи во врем€ бо€.~
+
+// 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/100)
+@101 = ~2x UI (HD high-resolution interface) - Decorated panels~
+@102 = ~2x UI (HD high-resolution interface)~
+@103 = ~2x UI (HD high-resolution interface) - Plain panels (transparent margins)~

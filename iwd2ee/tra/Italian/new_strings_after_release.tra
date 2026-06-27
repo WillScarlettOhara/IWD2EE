@@ -3548,3 +3548,7 @@ Type:  One-handed~
 @55821=~You cannot change armor during combat.~
 @55931=~Prevent Equipping Armor During Combat~
 @55932=~Prevents party members from putting on armor during combat.~
+// 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/100)
+@101 = ~2x UI (interfaccia ad alta risoluzione) - Pannelli decorati~
+@102 = ~2x UI (interfaccia ad alta risoluzione)~
+@103 = ~2x UI (interfaccia ad alta risoluzione) - Pannelli semplici (margini trasparenti)~

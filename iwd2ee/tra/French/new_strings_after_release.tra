@@ -3677,3 +3677,8 @@ Type d’arme : à une main~
 @55821=~Vous ne pouvez pas changer d’armure pendant le combat.~
 @55931=~Empêcher l’équipement d’armure pendant le combat~
 @55932=~Empêche les membres du groupe de mettre une armure pendant le combat.~
+
+// 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/100)
+@101 = ~2x UI (interface haute resolution) - Panneaux decores~
+@102 = ~2x UI (interface haute resolution)~
+@103 = ~2x UI (interface haute resolution) - Panneaux simples (marges transparentes)~

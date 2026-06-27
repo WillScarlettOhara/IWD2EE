@@ -3725,3 +3725,8 @@ Tipo: Uma Mão~
 @55821=~Você não pode trocar de armadura durante o combate.~
 @55931=~Impede o Uso de Armadura Durante o Combate~
 @55932=~Impede que os membros do grupo vistam armadura durante o combate.~
+
+// 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/100)
+@101 = ~2x UI (interface de alta resolucao) - Paineis decorados~
+@102 = ~2x UI (interface de alta resolucao)~
+@103 = ~2x UI (interface de alta resolucao) - Paineis simples (margens transparentes)~

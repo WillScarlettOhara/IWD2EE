@@ -590,13 +590,13 @@ BEGIN @90 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 92
 // that the engine keeps the stock 1x UI). Decorated vs Plain is a sub-choice of how the panel
 // backgrounds fill the letterbox void: Decorated keeps the stone frame extending into the void, Plain
 // makes those margins transparent (the world/scene shows through).
-BEGIN ~2x UI (HD high-resolution interface) - Decorated panels~ REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 99
-SUBCOMPONENT ~2x UI (HD high-resolution interface)~
+BEGIN @101 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 99
+SUBCOMPONENT @102
 
       INCLUDE ~%mod_folder%/components/2x_ui_resolution_gate.tpa~
 
-BEGIN ~2x UI (HD high-resolution interface) - Plain panels (transparent margins)~ REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 100
-SUBCOMPONENT ~2x UI (HD high-resolution interface)~
+BEGIN @103 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 100
+SUBCOMPONENT @102
 
       INCLUDE ~%mod_folder%/components/2x_ui_resolution_gate.tpa~
       INCLUDE ~%mod_folder%/components/2x_ui_plain_panels.tpa~

@@ -49,4 +49,27 @@
 	-- relocation above (ids 8192..8192+pool stay clear of dynamic font/UI texture ids).
 	IEex_WriteDword(0x7BE029, 4096)
 
+	--------------------------------------------------------------------------------
+	-- FOG-OF-WAR -> TEXTURE -- the 4K perf fix (~47.7% of frame -> a few GL calls).
+	-- Stock fog draws the visibility grid as ~8000 per-cell quads/fans via FillRect3d
+	-- (0x7BD140) + RenderFan (0x7BD740) (only callers = CVisibility). SKIP both, and at
+	-- the tiles->sprites boundary in CGameArea::Render (0x47785b, esi=CGameArea) read
+	-- CVisibilityMap::m_pMap directly, decode to a tiny (W+1)x(H+1) corner texture, and
+	-- draw ONE bilinear quad over the map rect + hard-black off-map margins. Inline hook
+	-- passes esi; pushad/popad preserves eax for the displaced RENDER_MESSAGESCREEN cmp.
+	-- FogSkip = __cdecl ret 0 (binary ABI, both callers).
+	--------------------------------------------------------------------------------
+	IEex_WriteAssembly(0x7BD140, {[[
+		!jmp_dword >IEex_Helper_FogSkip
+	]]})
+	IEex_WriteAssembly(0x7BD740, {[[
+		!jmp_dword >IEex_Helper_FogSkip
+	]]})
+	IEex_HookRestore(0x47785B, 0, 6, {[[
+		!push_all_registers_iwd2
+		!push_esi
+		!call >IEex_Helper_FogTexDraw
+		!pop_all_registers_iwd2
+	]]})
+
 end)()

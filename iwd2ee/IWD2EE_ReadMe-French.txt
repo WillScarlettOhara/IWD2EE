@@ -508,7 +508,7 @@ Ce système ne triche en aucune façon ; les sorts ne sont pas lancés instantan
 
 Une version 2x (haute résolution) optionnelle de toute l’interface -- menus, ATH en jeu, inventaire, fiche de personnage, etc. -- utilisant des graphismes conçus en 2x (icônes, boutons, polices, panneaux, portraits, curseurs, torche du menu) rendus au palier 2x natif du moteur. Optionnel ; correct à environ 2048x1200 et au-delà ; en dessous, l’interface 1x d’origine est conservée.
 
-Vous choisissez comment les cadres des panneaux remplissent le vide letterbox sur les écrans larges : « Panneaux décorés » garde le cadre de pierre qui s’étend dans le vide, tandis que « Panneaux simples (marges transparentes) » rend ces marges transparentes pour laisser voir la scène derrière.
+Vous choisissez comment les cadres des panneaux remplissent le vide letterbox sur les écrans larges : « Panneaux décorés » garde le cadre de pierre qui s’étend dans le vide, tandis que « Panneaux minimalistes (marges transparentes) » rend ces marges transparentes pour laisser voir la scène derrière.
 
 Avec ce composant installé, le menu Options IEex en jeu ajoute aussi « Bordures d’UI décoratives » -- le cadre de pierre STON autour de toute l’interface (à activer ; nécessite un redémarrage).
 

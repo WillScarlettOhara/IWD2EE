@@ -507,7 +507,7 @@ This system doesn't cheat in any way; the spells aren't cast instantly nor can y
 
 An optional 2x (high-resolution) version of the whole interface -- menus, the in-game HUD, inventory, character record and so on -- using 2x-authored artwork (icons, buttons, fonts, panels, portraits, mouse cursors, the menu torch) rendered at the engine's native 2x tier. It is opt-in and looks correct at roughly 2048x1200 and above; below that the stock 1x UI is kept.
 
-You choose how the panel frames fill the letterbox void on wide screens: "Decorated panels" keep the stone frame extending into the void, while "Plain panels (transparent margins)" make those margins transparent so the world/scene shows through.
+You choose how the panel frames fill the letterbox void on wide screens: "Decorated panels" keep the stone frame extending into the void, while "Minimal panels (transparent margins)" make those margins transparent so the world/scene shows through.
 
 With this component installed, the in-game IEex Options menu also gains "Decorative UI Borders" -- the STON stone edge frame around the whole interface (toggle; needs a restart).
 

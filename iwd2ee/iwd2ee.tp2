@@ -587,8 +587,8 @@ BEGIN @90 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 92
 
 // 2x UI (HD high-resolution interface): the whole UI at the engine's native 2x tier + 2x-authored
 // assets, rendered through the IEex OpenGL renderer. Opt-in; correct at ~2048x1200 and above (below
-// that the engine keeps the stock 1x UI). Decorated vs Plain is a sub-choice of how the panel
-// backgrounds fill the letterbox void: Decorated keeps the stone frame extending into the void, Plain
+// that the engine keeps the stock 1x UI). Decorated vs Minimal is a sub-choice of how the panel
+// backgrounds fill the letterbox void: Decorated keeps the stone frame extending into the void, Minimal
 // makes those margins transparent (the world/scene shows through).
 // Russian IS supported: 2x_ui_resolution_gate.tpa ships cyrillic-merged hybrid fonts (bam_2x_ui_ru,
 // Latin kept + cp1251 Cyrillic appended) for the Russian install; INFOFONT uses the player's plain
@@ -598,8 +598,21 @@ SUBCOMPONENT @102
 
       INCLUDE ~%mod_folder%/components/2x_ui_resolution_gate.tpa~
 
+BEGIN @56059 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 101
+SUBCOMPONENT @102
+
+      INCLUDE ~%mod_folder%/components/2x_ui_resolution_gate.tpa~
+      INCLUDE ~%mod_folder%/components/2x_ui_aa_fonts.tpa~
+
 BEGIN @103 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 100
 SUBCOMPONENT @102
 
       INCLUDE ~%mod_folder%/components/2x_ui_resolution_gate.tpa~
-      INCLUDE ~%mod_folder%/components/2x_ui_plain_panels.tpa~
+      INCLUDE ~%mod_folder%/components/2x_ui_minimal_panels.tpa~
+
+BEGIN @56060 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 102
+SUBCOMPONENT @102
+
+      INCLUDE ~%mod_folder%/components/2x_ui_resolution_gate.tpa~
+      INCLUDE ~%mod_folder%/components/2x_ui_minimal_panels.tpa~
+      INCLUDE ~%mod_folder%/components/2x_ui_aa_fonts.tpa~

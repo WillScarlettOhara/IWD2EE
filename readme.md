@@ -498,6 +498,6 @@ An optional 2x (high-resolution) version of the whole interface — menus, the i
 You choose how the panel frames fill the letterbox void on wide screens:
 
 - **Decorated panels** keep the stone frame extending into the void.
-- **Plain panels (transparent margins)** make those margins transparent, so the world/scene shows through instead.
+- **Minimal panels (transparent margins)** make those margins transparent, so the world/scene shows through instead.
 
 With this component installed, the in-game IEex Options menu also gains **Decorative UI Borders** — the STON stone edge frame around the whole interface (toggle; needs a restart).

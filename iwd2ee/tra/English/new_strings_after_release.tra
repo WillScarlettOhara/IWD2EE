@@ -3541,6 +3541,9 @@ Type:  One-handed~
 @55931=~Prevent Equipping Armor During Combat~
 @55932=~Prevents party members from putting on armor during combat.~
 // 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/100)
-@101 = ~2x UI (HD high-resolution interface) - Decorated panels~
+@101 = ~2x UI (HD high-resolution interface) - Decorated panels - original fonts~
 @102 = ~2x UI (HD high-resolution interface)~
-@103 = ~2x UI (HD high-resolution interface) - Plain panels (transparent margins)~
+@103 = ~2x UI (HD high-resolution interface) - Minimal panels (transparent margins) - original fonts~
+
+@56059 = ~2x UI (HD high-resolution interface) - Decorated panels - non-pixelated fonts~
+@56060 = ~2x UI (HD high-resolution interface) - Minimal panels (transparent margins) - non-pixelated fonts~

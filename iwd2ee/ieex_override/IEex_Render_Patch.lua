@@ -45,6 +45,20 @@
 		IEex_WriteByte(0x7BDCE0, 0xB0)   -- mov al, 1
 		IEex_WriteByte(0x7BDCE1, 0x01)
 		IEex_WriteByte(0x7BDCE2, 0xC3)   -- ret
+
+		-- SUB-NATIVE BORDERLESS FILL. The borderless window is sized to the GAME resolution, so a
+		-- resolution below the desktop only covers a corner. Intercept the SwapBuffers call inside
+		-- CVidInf::WindowedFlip3d (@0x7BE520 = "call dword ptr [0xA0E170]", 6 bytes FF 15 70 E1 A0 00).
+		-- By then the world+UI+cursor have rendered into our game-res FBO (bound at frame start in
+		-- Export_BlankBackBuffer); the helper blit-scales that FBO to fill the full desktop window
+		-- (letterboxed), then calls the real SwapBuffers. hDC is already pushed (push ecx @0x7BE51F),
+		-- so the export is __stdcall(HDC). No-op passthrough at native res + vsync off ("Fill Screen"=0
+		-- disables it entirely). Also taken at native res when vsync is on (single persistent buffer ->
+		-- reduces the vsync UI flicker).
+		IEex_WriteAssembly(0x7BE520, {[[
+			!call >IEex_Helper_PresentScaled
+			!nop
+		]]})
 	end
 
 	--------------------------------------------------------------------------

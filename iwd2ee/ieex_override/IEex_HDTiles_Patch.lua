@@ -103,4 +103,33 @@
 		!nop
 	]]})
 
+	--------------------------------------------------------------------------------
+	-- TILE ATLAS (perf, GL 1.1 only) -- gated by [IEex Options] "Tile Atlas" (off by
+	-- default). Pack the per-tile textures into one 4096x4096 atlas and draw all visible
+	-- tiles in ~2 batched glDrawArrays instead of ~3295 per-tile bind + immediate-mode
+	-- quad. Measured bottleneck (warm cache, ~0 uploads/frame) = those bind+draws.
+	-- (1) Replace the per-tile draw CVidTile::RenderTexture (0x7C64F0) -> batch. It is
+	--     __thiscall(this, nTextureId, rDest&, x, y, dwFlags); marshal nTextureId/x/y/
+	--     dwFlags to the __stdcall export (mark_esp adjusts for the pushes), then ret 0x14.
+	-- (2) Populate the atlas: after the engine's per-tile glTexImage2D inside ReadyTexture
+	--     (@0x7C6187, displaces `mov edx,[0x8CF6D8]` = 6 bytes), copy m_pPixels (0xA09FC8)
+	--     into the tile's atlas cell. Fires only on cold/lighting re-uploads (~0/frame).
+	-- Flush is driven from Export_FogTexDraw (tiles->sprites boundary), before the fog.
+	if IEex_GetPrivateProfileInt("IEex Options", "Tile Atlas", 0, ".\\Icewind2.ini") ~= 0 then
+		IEex_WriteAssembly(0x7C64F0, {[[
+			!mark_esp
+			!marked_esp !push([esp+0x14])
+			!marked_esp !push([esp+0x10])
+			!marked_esp !push([esp+0x0C])
+			!marked_esp !push([esp+0x04])
+			!call >IEex_Helper_TileAtlasDraw
+			!ret_word 14 00
+		]]})
+		IEex_HookRestore(0x7C6187, 0, 6, {[[
+			!push_all_registers_iwd2
+			!call >IEex_Helper_TileAtlasUpload
+			!pop_all_registers_iwd2
+		]]})
+	end
+
 end)()

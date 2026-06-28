@@ -72,4 +72,35 @@
 		!pop_all_registers_iwd2
 	]]})
 
+	--------------------------------------------------------------------------------
+	-- Stop feeding the now-dead stock fog tile list (fixes the 4K exit crash + the
+	-- per-frame .data corruption behind it).
+	--
+	-- CInfTileSet::RenderTexture @0x5D2D20 appends one TEXTURE record per visible
+	-- 64px tile to the FIXED array m_aTextures[2700] @0x8E7E40 via the UNBOUNDED
+	-- counter m_nTextures @0x8F2700 (iwd2-re flags it: "the number of elements is not
+	-- validated"). At 4K ~3000+ tiles/frame > 2700 -> the appends spill past the array
+	-- end (0x8E7E40 + 2700*16 = 0x8F2700) into the const CString globals that follow;
+	-- element 3096 zeroes CScreenInventory::OPTION_PAUSE_WARNING.m_pchData @0x8F3FC0,
+	-- so the CRT's static ~CString at process exit runs InterlockedDecrement(0 - 12)
+	-- -> write AV at 0xFFFFFFF4 (the 4K-only IEex crash dump in <game>\crash). <=1440p
+	-- (~1350 tiles) stays under 2700, hence no crash there.
+	--
+	-- The array's ONLY consumer is CInfTileSet::RenderFogOfWar @0x5D2DE0, whose draw
+	-- chain (BltFogOWar3d -> BltVisibility3d/BltExploration3d -> FillRect3d 0x7BD140 /
+	-- RenderFan 0x7BD740) is FogSkip'd just above -> the records are DEAD in GL mode
+	-- (our corner-grid fog texture replaced them). So skip the append outright: the
+	-- tile still draws (CVidTile::RenderTexture runs at 0x5D2D70, BEFORE the append),
+	-- then jump from the append site @0x5D2D75 straight to the function epilogue
+	-- @0x5D2DCC (pop edi/esi/ebx; ret 0x18). The append region net-pushes nothing and
+	-- the cull path already jumps to 0x5D2DCC, so esp is balanced. Net: m_nTextures
+	-- stays 0 -> RenderFogOfWar loops zero times, no overflow, and ~3000 dead stores/
+	-- frame are saved. 6->6 byte overwrite: mov ecx,[0x8F2700] (8B 0D 00 27 8F 00) ->
+	-- jmp rel32 (E9 52 00 00 00) + nop.
+	--------------------------------------------------------------------------------
+	IEex_WriteAssembly(0x5D2D75, {[[
+		!jmp_dword :5D2DCC
+		!nop
+	]]})
+
 end)()

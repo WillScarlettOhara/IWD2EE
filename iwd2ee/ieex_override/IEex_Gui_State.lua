@@ -2528,6 +2528,39 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 						IEex_Helper_SetBridge(workingOptions, "uiBorders", true)
 					end
 				end,
+				-- "UI Single Buffer" Toggle
+				[22] = function()
+					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
+					if IEex_Helper_GetBridge(workingOptions, "uiSingleBuffer") then
+						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
+						IEex_Helper_SetBridge(workingOptions, "uiSingleBuffer", false)
+					else
+						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
+						IEex_Helper_SetBridge(workingOptions, "uiSingleBuffer", true)
+					end
+				end,
+				-- "Smooth Cursor" Toggle
+				[24] = function()
+					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
+					if IEex_Helper_GetBridge(workingOptions, "smoothCursor") then
+						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
+						IEex_Helper_SetBridge(workingOptions, "smoothCursor", false)
+					else
+						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
+						IEex_Helper_SetBridge(workingOptions, "smoothCursor", true)
+					end
+				end,
+				-- "Cap FPS to Refresh" Toggle: on (!=9999) -> 9999 (uncapped); off -> 0 (auto = refresh-2).
+				[26] = function()
+					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
+					if IEex_Helper_GetBridge(workingOptions, "maxFps") ~= 9999 then
+						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
+						IEex_Helper_SetBridge(workingOptions, "maxFps", 9999)
+					else
+						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
+						IEex_Helper_SetBridge(workingOptions, "maxFps", 0)
+					end
+				end,
 			},
 		},
 		["GUIREC"] = {
@@ -3222,7 +3255,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 1,
 		["x"] = 614,
-		["y"] = 338,
+		["y"] = 375,
 		["width"] = 117,
 		["height"] = 25,
 		["bam"] = "GBTNSTD",
@@ -3238,7 +3271,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 2,
 		["x"] = 491,
-		["y"] = 338,
+		["y"] = 375,
 		["width"] = 117,
 		["height"] = 25,
 		["bam"] = "GBTNSTD",
@@ -3399,7 +3432,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 13,
 		["x"] = 74,
-		["y"] = 181,
+		["y"] = 178,
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3413,7 +3446,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 14,
 		["x"] = 394,
-		["y"] = 178,
+		["y"] = 175,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3427,7 +3460,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 15,
 		["x"] = 74,
-		["y"] = 209,
+		["y"] = 205,
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3441,7 +3474,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 16,
 		["x"] = 394,
-		["y"] = 206,
+		["y"] = 202,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3455,7 +3488,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 17,
 		["x"] = 74,
-		["y"] = 237,
+		["y"] = 232,
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3469,7 +3502,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 18,
 		["x"] = 394,
-		["y"] = 234,
+		["y"] = 229,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3483,7 +3516,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 19,
 		["x"] = 24,
-		["y"] = 265,
+		["y"] = 259,
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3497,7 +3530,91 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 20,
 		["x"] = 394,
-		["y"] = 262,
+		["y"] = 256,
+		["width"] = 23,
+		["height"] = 24,
+		["bam"] = "GBTNOPT3",
+		["frameUnpressed"] = 1,
+		["framePressed"] = 2,
+	})
+
+	-- "UI Single Buffer" Label - ID 21
+	IEex_AddControlOverride("GUIOPT", 14, 21, "IEex_UI_Label")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.LABEL,
+		["id"] = 21,
+		["x"] = 24,
+		["y"] = 286,
+		["width"] = 358,
+		["height"] = 18,
+		["fontBam"] = "NORMAL",
+		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
+	})
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 21), "UI Single Buffer (restart required)")
+
+	-- "UI Single Buffer" Toggle - ID 22
+	IEex_AddControlOverride("GUIOPT", 14, 22, "IEex_UI_Button")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.BUTTON,
+		["id"] = 22,
+		["x"] = 394,
+		["y"] = 283,
+		["width"] = 23,
+		["height"] = 24,
+		["bam"] = "GBTNOPT3",
+		["frameUnpressed"] = 1,
+		["framePressed"] = 2,
+	})
+
+	-- "Smooth Cursor" Label - ID 23
+	IEex_AddControlOverride("GUIOPT", 14, 23, "IEex_UI_Label")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.LABEL,
+		["id"] = 23,
+		["x"] = 24,
+		["y"] = 313,
+		["width"] = 358,
+		["height"] = 18,
+		["fontBam"] = "NORMAL",
+		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
+	})
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 23), "Smooth Cursor (restart required)")
+
+	-- "Smooth Cursor" Toggle - ID 24
+	IEex_AddControlOverride("GUIOPT", 14, 24, "IEex_UI_Button")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.BUTTON,
+		["id"] = 24,
+		["x"] = 394,
+		["y"] = 310,
+		["width"] = 23,
+		["height"] = 24,
+		["bam"] = "GBTNOPT3",
+		["frameUnpressed"] = 1,
+		["framePressed"] = 2,
+	})
+
+	-- "Cap FPS to Refresh" Label - ID 25
+	IEex_AddControlOverride("GUIOPT", 14, 25, "IEex_UI_Label")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.LABEL,
+		["id"] = 25,
+		["x"] = 24,
+		["y"] = 340,
+		["width"] = 358,
+		["height"] = 18,
+		["fontBam"] = "NORMAL",
+		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
+	})
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 25), "Cap FPS to Display Refresh (restart required)")
+
+	-- "Cap FPS to Refresh" Toggle - ID 26
+	IEex_AddControlOverride("GUIOPT", 14, 26, "IEex_UI_Button")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.BUTTON,
+		["id"] = 26,
+		["x"] = 394,
+		["y"] = 337,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4039,6 +4156,18 @@ function IEex_LoadOptions()
 
 	IEex_Helper_SetBridge(options, "uiBorders",
 		IEex_GetPrivateProfileInt("IEex Options", "UI Borders", 0, ".\\Icewind2.ini") ~= 0 and true or false)
+
+	IEex_Helper_SetBridge(options, "uiSingleBuffer",
+		IEex_GetPrivateProfileInt("IEex Options", "UI Single Buffer", 1, ".\\Icewind2.ini") ~= 0 and true or false)
+
+	IEex_Helper_SetBridge(options, "smoothCursor",
+		IEex_GetPrivateProfileInt("IEex Options", "Smooth Cursor", 1, ".\\Icewind2.ini") ~= 0 and true or false)
+
+	-- "Cap FPS to Refresh" stores the actual Max FPS integer so an explicit value (e.g. 144) is PRESERVED:
+	-- the toggle only flips between capped (0 = auto, display refresh - 2) and 9999 (uncapped). On = any
+	-- value != 9999.
+	IEex_Helper_SetBridge(options, "maxFps",
+		IEex_GetPrivateProfileInt("IEex Options", "Max FPS", 0, ".\\Icewind2.ini"))
 end
 
 function IEex_WriteOptions()
@@ -4068,6 +4197,15 @@ function IEex_WriteOptions()
 
 	IEex_WritePrivateProfileString("IEex Options", "UI Borders",
 		IEex_Helper_GetBridge(options, "uiBorders") and "1" or "0", ".\\Icewind2.ini")
+
+	IEex_WritePrivateProfileString("IEex Options", "UI Single Buffer",
+		IEex_Helper_GetBridge(options, "uiSingleBuffer") and "1" or "0", ".\\Icewind2.ini")
+
+	IEex_WritePrivateProfileString("IEex Options", "Smooth Cursor",
+		IEex_Helper_GetBridge(options, "smoothCursor") and "1" or "0", ".\\Icewind2.ini")
+
+	IEex_WritePrivateProfileString("IEex Options", "Max FPS",
+		tostring(IEex_Helper_GetBridge(options, "maxFps")), ".\\Icewind2.ini")
 end
 
 function IEex_InitOptionButtons()
@@ -4101,6 +4239,15 @@ function IEex_InitOptionButtons()
 
 	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 20),
 		IEex_Helper_GetBridge(options, "uiBorders") and 3 or 1)
+
+	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 22),
+		IEex_Helper_GetBridge(options, "uiSingleBuffer") and 3 or 1)
+
+	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 24),
+		IEex_Helper_GetBridge(options, "smoothCursor") and 3 or 1)
+
+	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 26),
+		IEex_Helper_GetBridge(options, "maxFps") ~= 9999 and 3 or 1)
 end
 
 IEex_AbsoluteOnce("IEex_InitOptions", function()

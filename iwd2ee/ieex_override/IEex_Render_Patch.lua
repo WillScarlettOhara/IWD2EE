@@ -11,9 +11,10 @@
 	-- SOFTWARE renderer (no GL context). Patch the modrm 0x9E->0xB6 so it becomes
 	-- `mov [esi+0x91c],esi` (esi = this, always non-zero) -> the flag is truthy ->
 	-- the Initialize3d() GL path runs. Done in-memory (survives an exe verify+repair,
-	-- unlike the old on-disk exe byte patch). REQUIRES Proton CachyOS: plain Wine's
-	-- fullscreen 3D (SetDisplayMode mode-switch) crashes; and cnc-ddraw must be ABSENT
-	-- (the GL path uses opengl32 directly, NOT the ddraw->GL software wrapper).
+	-- unlike the old on-disk exe byte patch). The engine's fragile fullscreen mode-switch
+	-- is neutralized below (borderless), so this now works on native Windows and any
+	-- Wine/Proton build (not just CachyOS). cnc-ddraw must be ABSENT (the GL path uses
+	-- opengl32 directly, NOT the ddraw->GL software wrapper).
 	--
 	-- Player opt-out: the STOCK ini key [Program Options] "3D Acceleration" gates this patch
 	-- (reused, not a new key -- it IS the 3D-renderer toggle). = 0 SKIPS the patch -> the
@@ -28,6 +29,22 @@
 	-- Default 1 = GL on (current behaviour, unchanged).
 	if not IEex_Vanilla and IEex_GetPrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini") ~= 0 then
 		IEex_WriteByte(0x4220EE, 0xB6)
+
+		-- BORDERLESS FULLSCREEN. CVidInf::SetDisplayMode (0x7BDCE0, called only from the GL
+		-- CVideo::Initialize3d fullscreen path) does a Win32 ChangeDisplaySettingsA(CDS_FULLSCREEN)
+		-- mode-switch. Its mode-search filters on `dmDisplayFrequency <= CVideo::FPS`; when no
+		-- enumerated mode matches SCREENWIDTH/HEIGHT (e.g. 3840x2160 only exists at 120/144Hz on a
+		-- high-refresh desktop, all > FPS) iBestMode stays 0 -> it switches to display-mode 0
+		-- (640x480) and the frame renders into a corner (and the desktop is left stuck at 640x480).
+		-- The engine's fullscreen window is already a WS_POPUP sized to the screen and the GL
+		-- renderer presents via opengl32 to that window, so the mode-switch is unnecessary. No-op
+		-- the function (mov al,1 ; ret) -> "fullscreen" becomes a borderless window over the
+		-- native-res desktop: native 4K, GL on, no fragile mode-switch (works on Windows + every
+		-- Wine/Proton build, not just CachyOS). Borderless follows the desktop res, so the GL
+		-- fullscreen res should equal the desktop res to fill the screen.
+		IEex_WriteByte(0x7BDCE0, 0xB0)   -- mov al, 1
+		IEex_WriteByte(0x7BDCE1, 0x01)
+		IEex_WriteByte(0x7BDCE2, 0xC3)   -- ret
 	end
 
 	--------------------------------------------------------------------------

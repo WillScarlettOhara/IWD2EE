@@ -337,6 +337,32 @@
 		IEex_HookBeforeCall(0x47FD52, {"!push_byte 02 !call", {callHook, 4, 4}}) -- Alt down - Outline
 	end
 
+	------------------------------------------------------------------------------
+	-- PERF: neutralize CVidMode::CheckResults3d (the per-GL-call debug check) -- --
+	------------------------------------------------------------------------------
+	-- 0x7BEA80 __thiscall BOOL CVidMode::CheckResults3d(int rc). The engine calls
+	-- it after EVERY immediate-mode GL call in the hot render paths (tile/cell/MOS
+	-- /fog) -- thousands of times per frame at 4K. It only calls glGetError when
+	-- rc != 0, and EVERY render-path caller passes 0, so the error scan never runs;
+	-- even on a real error it only Format()s a CString that is then DISCARDED (never
+	-- logged). So it is a no-op debug hook = pure dead per-call overhead. Patch the
+	-- entry to `ret 4` (thiscall cleans its one 4-byte arg; callers ignore the BOOL).
+	-- Zero render effect. MEASURED (scripts/perf): removes its own ~0.5% self-time;
+	-- net fps change negligible -- the frame is bound by the nvidia-glcore driver
+	-- (per-tile bind+draw), not by these CPU-side checks. Kept as correct dead-code
+	-- removal, not a meaningful win. (The ~4% CString::~CString in the profile is
+	-- NOT from here -- it is resource-name loading via CDimm::Local*Resource.)
+	if not IEex_Vanilla then
+		IEex_WriteAssembly(0x7BEA80, {"!ret_word 04 00"})
+	end
+
+	-- NOTE: an experiment that also NOP'd the redundant per-tile glTexParameterf
+	-- (MIN/MAG = NEAREST, already set per-texture at upload) in CVidTile::RenderTexture
+	-- @0x7C65A2/0x7C65D7 was measured to give ZERO perf change (scripts/perf): the
+	-- ~30% nvidia-glcore cost is the per-tile glBindTexture + textured-quad draw, NOT
+	-- the cheap state calls -- consistent with the failed geometry-batching attempts.
+	-- Reverted (no win, slight blur risk). Only a tile texture atlas could cut the binds.
+
 	IEex_EnableCodeProtection()
 
 end)()

@@ -469,6 +469,38 @@
 			end
 			IEex_HookBeforeCall(0x4CFC10, fillBlock) -- Trigger / info-point Outline
 		end
+
+		-- Translucent-black readability PANEL behind floating in-world text (CGameText,
+		-- the INFOFONT damage/feedback strings). Software composites float-text through the
+		-- FX scratch with FXPREP_COPYFROMBACK -> a semi-transparent panel sized to the text;
+		-- FXPrep's 3D branch never copies-from-back, so in GL the panel is gone and white text
+		-- is hard to read over bright terrain. IEex_Helper_CInfinity_FillTextBackdrop3d edits
+		-- the FX staging buffer (CVideo3d::texImageData) directly -- fills translucent black
+		-- over the rasterised glyphs' bounding box -- so the single existing FXBltFrom blits
+		-- text + panel together (auto-sized, no extra GL draw, no GL-state change). 3D only.
+		--
+		-- Hooked at the single CGameText::Render FXBltFrom call (0x4CC0AF), AFTER FXTextOut has
+		-- rasterised the glyphs into the scratch. NOT the shared FXBltFrom/FXPrep function --
+		-- that path also blits translucent SPRITES, which must not get a panel. backdropBlock
+		-- duplicates FXBltFrom's 7 stack args (last, dwFlags, at [esp+0x18] before push_all ->
+		-- [esp+0x34] after the 0x1C push_all) and forwards them __thiscall (ecx = pInfinity,
+		-- preserved across push/pop_all for the engine's own FXBltFrom that follows). The export
+		-- cleans them (ret 0x1C); re-reading [esp+0x34] each push walks down the 7 args.
+		if is3D then
+			local backdropBlock = {[[
+				!push_all_registers_iwd2
+				!push([esp+0x34])
+				!push([esp+0x34])
+				!push([esp+0x34])
+				!push([esp+0x34])
+				!push([esp+0x34])
+				!push([esp+0x34])
+				!push([esp+0x34])
+				!call >IEex_Helper_CInfinity_FillTextBackdrop3d
+				!pop_all_registers_iwd2
+			]]}
+			IEex_HookBeforeCall(0x4CC0AF, backdropBlock) -- CGameText::Render - floating-text readability panel (+ engine FXBltFrom)
+		end
 	end
 
 	------------------------------------------------------------------------------

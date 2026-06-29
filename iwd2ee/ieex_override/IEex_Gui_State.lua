@@ -47,6 +47,29 @@ end
 -- to the option-panel builder / IEex_Load|WriteOptions defined later in this chunk.
 IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini") ~= 0
 
+-- IEex Options menu (panel 14) option rows, top->bottom by LABEL id. Some rows are renderer-specific
+-- and are not built (and their toggle is skipped in IEex_InitOptionButtons) in the wrong renderer:
+--   Transparent Fog of War (5) is SOFTWARE-only  -> hidden under GL  (Export_RenderFoW early-returns in GL).
+--   Stretch UI (13), Vsync (17), UI Single Buffer (21), Smooth Cursor (23) are GL-only -> hidden in software
+--   (their C++ no-ops without a GL context: ComputeUIScale / EnsureVSync / gFl_active FBO / cursor resample).
+-- IEex_OptionRowShift repacks the visible rows (27px step) so a hidden row leaves no gap.
+IEEX_OPTION_ROW_ORDER = {7, 9, 5, 11, 13, 15, 17, 19, 21, 23, 25}
+
+function IEex_OptionRowVisible(labelId)
+	if labelId == 5 then return not IEEX_GL_ACTIVE end
+	if labelId == 13 or labelId == 17 or labelId == 21 or labelId == 23 then return IEEX_GL_ACTIVE end
+	return true
+end
+
+function IEex_OptionRowShift(labelId)
+	local hiddenAbove = 0
+	for _, id in ipairs(IEEX_OPTION_ROW_ORDER) do
+		if id == labelId then break end
+		if not IEex_OptionRowVisible(id) then hiddenAbove = hiddenAbove + 1 end
+	end
+	return hiddenAbove * 27
+end
+
 function IEex_GetPrivateProfileString(lpAppName, lpKeyName, lpDefault, lpFileName)
 	local toReturn
 	IEex_RunWithStackManager({
@@ -3274,10 +3297,6 @@ function IEex_InstallIEexOptions()
 		["backgroundImage"] = "GOPPAUB",
 	})
 
-	-- In GL the "Transparent Fog of War" row (y=124, 3rd of the column) is hidden, so pull every
-	-- row below it up one 27px step to close the gap.
-	local fogRowShift = IEEX_GL_ACTIVE and 27 or 0
-
 	-- "IEex Options" Label - ID 0
 	IEex_AddControlOverride("GUIOPT", 14, 0, "IEex_UI_Label")
 	IEex_AddControlToPanel(newOptionsPanel, {
@@ -3357,10 +3376,9 @@ function IEex_InstallIEexOptions()
 		["textAreaID"] = 3,
 	})
 
-	-- "Transparent Fog of War" Label + Toggle - ID 5 / 6.
-	-- GL skips the software transparent FoW pass (Export_RenderFoW early-returns), so the option is
-	-- inert in GL -> don't build the controls. IEex_InitOptionButtons guards control 6 to match.
-	if not IEEX_GL_ACTIVE then
+	-- "Transparent Fog of War" Label + Toggle - ID 5 / 6. Software-only (Export_RenderFoW early-returns
+	-- in GL), so IEex_OptionRowVisible(5) hides it under GL. IEex_InitOptionButtons guards control 6 to match.
+	if IEex_OptionRowVisible(5) then
 
 	-- "Transparent Fog of War" Label - ID 5
 	IEex_AddControlOverride("GUIOPT", 14, 5, "IEex_UI_Label")
@@ -3454,7 +3472,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 11,
 		["x"] = 74,
-		["y"] = 151 - fogRowShift,
+		["y"] = 151 - IEex_OptionRowShift(11),
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3468,7 +3486,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 12,
 		["x"] = 394,
-		["y"] = 150 - fogRowShift,
+		["y"] = 150 - IEex_OptionRowShift(11),
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3476,13 +3494,15 @@ function IEex_InstallIEexOptions()
 		["framePressed"] = 2,
 	})
 
+	if IEex_OptionRowVisible(13) then
+
 	-- "Stretch UI to Screen" Label - ID 13
 	IEex_AddControlOverride("GUIOPT", 14, 13, "IEex_UI_Label")
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 13,
 		["x"] = 74,
-		["y"] = 178 - fogRowShift,
+		["y"] = 178 - IEex_OptionRowShift(13),
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3496,7 +3516,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 14,
 		["x"] = 394,
-		["y"] = 175 - fogRowShift,
+		["y"] = 175 - IEex_OptionRowShift(13),
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3504,13 +3524,15 @@ function IEex_InstallIEexOptions()
 		["framePressed"] = 2,
 	})
 
+	end
+
 	-- "Show FPS" Label - ID 15
 	IEex_AddControlOverride("GUIOPT", 14, 15, "IEex_UI_Label")
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 15,
 		["x"] = 74,
-		["y"] = 205 - fogRowShift,
+		["y"] = 205 - IEex_OptionRowShift(15),
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3524,7 +3546,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 16,
 		["x"] = 394,
-		["y"] = 202 - fogRowShift,
+		["y"] = 202 - IEex_OptionRowShift(15),
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3532,13 +3554,15 @@ function IEex_InstallIEexOptions()
 		["framePressed"] = 2,
 	})
 
+	if IEex_OptionRowVisible(17) then
+
 	-- "Vsync" Label - ID 17
 	IEex_AddControlOverride("GUIOPT", 14, 17, "IEex_UI_Label")
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 17,
 		["x"] = 74,
-		["y"] = 232 - fogRowShift,
+		["y"] = 232 - IEex_OptionRowShift(17),
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3552,7 +3576,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 18,
 		["x"] = 394,
-		["y"] = 229 - fogRowShift,
+		["y"] = 229 - IEex_OptionRowShift(17),
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3560,13 +3584,15 @@ function IEex_InstallIEexOptions()
 		["framePressed"] = 2,
 	})
 
+	end
+
 	-- "UI Borders" Label - ID 19
 	IEex_AddControlOverride("GUIOPT", 14, 19, "IEex_UI_Label")
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 19,
 		["x"] = 24,
-		["y"] = 259 - fogRowShift,
+		["y"] = 259 - IEex_OptionRowShift(19),
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3580,7 +3606,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 20,
 		["x"] = 394,
-		["y"] = 256 - fogRowShift,
+		["y"] = 256 - IEex_OptionRowShift(19),
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3588,13 +3614,15 @@ function IEex_InstallIEexOptions()
 		["framePressed"] = 2,
 	})
 
+	if IEex_OptionRowVisible(21) then
+
 	-- "UI Single Buffer" Label - ID 21
 	IEex_AddControlOverride("GUIOPT", 14, 21, "IEex_UI_Label")
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 21,
 		["x"] = 24,
-		["y"] = 286 - fogRowShift,
+		["y"] = 286 - IEex_OptionRowShift(21),
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3608,7 +3636,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 22,
 		["x"] = 394,
-		["y"] = 283 - fogRowShift,
+		["y"] = 283 - IEex_OptionRowShift(21),
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3616,13 +3644,17 @@ function IEex_InstallIEexOptions()
 		["framePressed"] = 2,
 	})
 
+	end
+
+	if IEex_OptionRowVisible(23) then
+
 	-- "Smooth Cursor" Label - ID 23
 	IEex_AddControlOverride("GUIOPT", 14, 23, "IEex_UI_Label")
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 23,
 		["x"] = 24,
-		["y"] = 313 - fogRowShift,
+		["y"] = 313 - IEex_OptionRowShift(23),
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3636,7 +3668,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 24,
 		["x"] = 394,
-		["y"] = 310 - fogRowShift,
+		["y"] = 310 - IEex_OptionRowShift(23),
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3644,13 +3676,15 @@ function IEex_InstallIEexOptions()
 		["framePressed"] = 2,
 	})
 
+	end
+
 	-- "Cap FPS to Refresh" Label - ID 25
 	IEex_AddControlOverride("GUIOPT", 14, 25, "IEex_UI_Label")
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 25,
 		["x"] = 24,
-		["y"] = 340 - fogRowShift,
+		["y"] = 340 - IEex_OptionRowShift(25),
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3664,7 +3698,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 26,
 		["x"] = 394,
-		["y"] = 337 - fogRowShift,
+		["y"] = 337 - IEex_OptionRowShift(25),
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4278,7 +4312,7 @@ function IEex_InitOptionButtons()
 
 	IEex_SetTextAreaToString(screenOptions, 14, 3, "")
 
-	if not IEEX_GL_ACTIVE then -- control 6 ("Transparent Fog of War") isn't built in GL
+	if IEex_OptionRowVisible(5) then -- control 6 ("Transparent Fog of War"): software-only
 		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 6),
 			IEex_Helper_GetBridge(options, "transparentFogOfWar") and 3 or 1)
 	end
@@ -4292,23 +4326,31 @@ function IEex_InitOptionButtons()
 	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 12),
 		IEex_Helper_GetBridge(options, "preventEquippingArmorDuringCombat") and 3 or 1)
 
-	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 14),
-		IEex_Helper_GetBridge(options, "stretchUI") and 3 or 1)
+	if IEex_OptionRowVisible(13) then
+		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 14),
+			IEex_Helper_GetBridge(options, "stretchUI") and 3 or 1)
+	end
 
 	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 16),
 		IEex_Helper_GetBridge(options, "showFps") and 3 or 1)
 
-	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 18),
-		IEex_Helper_GetBridge(options, "vsync") and 3 or 1)
+	if IEex_OptionRowVisible(17) then
+		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 18),
+			IEex_Helper_GetBridge(options, "vsync") and 3 or 1)
+	end
 
 	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 20),
 		IEex_Helper_GetBridge(options, "uiBorders") and 3 or 1)
 
-	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 22),
-		IEex_Helper_GetBridge(options, "uiSingleBuffer") and 3 or 1)
+	if IEex_OptionRowVisible(21) then
+		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 22),
+			IEex_Helper_GetBridge(options, "uiSingleBuffer") and 3 or 1)
+	end
 
-	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 24),
-		IEex_Helper_GetBridge(options, "smoothCursor") and 3 or 1)
+	if IEex_OptionRowVisible(23) then
+		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 24),
+			IEex_Helper_GetBridge(options, "smoothCursor") and 3 or 1)
+	end
 
 	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 26),
 		IEex_Helper_GetBridge(options, "maxFps") ~= 9999 and 3 or 1)

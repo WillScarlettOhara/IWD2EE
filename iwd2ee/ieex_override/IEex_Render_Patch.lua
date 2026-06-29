@@ -50,7 +50,12 @@
 		-- The engine's native SetDisplayMode mode-switch works fine on Wine/Proton (the 640x480 bug
 		-- is Windows-only) AND survives alt-tab, so leave it intact there. Wine is detected by the
 		-- presence of ntdll!wine_get_version (absent on real Windows -> GetProcAddress returns 0).
-		if IEex_GetProcAddress("ntdll.dll", "wine_get_version") == 0x0 then   -- native Windows only
+		-- WINDOWED MODE ("IEex Options" "Windowed"=1): also no-op on Wine -- a windowed run must NEVER
+		-- mode-switch the desktop (the helper makes a normal titlebar window at the game res, leaving
+		-- the desktop untouched). Without this the Wine path would ChangeDisplaySettings the whole
+		-- desktop to the game res behind a small window.
+		local windowed = IEex_GetPrivateProfileInt("IEex Options", "Windowed", 0, ".\\Icewind2.ini") ~= 0
+		if windowed or IEex_GetProcAddress("ntdll.dll", "wine_get_version") == 0x0 then   -- native Windows OR windowed
 			IEex_WriteByte(0x7BDCE0, 0xB0)   -- mov al, 1
 			IEex_WriteByte(0x7BDCE1, 0x01)
 			IEex_WriteByte(0x7BDCE2, 0xC3)   -- ret

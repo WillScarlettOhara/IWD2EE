@@ -42,9 +42,19 @@
 		-- native-res desktop: native 4K, GL on, no fragile mode-switch (works on Windows + every
 		-- Wine/Proton build, not just CachyOS). Borderless follows the desktop res, so the GL
 		-- fullscreen res should equal the desktop res to fill the screen.
-		IEex_WriteByte(0x7BDCE0, 0xB0)   -- mov al, 1
-		IEex_WriteByte(0x7BDCE1, 0x01)
-		IEex_WriteByte(0x7BDCE2, 0xC3)   -- ret
+		-- HOST-GATED (2026-06-29): only no-op on NATIVE WINDOWS. The no-op turns "fullscreen" into
+		-- a borderless desktop window, which is required on Windows (the GL mode-search picks
+		-- 640x480 at 4K/high-refresh, see above) -- but a borderless fullscreen window does NOT
+		-- release on alt-tab under Wine/Proton: returning to the game gives a permanent BLACK screen
+		-- and TRAPS focus (you can never alt-tab back out, MangoHud also vanishes = zero presents).
+		-- The engine's native SetDisplayMode mode-switch works fine on Wine/Proton (the 640x480 bug
+		-- is Windows-only) AND survives alt-tab, so leave it intact there. Wine is detected by the
+		-- presence of ntdll!wine_get_version (absent on real Windows -> GetProcAddress returns 0).
+		if IEex_GetProcAddress("ntdll.dll", "wine_get_version") == 0x0 then   -- native Windows only
+			IEex_WriteByte(0x7BDCE0, 0xB0)   -- mov al, 1
+			IEex_WriteByte(0x7BDCE1, 0x01)
+			IEex_WriteByte(0x7BDCE2, 0xC3)   -- ret
+		end
 
 		-- SUB-NATIVE BORDERLESS FILL. The borderless window is sized to the GAME resolution, so a
 		-- resolution below the desktop only covers a corner. Intercept the SwapBuffers call inside

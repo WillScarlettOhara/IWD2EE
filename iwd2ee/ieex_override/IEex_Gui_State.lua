@@ -41,6 +41,12 @@ if IEEX_HD_UI and IEex_GetPrivateProfileInt("Program Options", "3D Acceleration"
 	IEEX_HD_UI = false
 end
 
+-- True when the GL renderer is active (stock ini key "3D Acceleration" != 0, launch-time config).
+-- Used to hide GL-irrelevant options (e.g. "Transparent Fog of War", whose software FoW pass is
+-- skipped in GL -- see Export_RenderFoW). Global (no `local`) to mirror IEEX_HD_UI and stay visible
+-- to the option-panel builder / IEex_Load|WriteOptions defined later in this chunk.
+IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini") ~= 0
+
 function IEex_GetPrivateProfileString(lpAppName, lpKeyName, lpDefault, lpFileName)
 	local toReturn
 	IEex_RunWithStackManager({
@@ -1610,13 +1616,16 @@ function IEex_Extern_InitHighResolutionPaddingPanels(pBaldurChitin)
 		IEex_WriteDword(pBaldurChitin + 0x4A2C, 1)  -- field_4A2C   -> GetDoubleSize()
 	end
 
-	-- Remove the high-res padding panels if the resolution can't display them, OR under engine double-size
-	-- (m_bUseNewGui) when the player has NOT opted into decorative borders -> clean black margins (a
-	-- partially-positioned padding panel crashes). The STON10* mosaics now ship 2x-authored (L/R = 224px
-	-- wide = exactly the side void at 2048x1200), so with "UI Borders" on they frame the doubled UI;
-	-- IEex_MoveHighResolutionPaddingPanels positions them natively (top/bottom overshoot, cropped = fine).
-	local bordersOn = IEex_GetPrivateProfileInt("IEex Options", "UI Borders", 0, ".\\Icewind2.ini") ~= 0
-	if resW < 1024 or resH < 768 or (IEex_ReadByte(pBaldurChitin + 0x4A28) == 1 and not bordersOn) then
+	-- Remove the high-res padding panels if the resolution can't display them, OR whenever the player has
+	-- NOT opted into decorative borders ("UI Borders" off) -> clean black margins (a partially-positioned
+	-- padding panel crashes). The "UI Borders" toggle now applies in BOTH the 2x (m_bUseNewGui) and the 1x
+	-- UI -- previously it was honoured only under m_bUseNewGui, so without the 2x UI the borders were forced
+	-- on and the toggle was inert. The STON10* mosaics ship 2x-authored (L/R = 224px = the side void at
+	-- 2048x1200) when the 2x UI is installed; IEex_MoveHighResolutionPaddingPanels positions them natively
+	-- (top/bottom overshoot, cropped = fine). The borders-on path (panels kept + natively positioned) is the
+	-- same one already used without the 2x UI, so this only newly enables the borders-OFF case there.
+	local bordersOn = IEex_GetPrivateProfileInt("IEex Options", "UI Borders", 1, ".\\Icewind2.ini") ~= 0
+	if resW < 1024 or resH < 768 or not bordersOn then
 
 		IEex_DisableCodeProtection()
 
@@ -2812,6 +2821,37 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 	if controlHandler then
 		controlHandler()
 	end
+
+	-- Also show the option's description when its TOGGLE is pressed (not only when the label text is
+	-- clicked) -- toggle id N maps to label id N-1. No-op for non-option buttons (Done/Cancel -> ids
+	-- 0/1, absent from the table) and other screens. Ensures players see descriptions just by toggling.
+	if resref == "GUIOPT" and panelID == 14 then
+		IEex_SetOptionDescription(controlID - 1)
+	end
+end
+
+-- Shared option-description lookup -> renders into the IEex Options description area (panel 14,
+-- control 3). Keyed by LABEL id (= toggle id - 1). Called from BOTH the label-click handler
+-- (IEex_Extern_UI_LabelLDown) and each toggle handler, so the description shows whether the player
+-- clicks the option's text OR flips its toggle (most players never discover the click-the-label UX).
+-- A number value is a TRA strref (resolved via IEex_FetchString); a string is used inline.
+function IEex_SetOptionDescription(labelId)
+	local descriptions = {
+		[5]  = ex_tra_55903,
+		[7]  = ex_tra_55906,
+		[9]  = ex_tra_55908,
+		[11] = ex_tra_55932,
+		[13] = "Stretches the interface to fill the entire screen. When off, the UI renders at its native size with letterboxed black borders (crisper); when on, it is scaled up to fill the display (larger, but slightly softer).",
+		[15] = "Displays an on-screen counter showing the render framerate, the AI (game-logic) update rate, and the VRAM pool usage.",
+		[17] = "Synchronizes frame presentation with your monitor's refresh rate to eliminate screen tearing.",
+		[19] = "Adds decorative stone borders that frame the interface and fill the empty margins at the screen edges (for example on widescreen displays). Requires a restart to take effect.",
+		[21] = "Draws the interface into a single persistent buffer to reduce flickering of dynamic UI elements. Requires a restart to take effect.",
+		[23] = "Samples the mouse position at the rendering framerate instead of the game's logic tick rate, for smoother cursor movement. Requires a restart to take effect.",
+		[25] = "Limits the framerate to your display's refresh rate to reduce GPU and CPU load. Requires a restart to take effect.",
+	}
+	local d = descriptions[labelId]
+	if d == nil then return end
+	IEex_SetTextAreaToString(IEex_GetEngineOptions(), 14, 3, type(d) == "number" and IEex_FetchString(d) or d)
 end
 
 function IEex_Extern_UI_LabelLDown(CUIControlLabel)
@@ -2826,18 +2866,17 @@ function IEex_Extern_UI_LabelLDown(CUIControlLabel)
 	local handlers = {
 		["GUIOPT"] = {
 			[14] = {
-				[5] = function()
-					IEex_SetTextAreaToString(IEex_GetEngineOptions(), 14, 3, IEex_FetchString(ex_tra_55903))
-				end,
-				[7] = function()
-					IEex_SetTextAreaToString(IEex_GetEngineOptions(), 14, 3, IEex_FetchString(ex_tra_55906))
-				end,
-				[9] = function()
-					IEex_SetTextAreaToString(IEex_GetEngineOptions(), 14, 3, IEex_FetchString(ex_tra_55908))
-				end,
-				[11] = function()
-					IEex_SetTextAreaToString(IEex_GetEngineOptions(), 14, 3, IEex_FetchString(ex_tra_55932))
-				end,
+				[5]  = function() IEex_SetOptionDescription(5)  end,
+				[7]  = function() IEex_SetOptionDescription(7)  end,
+				[9]  = function() IEex_SetOptionDescription(9)  end,
+				[11] = function() IEex_SetOptionDescription(11) end,
+				[13] = function() IEex_SetOptionDescription(13) end,
+				[15] = function() IEex_SetOptionDescription(15) end,
+				[17] = function() IEex_SetOptionDescription(17) end,
+				[19] = function() IEex_SetOptionDescription(19) end,
+				[21] = function() IEex_SetOptionDescription(21) end,
+				[23] = function() IEex_SetOptionDescription(23) end,
+				[25] = function() IEex_SetOptionDescription(25) end,
 			},
 		},
 	}
@@ -3235,6 +3274,10 @@ function IEex_InstallIEexOptions()
 		["backgroundImage"] = "GOPPAUB",
 	})
 
+	-- In GL the "Transparent Fog of War" row (y=124, 3rd of the column) is hidden, so pull every
+	-- row below it up one 27px step to close the gap.
+	local fogRowShift = IEEX_GL_ACTIVE and 27 or 0
+
 	-- "IEex Options" Label - ID 0
 	IEex_AddControlOverride("GUIOPT", 14, 0, "IEex_UI_Label")
 	IEex_AddControlToPanel(newOptionsPanel, {
@@ -3314,6 +3357,11 @@ function IEex_InstallIEexOptions()
 		["textAreaID"] = 3,
 	})
 
+	-- "Transparent Fog of War" Label + Toggle - ID 5 / 6.
+	-- GL skips the software transparent FoW pass (Export_RenderFoW early-returns), so the option is
+	-- inert in GL -> don't build the controls. IEex_InitOptionButtons guards control 6 to match.
+	if not IEEX_GL_ACTIVE then
+
 	-- "Transparent Fog of War" Label - ID 5
 	IEex_AddControlOverride("GUIOPT", 14, 5, "IEex_UI_Label")
 	IEex_AddControlToPanel(newOptionsPanel, {
@@ -3341,6 +3389,8 @@ function IEex_InstallIEexOptions()
 		["frameUnpressed"] = 1,
 		["framePressed"] = 2,
 	})
+
+	end
 
 	-- "Action Indicators" Label - ID 7
 	IEex_AddControlOverride("GUIOPT", 14, 7, "IEex_UI_Label")
@@ -3404,7 +3454,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 11,
 		["x"] = 74,
-		["y"] = 151,
+		["y"] = 151 - fogRowShift,
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3418,7 +3468,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 12,
 		["x"] = 394,
-		["y"] = 150,
+		["y"] = 150 - fogRowShift,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3432,7 +3482,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 13,
 		["x"] = 74,
-		["y"] = 178,
+		["y"] = 178 - fogRowShift,
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3446,7 +3496,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 14,
 		["x"] = 394,
-		["y"] = 175,
+		["y"] = 175 - fogRowShift,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3460,7 +3510,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 15,
 		["x"] = 74,
-		["y"] = 205,
+		["y"] = 205 - fogRowShift,
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3474,7 +3524,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 16,
 		["x"] = 394,
-		["y"] = 202,
+		["y"] = 202 - fogRowShift,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3488,7 +3538,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 17,
 		["x"] = 74,
-		["y"] = 232,
+		["y"] = 232 - fogRowShift,
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3502,7 +3552,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 18,
 		["x"] = 394,
-		["y"] = 229,
+		["y"] = 229 - fogRowShift,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3516,7 +3566,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 19,
 		["x"] = 24,
-		["y"] = 259,
+		["y"] = 259 - fogRowShift,
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3530,7 +3580,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 20,
 		["x"] = 394,
-		["y"] = 256,
+		["y"] = 256 - fogRowShift,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3544,7 +3594,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 21,
 		["x"] = 24,
-		["y"] = 286,
+		["y"] = 286 - fogRowShift,
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3558,7 +3608,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 22,
 		["x"] = 394,
-		["y"] = 283,
+		["y"] = 283 - fogRowShift,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3572,7 +3622,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 23,
 		["x"] = 24,
-		["y"] = 313,
+		["y"] = 313 - fogRowShift,
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3586,7 +3636,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 24,
 		["x"] = 394,
-		["y"] = 310,
+		["y"] = 310 - fogRowShift,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -3600,7 +3650,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 25,
 		["x"] = 24,
-		["y"] = 340,
+		["y"] = 340 - fogRowShift,
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -3614,7 +3664,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 26,
 		["x"] = 394,
-		["y"] = 337,
+		["y"] = 337 - fogRowShift,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4136,6 +4186,14 @@ function IEex_LoadOptions()
 	IEex_Helper_SetBridge(options, "transparentFogOfWar",
 		IEex_GetPrivateProfileInt("IEex Options", "Transparent Fog of War", 0, ".\\Icewind2.ini") ~= 0 and true or false)
 
+	-- IEex_FogTypePtr points at this byte; in GL force it 0 so the FoW asm hooks (RenderFoWSolid /
+	-- RenderFoW / sprite-interlace / ground-pile) stay inert even if the ini still holds 1 from a
+	-- prior software-mode session. The ini value is left untouched (IEex_WriteOptions skips the key
+	-- in GL), so software mode keeps the user's preference.
+	if IEEX_GL_ACTIVE then
+		IEex_Helper_SetBridge(options, "transparentFogOfWar", false)
+	end
+
 	IEex_Helper_SetBridge(options, "actionIndicators",
 		IEex_GetPrivateProfileInt("IEex Options", "Action Indicators", 1, ".\\Icewind2.ini") ~= 0 and true or false)
 
@@ -4155,7 +4213,7 @@ function IEex_LoadOptions()
 		IEex_GetPrivateProfileInt("IEex Options", "Vsync", 1, ".\\Icewind2.ini") ~= 0 and true or false)
 
 	IEex_Helper_SetBridge(options, "uiBorders",
-		IEex_GetPrivateProfileInt("IEex Options", "UI Borders", 0, ".\\Icewind2.ini") ~= 0 and true or false)
+		IEex_GetPrivateProfileInt("IEex Options", "UI Borders", 1, ".\\Icewind2.ini") ~= 0 and true or false)
 
 	IEex_Helper_SetBridge(options, "uiSingleBuffer",
 		IEex_GetPrivateProfileInt("IEex Options", "UI Single Buffer", 1, ".\\Icewind2.ini") ~= 0 and true or false)
@@ -4174,8 +4232,12 @@ function IEex_WriteOptions()
 
 	local options = IEex_Helper_GetBridge("IEex_Options", "options")
 
-	IEex_WritePrivateProfileString("IEex Options", "Transparent Fog of War",
-		IEex_Helper_GetBridge(options, "transparentFogOfWar") and "1" or "0", ".\\Icewind2.ini")
+	-- In GL the runtime value is force-false (see IEex_LoadOptions); skip the write so we don't
+	-- clobber the player's software-mode preference stored in the ini.
+	if not IEEX_GL_ACTIVE then
+		IEex_WritePrivateProfileString("IEex Options", "Transparent Fog of War",
+			IEex_Helper_GetBridge(options, "transparentFogOfWar") and "1" or "0", ".\\Icewind2.ini")
+	end
 
 	IEex_WritePrivateProfileString("IEex Options", "Action Indicators",
 		IEex_Helper_GetBridge(options, "actionIndicators") and "1" or "0", ".\\Icewind2.ini")
@@ -4216,8 +4278,10 @@ function IEex_InitOptionButtons()
 
 	IEex_SetTextAreaToString(screenOptions, 14, 3, "")
 
-	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 6),
-		IEex_Helper_GetBridge(options, "transparentFogOfWar") and 3 or 1)
+	if not IEEX_GL_ACTIVE then -- control 6 ("Transparent Fog of War") isn't built in GL
+		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 6),
+			IEex_Helper_GetBridge(options, "transparentFogOfWar") and 3 or 1)
+	end
 
 	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 8),
 		IEex_Helper_GetBridge(options, "actionIndicators") and 3 or 1)

@@ -70,6 +70,11 @@ function IEex_OptionRowShift(labelId)
 	return hiddenAbove * 27
 end
 
+-- Which options-screen panel opened the IEex options panel (14): 2 = in-game main options panel,
+-- 13 = main-menu options popup (the engine hides panel 2 + summons popup 13 pre-game, so the in-game
+-- button on panel 2 is never visible there -- a duplicate button lives on panel 13). open/close restore it.
+IEex_OptionsParentPanelID = 2
+
 function IEex_GetPrivateProfileString(lpAppName, lpKeyName, lpDefault, lpFileName)
 	local toReturn
 	IEex_RunWithStackManager({
@@ -2343,6 +2348,44 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 		IEex_SetPanelEnabled(IEex_GetPanelFromEngine(engine, 2), enabled)
 	end
 
+	-- Open/close the IEex options panel (14) over its parent (the in-game main options panel 2, or the
+	-- main-menu options popup 13). Shared so both "IEex Options" buttons behave identically; the parent
+	-- is remembered in IEex_OptionsParentPanelID so Done/Cancel restore the right one.
+	local openIEexOptions = function(parentPanelID)
+		IEex_OptionsParentPanelID = parentPanelID
+		IEex_InitOptionButtons()
+		-- Copy current options to working temp
+		IEex_Helper_SetBridge("IEex_Options", "workingOptions", IEex_Helper_GetBridge("IEex_Options", "options"))
+
+		local screenOptions = IEex_GetEngineOptions()
+		local parentPanel = IEex_GetPanelFromEngine(screenOptions, parentPanelID)
+		local newOptionsPanel = IEex_GetPanelFromEngine(screenOptions, 14)
+
+		-- Add to popup stack
+		IEex_Call(0x7FBE4E, {newOptionsPanel}, screenOptions + 0x434, 0x0) -- CPtrList_AddTail()
+
+		local parentX, parentY, _, _ = IEex_GetPanelArea(parentPanel)
+		setCommonPanelsEnabled(screenOptions, false)
+		IEex_SetPanelEnabled(parentPanel, false)
+		IEex_SetPanelXY(newOptionsPanel, parentX, parentY)
+		IEex_SetPanelActive(newOptionsPanel, true)
+		IEex_SetEngineScrollbarFocus(screenOptions, IEex_GetControlFromPanel(newOptionsPanel, 4))
+		IEex_PanelInvalidate(newOptionsPanel)
+	end
+
+	local closeIEexOptions = function()
+		local screenOptions = IEex_GetEngineOptions()
+		local parentPanel = IEex_GetPanelFromEngine(screenOptions, IEex_OptionsParentPanelID)
+		local newOptionsPanel = IEex_GetPanelFromEngine(screenOptions, 14)
+
+		-- Remove from popup stack
+		IEex_Call(0x7FB343, {}, screenOptions + 0x434, 0x0) -- CPtrList_RemoveTail()
+
+		IEex_SetPanelActive(newOptionsPanel, false)
+		setCommonPanelsEnabled(screenOptions, true)
+		IEex_SetPanelEnabled(parentPanel, true)
+	end
+
 	local worldHandler = {
 		[0] = {
 			[15] = IEex_CScreenWorld_OnQuicklootButtonLClick,
@@ -2408,28 +2451,12 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 		},
 		["GUIOPT"] = {
 			[2] = {
-				-- "IEex Options" Button
-				[15] = function()
-
-					IEex_InitOptionButtons()
-					-- Copy current options to working temp
-					IEex_Helper_SetBridge("IEex_Options", "workingOptions", IEex_Helper_GetBridge("IEex_Options", "options"))
-
-					local screenOptions = IEex_GetEngineOptions()
-					local worldOptionsPanel = IEex_GetPanelFromEngine(screenOptions, 2)
-					local newOptionsPanel = IEex_GetPanelFromEngine(screenOptions, 14)
-
-					-- Add to popup stack
-					IEex_Call(0x7FBE4E, {newOptionsPanel}, screenOptions + 0x434, 0x0) -- CPtrList_AddTail()
-
-					local worldOptionsPanelX, worldOptionsPanelY, _, _ = IEex_GetPanelArea(worldOptionsPanel)
-					setCommonPanelsEnabled(screenOptions, false)
-					IEex_SetPanelEnabled(worldOptionsPanel, false)
-					IEex_SetPanelXY(newOptionsPanel, worldOptionsPanelX, worldOptionsPanelY)
-					IEex_SetPanelActive(newOptionsPanel, true)
-					IEex_SetEngineScrollbarFocus(screenOptions, IEex_GetControlFromPanel(newOptionsPanel, 4))
-					IEex_PanelInvalidate(newOptionsPanel)
-				end,
+				-- "IEex Options" Button (in-game main options panel)
+				[15] = function() openIEexOptions(2) end,
+			},
+			[13] = {
+				-- "IEex Options" Button (main-menu options popup)
+				[15] = function() openIEexOptions(13) end,
 			},
 			[14] = {
 				-- "Done" Button
@@ -2448,29 +2475,11 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 					end
 
 					IEex_WriteOptions()
-					local screenOptions = IEex_GetEngineOptions()
-					local worldOptionsPanel = IEex_GetPanelFromEngine(screenOptions, 2)
-					local newOptionsPanel = IEex_GetPanelFromEngine(screenOptions, 14)
-
-					-- Remove from popup stack
-					IEex_Call(0x7FB343, {}, screenOptions + 0x434, 0x0) -- CPtrList_RemoveTail()
-
-					IEex_SetPanelActive(newOptionsPanel, false)
-					setCommonPanelsEnabled(screenOptions, true)
-					IEex_SetPanelEnabled(worldOptionsPanel, true)
+					closeIEexOptions()
 				end,
 				-- "Cancel" Button
 				[2] = function()
-					local screenOptions = IEex_GetEngineOptions()
-					local worldOptionsPanel = IEex_GetPanelFromEngine(screenOptions, 2)
-					local newOptionsPanel = IEex_GetPanelFromEngine(screenOptions, 14)
-
-					-- Remove from popup stack
-					IEex_Call(0x7FB343, {}, screenOptions + 0x434, 0x0) -- CPtrList_RemoveTail()
-
-					IEex_SetPanelActive(newOptionsPanel, false)
-					setCommonPanelsEnabled(screenOptions, true)
-					IEex_SetPanelEnabled(worldOptionsPanel, true)
+					closeIEexOptions()
 				end,
 				-- "Transparent Fog of War" Toggle
 				[6] = function()
@@ -3268,6 +3277,7 @@ end
 function IEex_InstallIEexOptions()
 
 	local screenOptions = IEex_GetEngineOptions()
+
 	local worldOptionsPanel = IEex_GetPanelFromEngine(screenOptions, 2)
 
 	-- Move the normal "Return" button over to make room
@@ -3287,6 +3297,27 @@ function IEex_InstallIEexOptions()
 		["frameDisabled"] = 3,
 	})
 	IEex_SetControlButtonText(IEex_GetControlFromPanel(worldOptionsPanel, 15), IEex_FetchString(ex_tra_55901)) -- "IEex Options"
+
+	-- Duplicate "IEex Options" button on the MAIN-MENU options popup (panel 13). The engine hides the
+	-- in-game main options panel (2) and summons popup 13 pre-game (CScreenOptions::EngineActivated when
+	-- m_bFromMainMenu), so the panel-2 button never shows there. Same bottom-row layout: shift the popup's
+	-- "Return" (id 11) over and drop the button beside it. Click -> openIEexOptions(13).
+	local mainMenuOptionsPanel = IEex_GetPanelFromEngine(screenOptions, 13)
+	IEex_SetControlXY(IEex_GetControlFromPanel(mainMenuOptionsPanel, 11), 612, 338)
+	IEex_AddControlOverride("GUIOPT", 13, 15, "IEex_UI_Button")
+	IEex_AddControlToPanel(mainMenuOptionsPanel, {
+		["type"] = IEex_ControlStructType.BUTTON,
+		["id"] = 15,
+		["x"] = 497,
+		["y"] = 338,
+		["width"] = 117,
+		["height"] = 25,
+		["bam"] = "GBTNSTD",
+		["frameUnpressed"] = 1,
+		["framePressed"] = 2,
+		["frameDisabled"] = 3,
+	})
+	IEex_SetControlButtonText(IEex_GetControlFromPanel(mainMenuOptionsPanel, 15), IEex_FetchString(ex_tra_55901)) -- "IEex Options"
 
 	-- IEex Options panel - ID 14
 	local newOptionsPanel = IEex_AddPanelToEngine(screenOptions, {

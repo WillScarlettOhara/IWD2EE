@@ -6,7 +6,7 @@
 	-- flag false->true. The core ships it OFF (stock 1x UI, correct at any res). Push it to the helper
 	-- so GetUICanvasScale (the GL canvas factor) tracks the install, not a togglable key. A runtime
 	-- toggle can't work: a 2x CHU left in override renders oversized/broken when the canvas is 1x.
-	local IEEX_HD_UI = false
+	local IEEX_HD_UI = true
 	IEex_Helper_SetHDUI(IEEX_HD_UI and 1 or 0)
 
 	-- Menu torch gate (install-time). The default menu art has the torch holder -> ON by default. The
@@ -229,9 +229,11 @@
 		-- filter de-doubled those too and broke the inventory. Each font: if resref[0:4]==dword1 AND
 		-- resref[4:8]==dword2 -> hit. dword2 = chars 5-8 LE (null-padded). Add a font here when its HD BAM ships.
 		-- NORMAL "NORM"/"AL\0\0" · TOOLFONT "TOOL"/"FONT" · STONESML "STON"/"ESML"
-		-- (INFOFONT removed: it's a 1-bit pixel font -> the engine's NN 2x double is already sharp, so it
-		--  uses the player's plain stock font (Western or Russian) doubled, NOT a custom HD BAM -- like a
-		--  1-bit font should. Shipping an AA BAM for it softened it; de-doubling it would shrink it to 1x.)
+		-- · INFOFONT "INFO"/"FONT" (floating identify text; now ships a 2x AA BAM -- Rajdhani Bold Western /
+		--  Play Bold Russian, scripts/aa_fonts/build_aa_fonts.py src_scale=2 -> glyph cells = 2x vanilla).
+		--  Because it ships a 2x BAM it MUST de-double like the others, else the engine doubles it to 4x
+		--  (= "2x too big"). The branch is below at the I* gate (>hit). Stock 1-bit INFOFONT (no AA BAM)
+		--  would instead need >skip so the engine NN-doubles the 1x font to 2x.
 		-- · NUMFONT "NUMF"/"ONT\0" (portrait HP numbers -- replaced the stock 1-bit bevel digits with a crisp
 		-- silly_pixel BAM authored at final px, so it must de-double too, else the 1px outline renders 2px).
 		-- · REALMS "REAL"/"MS\0\0" (uncial display/title face; HD BAM repacked from an auto-traced TTF of the
@@ -365,11 +367,10 @@
 		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) 25 FF FF 00 00 !cmp_eax_dword #00005053 !jz_dword >hit "
 		-- HD item icons: PREFIX gate -- one branch covers all I* item icons (and eax,0xFF (char0); cmp 'I').
 		-- I* via CResCell = item icons + INITIALS/INVBUT (HD/de-doubled). SP* scroll item icons are caught
-		-- by the SP* branch above; FIST/TEMP/USPLAT15 by resref. INFOFONT (also starts with 'I') is now
-		-- EXCLUDED below: it's a 1-bit pixel font with NO custom 2x BAM (plain stock -> engine NN 2x double
-		-- = already sharp), so it must NOT be de-doubled (that would render it at 1x). Check it BEFORE the
-		-- I* prefix gate and send it to >skip.
-		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) !cmp_eax_dword #4F464E49 !jne_dword >notinfo !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #544E4F46 !jz_dword >skip @notinfo "
+		-- by the SP* branch above; FIST/TEMP/USPLAT15 by resref. INFOFONT (also starts with 'I') ships a
+		-- 2x AA BAM (Rajdhani/Play, src_scale=2), so it is de-doubled like the other HD fonts -> >hit.
+		-- Check it BEFORE the I* prefix gate (so it routes to the font >hit, not the item-icon path).
+		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) !cmp_eax_dword #4F464E49 !jne_dword >notinfo !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #544E4F46 !jz_dword >hit @notinfo "
 		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) 25 FF 00 00 00 !cmp_eax_dword #00000049 !jz_dword >hit "
 		hd_match = hd_match .. "!jmp_dword >skip @hit "
 		-- === HD cursor save-under: enlarge the pointer backup surfaces (height 64 -> 256) ===

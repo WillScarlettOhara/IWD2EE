@@ -69,6 +69,44 @@
 			!call >IEex_Helper_PresentScaled
 			!nop
 		]]})
+
+		-----------------------------------------------------------------------------
+		-- INTRO / CUTSCENE MOVIES UNDER THE GL RENDERER ------------------------- --
+		-----------------------------------------------------------------------------
+		-- BINK movies (BISLOGO/INTRO/MIDDLE/END/CREDITS) are played by CBaldurProjector,
+		-- which blits each decoded frame straight into the DirectDraw back surface and
+		-- Flip()s. That has no equivalent under the GL renderer, so the engine's own 2002
+		-- guard makes CBaldurProjector::EngineActivated (0x43EC20) bail BEFORE BinkOpen
+		-- whenever m_bIs3dAccelerated -> the movie is silently SKIPPED (no intro video at
+		-- all in GL mode). Three patches, GL-only (this whole block is gated on the
+		-- "3D Acceleration" key above, so the stock software movie path is untouched):
+		--
+		-- (1) EngineActivated guard: at 0x43ED02 `je 0x43ED21` is the "not 3d -> open the
+		--     movie" branch; the fall-through (3d accelerated) reverts the engine without
+		--     opening BINK. Force it to ALWAYS take the open path (je -> jmp short). The
+		--     subsequent EraseScreen(BACK) is 3d-safe (returns FALSE when the DD surface
+		--     is NULL, which it is under GL).
+		IEex_WriteByte(0x43ED02, 0xEB)
+		--
+		-- (2) EngineDeactivated cleanup (0x43EED0): the BinkClose / pDimm->Resume / pointer
+		--     re-enable block is gated `if (!m_bIs3dAccelerated)` -> skipped under GL, which
+		--     would leave input + the cursor suspended (EngineActivated's Suspend now runs
+		--     under GL too). NOP the `jne 0x43EFF5` skip so the cleanup ALWAYS runs (its
+		--     EnterCriticalSection/LeaveCriticalSection stay balanced; BinkClose self-guards
+		--     on m_hBink != NULL).
+		IEex_WriteAssembly(0x43EF47, {"!repeat(6,!nop)"})
+		--
+		-- (3) RenderBinkFrame (0x43E300) full replacement -> decode the frame, upload it to
+		--     a GL texture and draw it through the same FBO present path the world renderer
+		--     uses (Export_RenderBinkFrameGL). __thiscall(this, HBINK): marshal (this, bnk)
+		--     to the __stdcall export and clean the 1 stack arg (ret 4).
+		IEex_WriteAssembly(0x43E300, {[[
+			!mark_esp
+			!marked_esp !push([esp+0x04])
+			!push_ecx
+			!call >IEex_Helper_RenderBinkFrameGL
+			!ret_word 04 00
+		]]})
 	end
 
 	--------------------------------------------------------------------------

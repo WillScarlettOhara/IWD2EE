@@ -4387,10 +4387,99 @@ function IEex_InitOptionButtons()
 		IEex_Helper_GetBridge(options, "maxFps") ~= 9999 and 3 or 1)
 end
 
+-- Ship the option documentation INTO the ini. The [IEex Options] section is written at runtime (the
+-- engine/IEex write keys via WritePrivateProfileStringA, which never emits comments), so there is no
+-- template to ship -- instead inject "; ..." lines once, by raw file edit. INSERT-ONLY: never removes
+-- or reorders a line, so no key/value is ever lost; a comment is added only above a known key that does
+-- not already have one. Runs every launch but only rewrites when it actually added something, so newly
+-- written keys get documented on a later launch. CRLF preserved. WritePrivateProfileStringA preserves
+-- the comments on subsequent saves (Wine reloads on mtime change), and the post-write API read below
+-- syncs Wine's in-memory copy to our edit so an exit-flush can't clobber it.
+function IEex_InjectOptionIniComments()
+
+	local path = "Icewind2.ini"
+	local rf = io.open(path, "rb")
+	if not rf then return end
+	local content = rf:read("*a")
+	rf:close()
+	if not content or content == "" then return end
+
+	local SENTINEL = "; These keys mirror the in-game IEex Options menu -- click or toggle an option there for its description."
+
+	local comments = {
+		["Last Resolution"]                       = "(internal) last resolution the game ran at.",
+		["Transparent Fog of War"]                = "Transparent fog of war instead of the interlaced version. Software renderer only; ignored under OpenGL.",
+		["Action Indicators"]                     = "Action indicators above character portraits showing each character's current action(s).",
+		["Highlight Empty Containers in Gray"]    = "Highlight already-looted/empty containers in gray instead of green.",
+		["Prevent Equipping Armor During Combat"] = "Prevent party members from putting on armor while in combat.",
+		["Stretch UI to Screen"]                  = "1 = stretch the UI to fill the screen (larger, softer); 0 = native size, letterboxed (crisper). OpenGL only.",
+		["Show FPS"]                              = "On-screen counter: render framerate, AI (game-logic) rate, and VRAM pool usage.",
+		["Vsync"]                                 = "Sync frame presentation to the display refresh to remove tearing. OpenGL only.",
+		["UI Borders"]                            = "Decorative stone borders filling the empty screen-edge margins. Restart required.",
+		["UI Single Buffer"]                      = "Single persistent UI buffer to reduce flicker of dynamic elements. Restart required. OpenGL only.",
+		["Smooth Cursor"]                         = "Sample the mouse at the render framerate for smoother cursor motion. Restart required. OpenGL only.",
+		["Max FPS"]                               = "Frame cap: 0 = auto (just under display refresh), 9999 = uncapped. The 'Cap FPS to Display Refresh' menu toggle flips 0/9999.",
+		["Fill Screen"]                           = "OpenGL: 1 = fit the game image to the desktop via an FBO; 0 = raw direct present (native resolution only).",
+	}
+
+	local nl = content:find("\r\n", 1, true) and "\r\n" or "\n"
+	local hasSentinel = content:find(SENTINEL, 1, true) ~= nil
+
+	local lines = {}
+	local pos = 1
+	while true do
+		local s, e = content:find(nl, pos, true)
+		if not s then lines[#lines + 1] = content:sub(pos); break end
+		lines[#lines + 1] = content:sub(pos, s - 1)
+		pos = e + 1
+	end
+
+	local out = {}
+	local inSection = false
+	local sawSection = false
+	local changed = false
+	for _, line in ipairs(lines) do
+		local trimmed = line:match("^%s*(.-)%s*$")
+		if trimmed:match("^%[.+%]$") then
+			inSection = (trimmed:lower() == "[ieex options]")
+			out[#out + 1] = line
+			if inSection then
+				sawSection = true
+				if not hasSentinel then
+					out[#out + 1] = SENTINEL
+					out[#out + 1] = ""   -- blank so the first key still gets its own comment
+					changed = true
+				end
+			end
+		else
+			if inSection then
+				local key = trimmed:match("^([^=;]-)%s*=")
+				local prev = out[#out]
+				if key and comments[key] and not (prev and prev:match("^%s*;")) then
+					out[#out + 1] = "; " .. comments[key]
+					changed = true
+				end
+			end
+			out[#out + 1] = line
+		end
+	end
+
+	if not sawSection or not changed then return end
+
+	local wf = io.open(path, "wb")
+	if not wf then return end
+	wf:write(table.concat(out, nl))
+	wf:close()
+
+	-- Force Wine to reload its cached copy (mtime changed) so a later flush keeps our comments.
+	IEex_GetPrivateProfileInt("IEex Options", "Show FPS", 0, ".\\Icewind2.ini")
+end
+
 IEex_AbsoluteOnce("IEex_InitOptions", function()
 	if not IEex_InAsyncState then return false end
 	if IEex_Vanilla then return end
 	IEex_LoadOptions()
+	pcall(IEex_InjectOptionIniComments)
 end)
 
 function IEex_Extern_OnOptionsScreenESC(CScreenOptions)

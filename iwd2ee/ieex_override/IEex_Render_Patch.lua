@@ -56,6 +56,17 @@
 			IEex_WriteByte(0x7BDCE2, 0xC3)   -- ret
 		end
 
+		-- FORCE MAX REFRESH for the GL fullscreen mode-switch (Wine/Proton, where SetDisplayMode runs).
+		-- CVidInf::SetDisplayMode (0x7BDCE0) switches the desktop to the game resolution and picks the
+		-- highest mode with dmDisplayFrequency <= CVideo::FPS (static @0x8BA318). CVideo::FPS DEFAULTS to
+		-- 60 and is only raised to the panel max during DirectDraw init -- so if a mode-switch fires while
+		-- it is still 60 (the intro-movie playback path triggers exactly this), the desktop is pinned to
+		-- e.g. 1080p@60 for the WHOLE session and the frame limiter then caps ~58fps (desktop 4K@120 ->
+		-- game 1080p@60 instead of @120). NOP the `ja` upper-refresh filter (@0x7BDD9D, bytes 77 08) so
+		-- the search ignores CVideo::FPS and always selects the HIGHEST refresh for the game resolution
+		-- (1080p@120). Harmless on native Windows (SetDisplayMode is no-op'd above -> never reached there).
+		IEex_WriteAssembly(0x7BDD9D, {"!repeat(2,!nop)"})
+
 		-- SUB-NATIVE BORDERLESS FILL. The borderless window is sized to the GAME resolution, so a
 		-- resolution below the desktop only covers a corner. Intercept the SwapBuffers call inside
 		-- CVidInf::WindowedFlip3d (@0x7BE520 = "call dword ptr [0xA0E170]", 6 bytes FF 15 70 E1 A0 00).

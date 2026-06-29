@@ -369,13 +369,57 @@
 			]]},
 		}))
 
-		IEex_HookRestore(0x47FB41, 0, 6, {"!push_byte 00 !call", {callHook, 4, 4}}) -- Normal mouse hover - Fill
-		IEex_HookBeforeCall(0x47FB76, {"!push_byte 00 !call", {callHook, 4, 4}}) -- Normal mouse hover - Outline
+		-- GL-native translucent FILL for the highlight polygons. The engine draws the
+		-- highlight as OUTLINE (CInfinity::OutlinePoly @0x5CECD0) + a translucent FILL
+		-- (CGame*::RenderClippedPoly), but the FILL is gated OFF in 3D at every call site
+		-- (`TRANSLUCENT_BLTS_ON && !Is3dAccelerated()`) because the FX fill path is
+		-- software-only (CVidInf::FXPrep's 3D branch can't COPYFROMBACK). So under the GL
+		-- renderer doors/containers/triggers highlight as outline-only and lootables are
+		-- hard to spot. IEex_Helper_CInfinity_FillHighlightPoly3d redraws the fill GPU-side.
+		-- It is hooked immediately BEFORE each OutlinePoly call, so it reuses the exact same
+		-- polygon + colour the outline is about to use -- including the empty-container gray
+		-- override callHook applies just above, so the fill colour tracks it automatically.
+		-- 3D only: in software the engine's own fill already runs (don't double-fill / no GL).
+		-- fillBlock duplicates OutlinePoly's 4 stack args (pPoly,nVerts,rClip,colour; colour
+		-- at [esp+0xC]) and forwards them __thiscall (ecx = pInfinity, untouched) to the
+		-- export, which cleans them (ret 0x10). push_all_registers_iwd2 = 7 regs (0x1C), so
+		-- the args sit at [esp+0x28] after it; ecx is saved/restored across, intact for the
+		-- engine's own OutlinePoly call that HookBeforeCall appends afterwards.
+		local is3D = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini") ~= 0
+		local fillBlock = {[[
+			!push_all_registers_iwd2
+			!push([esp+0x28])
+			!push([esp+0x28])
+			!push([esp+0x28])
+			!push([esp+0x28])
+			!call >IEex_Helper_CInfinity_FillHighlightPoly3d
+			!pop_all_registers_iwd2
+		]]}
 
-		IEex_HookRestore(0x47FC2A, 0, 6, {"!push_byte 01 !call", {callHook, 4, 4}}) -- Bash - Fill
+		IEex_HookRestore(0x47FB41, 0, 6, {"!push_byte 00 !call", {callHook, 4, 4}}) -- Normal mouse hover - Fill (software)
+		IEex_HookBeforeCall(0x47FB76, IEex_FlattenTable({                            -- Normal mouse hover - Outline (+ GL fill)
+			{"!push_byte 00 !call", {callHook, 4, 4}},
+			is3D and fillBlock or {},
+		}))
 
-		IEex_HookRestore(0x47FD1C, 0, 6, {"!push_byte 02 !call", {callHook, 4, 4}}) -- Alt Down - Fill
-		IEex_HookBeforeCall(0x47FD52, {"!push_byte 02 !call", {callHook, 4, 4}}) -- Alt down - Outline
+		IEex_HookRestore(0x47FC2A, 0, 6, {"!push_byte 01 !call", {callHook, 4, 4}}) -- Bash - Fill (software)
+
+		IEex_HookRestore(0x47FD1C, 0, 6, {"!push_byte 02 !call", {callHook, 4, 4}}) -- Alt Down - Fill (software)
+		IEex_HookBeforeCall(0x47FD52, IEex_FlattenTable({                            -- Alt down - Outline (+ GL fill)
+			{"!push_byte 02 !call", {callHook, 4, 4}},
+			is3D and fillBlock or {},
+		}))
+
+		-- Remaining OutlinePoly highlight sites that have a (GL-missing) software fill but
+		-- no colour-override hook: container script-flash (red), every door state (open/
+		-- closed x hover/bash/trap/flash), and triggers / info-points. GL fill only.
+		if is3D then
+			IEex_HookBeforeCall(0x47FDF2, fillBlock) -- Container - script-flash (red) Outline
+			for _, addr in ipairs({0x488CA3, 0x488D34, 0x488E76, 0x488F1C, 0x48929D}) do
+				IEex_HookBeforeCall(addr, fillBlock) -- Door highlight Outlines
+			end
+			IEex_HookBeforeCall(0x4CFC10, fillBlock) -- Trigger / info-point Outline
+		end
 	end
 
 	------------------------------------------------------------------------------

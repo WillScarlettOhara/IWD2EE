@@ -114,6 +114,29 @@
 	]]})
 
 	--------------------------------------------------------------------------------
+	-- SHOW-FPS vs STRETCH. CVidInf::Flip (0x79C1E0) draws the Show-FPS counter via
+	-- DisplayFrameRate (vtable [edx+0x78]) AFTER the UI pass, at fixed top-centre coords
+	-- through the CURRENT MODELVIEW. On a full-screen UI engine Export_UIScaleRenderEndUI
+	-- leaves the Stage-1 fill MODELVIEW set, so with "Stretch UI to Screen"=1 the counter
+	-- runs through the fill scale+translate and flies off-screen (FPS text vanishes).
+	-- Bracket the DisplayFrameRate call with a MODELVIEW push+identity / pop so the overlay
+	-- always lands at its native screen position regardless of Stretch (no-op on the world
+	-- screen, already identity here; helpers self-gate to GL).
+	--   begin 0x79C1F8: 6 displaced bytes (8B 16 6A 00 8B CE = mov edx,[esi]; push 0; mov ecx,esi)
+	--   end   0x79C201: 5 displaced bytes (A1 D8 F6 8C 00   = mov eax,ds:0x8CF6D8), right after the call
+	--------------------------------------------------------------------------------
+	IEex_HookRestore(0x79C1F8, 0, 6, {[[
+		!push_all_registers_iwd2
+		!call >IEex_Helper_FrameRateBegin
+		!pop_all_registers_iwd2
+	]]})
+	IEex_HookRestore(0x79C201, 0, 5, {[[
+		!push_all_registers_iwd2
+		!call >IEex_Helper_FrameRateEnd
+		!pop_all_registers_iwd2
+	]]})
+
+	--------------------------------------------------------------------------------
 	-- GL FONT FIX (opengl-only): the GL glyph atlas (CVidFont::LoadGlyphs @0x7A0B20) packs glyphs at row
 	-- pitch = node->m_nFontHeight ([esi+0x40]), AND RenderCharacters (the GL text draw) samples each
 	-- glyph as a node->m_nFontHeight-tall cell. That value (frame-1 height = 26) is too short two ways:

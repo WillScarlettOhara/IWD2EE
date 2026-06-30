@@ -86,6 +86,36 @@
 			!nop
 		]]})
 
+	-----------------------------------------------------------------------------
+	-- SAVE-GAME BMP CAPTURE UNDER THE FBO ------------------------------------- --
+	-----------------------------------------------------------------------------
+	-- CVidInf::PrintSurfaceToBmp (3D path @0x7BE5A0) grabs the framebuffer for the
+	-- save screenshot (ICEWIND2.BMP) + party portraits (PORTRT0-5.BMP) via
+	-- glReadBuffer(GL_BACK) @0x7BE805 then glReadPixels. Under the Fill-Screen FBO
+	-- the bound framebuffer during the save capture is the FBO (FillBindForRender
+	-- bound it at the CChitin::SynchronousUpdate frame start), where GL_BACK is
+	-- invalid (GL_INVALID_OPERATION) -> glReadPixels writes nothing -> the buffer
+	-- stays 0xFF -> PrintSurfaceToBmp's sentinel check discards it -> no BMP.
+	-- Reroute the single `call ds:glReadBuffer` (6 bytes FF 15 C4 78 90 00) to a
+	-- helper that picks GL_COLOR_ATTACHMENT0 (0x8CE1) when the FBO is active, else
+	-- GL_BACK (0x405, stock). The only glReadBuffer call site in the binary -> no
+	-- other path affected. NB: with Fill Screen=0 the helper passes GL_BACK
+	-- through unchanged, so this is safe in both modes.
+	IEex_WriteAssembly(0x7BE805, {[[
+		!call >IEex_Helper_ReadBufferForSave
+		!nop
+	]]})
+
+	-- Hook glReadPixels @0x7BE857 (6 bytes FF 15 C8 78 90 00). Under Wine, glReadPixels from the
+	-- Fill-Screen FBO (a texture attachment) fails with GL_INVALID_OPERATION for every format, so
+	-- the capture buffer stays 0xFF and PrintSurfaceToBmp discards it -> no BMP. The helper reads
+	-- the FBO texture via glGetTexImage instead (bypassing the Wine quirk) when the FBO is active,
+	-- else runs the stock glReadPixels. Pairs with the CheckResults3d fix below.
+	IEex_WriteAssembly(0x7BE857, {[[
+		!call >IEex_Helper_ReadPixelsForSave
+		!nop
+	]]})
+
 		-----------------------------------------------------------------------------
 		-- INTRO / CUTSCENE MOVIES UNDER THE GL RENDERER ------------------------- --
 		-----------------------------------------------------------------------------
@@ -517,14 +547,19 @@
 	-- rc != 0, and EVERY render-path caller passes 0, so the error scan never runs;
 	-- even on a real error it only Format()s a CString that is then DISCARDED (never
 	-- logged). So it is a no-op debug hook = pure dead per-call overhead. Patch the
-	-- entry to `ret 4` (thiscall cleans its one 4-byte arg; callers ignore the BOOL).
-	-- Zero render effect. MEASURED (scripts/perf): removes its own ~0.5% self-time;
-	-- net fps change negligible -- the frame is bound by the nvidia-glcore driver
-	-- (per-tile bind+draw), not by these CPU-side checks. Kept as correct dead-code
-	-- removal, not a meaningful win. (The ~4% CString::~CString in the profile is
-	-- NOT from here -- it is resource-name loading via CDimm::Local*Resource.)
+	-- entry to `mov eax,1 ; ret 4` (return TRUE / 1: no error) so the
+	-- thiscall cleans its one 4-byte arg and callers that gate on the BOOL (notably
+	-- CVidInf::PrintSurfaceToBmp @0x7BE866, which frees the capture buffer + returns
+	-- FALSE when CheckResults3d returns 0 -> no save BMP) see success. Returning 1
+	-- matches the real fn's no-error path (it sets esi=1 then returns it). Zero
+	-- render effect (callers in the hot paths pass rc=0 and ignore the BOOL anyway).
+	-- MEASURED (scripts/perf): removes its own ~0.5% self-time; net fps change
+	-- negligible -- the frame is bound by the nvidia-glcore driver (per-tile
+	-- bind+draw), not by these CPU-side checks. Kept as correct dead-code removal.
+	-- (The ~4% CString::~CString in the profile is NOT from here -- it is resource-
+	-- name loading via CDimm::Local*Resource.)
 	if not IEex_Vanilla then
-		IEex_WriteAssembly(0x7BEA80, {"!ret_word 04 00"})
+		IEex_WriteAssembly(0x7BEA80, {"!mov(eax,1) !ret_word 04 00"})
 	end
 
 	-- NOTE: an experiment that also NOP'd the redundant per-tile glTexParameterf

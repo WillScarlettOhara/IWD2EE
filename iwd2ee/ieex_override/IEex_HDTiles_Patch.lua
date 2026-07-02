@@ -104,7 +104,7 @@
 	]]})
 
 	--------------------------------------------------------------------------------
-	-- TILE ATLAS (perf, GL 1.1 only) -- gated by [IEex Options] "Tile Atlas" (off by
+	-- TILE ATLAS (perf, GL 1.1 only) -- gated by [IEex Options] "Tile Atlas" (ON by
 	-- default). Pack the per-tile textures into one 4096x4096 atlas and draw all visible
 	-- tiles in ~2 batched glDrawArrays instead of ~3295 per-tile bind + immediate-mode
 	-- quad. Measured bottleneck (warm cache, ~0 uploads/frame) = those bind+draws.
@@ -115,7 +115,7 @@
 	--     (@0x7C6187, displaces `mov edx,[0x8CF6D8]` = 6 bytes), copy m_pPixels (0xA09FC8)
 	--     into the tile's atlas cell. Fires only on cold/lighting re-uploads (~0/frame).
 	-- Flush is driven from Export_FogTexDraw (tiles->sprites boundary), before the fog.
-	if IEex_GetPrivateProfileInt("IEex Options", "Tile Atlas", 0, ".\\Icewind2.ini") ~= 0 then
+	if IEex_GetPrivateProfileInt("IEex Options", "Tile Atlas", 1, ".\\Icewind2.ini") ~= 0 then
 		IEex_WriteAssembly(0x7C64F0, {[[
 			!mark_esp
 			!marked_esp !push([esp+0x14])

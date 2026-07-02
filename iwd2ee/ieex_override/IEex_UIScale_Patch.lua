@@ -6,7 +6,7 @@
 	-- flag false->true. The core ships it OFF (stock 1x UI, correct at any res). Push it to the helper
 	-- so GetUICanvasScale (the GL canvas factor) tracks the install, not a togglable key. A runtime
 	-- toggle can't work: a 2x CHU left in override renders oversized/broken when the canvas is 1x.
-	local IEEX_HD_UI = true
+	local IEEX_HD_UI = false
 	IEex_Helper_SetHDUI(IEEX_HD_UI and 1 or 0)
 
 	-- Menu torch gate (install-time). The default menu art has the torch holder -> ON by default. The

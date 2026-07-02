@@ -31,7 +31,53 @@ function IEex_GetPrivateProfileInt(lpAppName, lpKeyName, nDefault, lpFileName)
 	return toReturn
 end
 
--- Software-renderer opt-out (stock ini key [Program Options] "3D Acceleration" = 0): the software
+function IEex_WritePrivateProfileInt(lpAppName, lpKeyName, nInt, lpFileName)
+	IEex_WritePrivateProfileString(lpAppName, lpKeyName, tostring(nInt), lpFileName)
+end
+
+function IEex_WritePrivateProfileString(lpAppName, lpKeyName, lpString, lpFileName)
+	IEex_RunWithStackManager({
+		{["name"] = "lpAppName",  ["struct"] = "string", ["constructor"] = {["luaArgs"] = {lpAppName}  }},
+		{["name"] = "lpKeyName",  ["struct"] = "string", ["constructor"] = {["luaArgs"] = {lpKeyName}  }},
+		{["name"] = "lpString",   ["struct"] = "string", ["constructor"] = {["luaArgs"] = {lpString}   }},
+		{["name"] = "lpFileName", ["struct"] = "string", ["constructor"] = {["luaArgs"] = {lpFileName} }}, },
+		function(manager)
+			IEex_Call(IEex_ReadDword(0x847308), {
+				manager:getAddress("lpFileName"),
+				manager:getAddress("lpString"),
+				manager:getAddress("lpKeyName"),
+				manager:getAddress("lpAppName"),
+			})
+		end)
+end
+
+-- The GL renderer requires [Program Options] "3D Acceleration"=1, but a fresh (GOG) install ships
+-- an explicit =0 and the engine re-persists its runtime field back to the key on shutdown -- an
+-- explicit 0 would otherwise lock the software renderer forever (the README already promises:
+-- "IWD2EE turns on 3D Acceleration automatically at each launch"). Rewrite the key EVERY launch,
+-- before anything reads it (the IEEX_HD_UI / IEEX_GL_ACTIVE reads below run at State load; every
+-- *_Patch.lua gate runs later). Player opt-out: [IEex Options] "Software Renderer"=1 -> the key is
+-- forced 0 instead -> every GL gate (render/UI-scale/zoom/HD-tiles) self-disables coherently.
+if not IEex_Vanilla then
+	local softwareRenderer = IEex_GetPrivateProfileInt("IEex Options", "Software Renderer", 0, ".\\Icewind2.ini") ~= 0
+	IEex_WritePrivateProfileInt("IEex Options", "Software Renderer", softwareRenderer and 1 or 0, ".\\Icewind2.ini")
+	IEex_WritePrivateProfileInt("Program Options", "3D Acceleration", softwareRenderer and 0 or 1, ".\\Icewind2.ini")
+	if softwareRenderer then
+		-- Without cnc-ddraw (ddraw.dll in the game root) the stock software blit is unaccelerated
+		-- and crawls at high resolutions. cnc-ddraw is harmless under GL (the GL path never calls
+		-- DirectDrawCreate, the wrapper stays dormant), so it can stay installed as the software
+		-- fallback. Tell the player why software mode is slow when it is missing.
+		local ddraw = io.open("ddraw.dll", "rb")
+		if ddraw then
+			ddraw:close()
+		else
+			print("[IEex] Software Renderer=1 but cnc-ddraw (ddraw.dll) is absent -- software mode will be VERY slow at high resolutions; reinstall the ddrawfix component or lower the resolution.")
+		end
+	end
+end
+
+-- Software-renderer opt-out ("3D Acceleration" = 0, normalized just above from "Software
+-- Renderer"): the software
 -- (DirectDraw) renderer has no GL canvas to downscale a 2x UI, so force HD UI off here -> the whole
 -- 2x machinery (engine m_bUseNewGui doubling @1598 + every IEex coord *2 @374/1981/2151 + divider
 -- read @3102) stays disabled and the stock 1x UI renders correctly. Mirrors the GL-enable gate in
@@ -120,26 +166,6 @@ function IEex_GetSpellIconResref(spellResref)
 	spellWrapper:free()
 	IEex_SpellIconResrefCache[spellResref] = iconResref
 	return iconResref
-end
-
-function IEex_WritePrivateProfileInt(lpAppName, lpKeyName, nInt, lpFileName)
-	IEex_WritePrivateProfileString(lpAppName, lpKeyName, tostring(nInt), lpFileName)
-end
-
-function IEex_WritePrivateProfileString(lpAppName, lpKeyName, lpString, lpFileName)
-	IEex_RunWithStackManager({
-		{["name"] = "lpAppName",  ["struct"] = "string", ["constructor"] = {["luaArgs"] = {lpAppName}  }},
-		{["name"] = "lpKeyName",  ["struct"] = "string", ["constructor"] = {["luaArgs"] = {lpKeyName}  }},
-		{["name"] = "lpString",   ["struct"] = "string", ["constructor"] = {["luaArgs"] = {lpString}   }},
-		{["name"] = "lpFileName", ["struct"] = "string", ["constructor"] = {["luaArgs"] = {lpFileName} }}, },
-		function(manager)
-			IEex_Call(IEex_ReadDword(0x847308), {
-				manager:getAddress("lpFileName"),
-				manager:getAddress("lpString"),
-				manager:getAddress("lpKeyName"),
-				manager:getAddress("lpAppName"),
-			})
-		end)
 end
 
 -------------------------
@@ -4465,6 +4491,7 @@ function IEex_InjectOptionIniComments()
 		["Smooth Cursor"]                         = "Sample the mouse at the render framerate for smoother cursor motion. Restart required. OpenGL only.",
 		["Max FPS"]                               = "Frame cap: 0 = auto (just under display refresh), 9999 = uncapped. The 'Cap FPS to Display Refresh' menu toggle flips 0/9999.",
 		["Fill Screen"]                           = "OpenGL: 1 = fit the game image to the desktop via an FBO; 0 = raw direct present (native resolution only).",
+		["Software Renderer"]                     = "1 = force the stock software (DirectDraw) renderer; 0 = OpenGL (default). [Program Options] '3D Acceleration' is rewritten from this every launch.",
 	}
 
 	local nl = content:find("\r\n", 1, true) and "\r\n" or "\n"

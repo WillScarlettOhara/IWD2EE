@@ -34,4 +34,17 @@ IEex_AbsoluteOnce("IEex_StartupFixes_Once", function()
 	IEex_WritePrivateProfileString("Movies", "MIDDLE", "1", iniPath)
 	IEex_WritePrivateProfileString("Movies", "END", "1", iniPath)
 
+	---------------------------------------------------------------
+	-- Sanitize garbage [Program Options] Screen Position values --
+	---------------------------------------------------------------
+	-- Fresh (GOG) inis ship uninitialized junk (e.g. 22063544/10646253); the software-renderer
+	-- window honors these on native Windows and can start (partly) off-screen. Any legitimate
+	-- value fits inside a desktop -- reset anything wildly outside to 0 (top-left).
+	for _, key in ipairs({"Screen Position X", "Screen Position Y"}) do
+		local v = IEex_GetPrivateProfileInt("Program Options", key, 0, iniPath)
+		if v < 0 or v > 32767 then
+			IEex_WritePrivateProfileInt("Program Options", key, 0, iniPath)
+		end
+	end
+
 end)

@@ -102,11 +102,23 @@ function IEex_GetResolution()
 	return IEex_ReadWord(0x8BA31C, 0), IEex_ReadWord(0x8BA31E, 0)
 end
 
+-- A spell's icon resref lives in its (immutable) SPL header, so cache it. The
+-- action indicators resolve this every AI tick while a party member is casting;
+-- without the cache each tick did a full IEex_DemandRes (malloc + 3 IEex_Call
+-- trampolines + free) and churned the SPL refcount down to 0 -> disk/BIF reload.
+IEex_SpellIconResrefCache = {}
 function IEex_GetSpellIconResref(spellResref)
+	if spellResref == nil then return "" end
+	local cached = IEex_SpellIconResrefCache[spellResref]
+	if cached ~= nil then return cached end
 	local spellWrapper = IEex_DemandRes(spellResref, "SPL")
-	if not spellWrapper:isValid() then return "" end
+	if not spellWrapper:isValid() then
+		IEex_SpellIconResrefCache[spellResref] = ""
+		return ""
+	end
 	local iconResref = IEex_ReadLString(spellWrapper:getData() + 0x3A, 8)
 	spellWrapper:free()
+	IEex_SpellIconResrefCache[spellResref] = iconResref
 	return iconResref
 end
 
@@ -736,6 +748,8 @@ IEex_NewScope(function()
 	for i = 0, 5 do
 		local buffer = IEex_ActionIndicators_PreviousIconsBuffer[i]
 		buffer.movementDelayCounter = 0
+		buffer.lastSig = nil    -- signature of the last resolved tick (dirty check)
+		buffer.settleTicks = 0  -- forced full passes remaining after a change
 		for j = 1, IEex_ActionIndicators_PreviousIconsBufferSize do
 			buffer[j] = {}
 		end
@@ -748,16 +762,23 @@ end)
 
 function IEex_ActionIndicators_Show()
 	local panel = IEex_ActionIndicators_GetPanel()
+	if panel == 0 then return end
 	IEex_SetPanelActive(panel, true)
 end
 
 function IEex_ActionIndicators_Hide()
 	local panel = IEex_ActionIndicators_GetPanel()
+	if panel == 0 then return end
 	IEex_SetPanelActive(panel, false)
 end
 
 function IEex_ActionIndicators_GetPanel()
-	return IEex_GetPanelFromEngine(IEex_GetEngineWorld(), IEex_ActionIndicatorsPanelID)
+	-- No world engine on the main menu (options "Done" can call Hide from there):
+	-- GetEngineWorld() reads 0, so GetPanelFromEngine(0, ...) would deref ~null
+	-- (UI manager = engine+0x30) and AV with 0xC0000005. Bail out safely instead.
+	local world = IEex_GetEngineWorld()
+	if world == 0 then return 0 end
+	return IEex_GetPanelFromEngine(world, IEex_ActionIndicatorsPanelID)
 end
 
 function IEex_ActionIndicators_GetCursorIndexIcons(cursorIndex)
@@ -983,95 +1004,134 @@ end
 -- Thread: Async
 function IEex_ActionIndicators_Update()
 
+	-- Feature disabled -> skip all per-tick work. This runs on the AI thread every
+	-- tick (~30 Hz); it previously ran unconditionally (the option only Show/Hid
+	-- the panel), re-demanding SPL/CItem resources and re-marshalling the bridge
+	-- for all 6 portraits, so the stall throttled game-logic cadence.
+	if not IEex_Helper_GetBridge("IEex_Options", "options", "actionIndicators") then
+		return
+	end
+
 	for portraitI = 0, 5 do
 
 		local sprite = IEex_GetActorShare(IEex_GetActorIDPortrait(portraitI))
 		local previousIconsBuffer = IEex_ActionIndicators_PreviousIconsBuffer[portraitI]
 
-		local primaryIcons = nil
-		local secondaryIcons = nil
-		local tertiaryIcons = nil
-
-		local storeIcons = false
-
+		-- Cheap signature of every input that determines this portrait's icons
+		-- (all raw memory reads, no IEex_Call trampolines). While it holds steady
+		-- the resolved icons, bridge data and control-active flags are already
+		-- correct, so the whole body below can be skipped -- avoiding the expensive
+		-- per-tick SPL/CItem demands while casting/attacking and the DeepCopy +
+		-- 3x SetBridge marshal while walking. movementDelayCounter is part of the
+		-- signature so the 2-tick move-reveal ramp still animates; settleTicks
+		-- forces a few full passes after any change so the previous-icons buffer
+		-- still drains exactly as before.
+		local sig
 		if IEex_IsObjectSprite(sprite) then
+			local sigAction, sigActionID = IEex_ActionIndicators_GetAction(sprite)
+			local sigModalState = IEex_GetSpriteModalState(sprite)
+			local sigBardSong = (sigModalState == 1) and IEex_GetSpriteCurrentBardSongIndex(sprite) or 0
+			sig = sprite .. "|" .. (sigActionID or 0) .. "|" .. (sigAction or 0) .. "|" .. sigModalState
+				.. "|" .. (IEex_GetObjectSpellRES(sprite) or "") .. "|" .. sigBardSong
+				.. "|" .. previousIconsBuffer.movementDelayCounter
+		else
+			sig = "x"
+		end
 
-			local action, actionID = IEex_ActionIndicators_GetAction(sprite)
-			local noMovementDelay = actionID ~= 23 and actionID ~= 84
+		if sig ~= previousIconsBuffer.lastSig then
+			previousIconsBuffer.lastSig = sig
+			previousIconsBuffer.settleTicks = IEex_ActionIndicators_PreviousIconsBufferSize + 1
+		end
 
-			-- Reset the movement delay when a non-movement action is started
-			if actionID ~= 0 and noMovementDelay then
-				previousIconsBuffer.movementDelayCounter = 0
-			end
+		if previousIconsBuffer.settleTicks > 0 then
 
-			-- Slightly delay showing movement actions to prevent flicker on certain player-issued actions
-			if not noMovementDelay then
-				local delayCount = previousIconsBuffer.movementDelayCounter
-				if delayCount < IEex_ActionIndicators_MovementDelay then
-					previousIconsBuffer.movementDelayCounter = delayCount + 1
-				else
-					noMovementDelay = true
+			previousIconsBuffer.settleTicks = previousIconsBuffer.settleTicks - 1
+
+			local primaryIcons = nil
+			local secondaryIcons = nil
+			local tertiaryIcons = nil
+
+			local storeIcons = false
+
+			if IEex_IsObjectSprite(sprite) then
+
+				local action, actionID = IEex_ActionIndicators_GetAction(sprite)
+				local noMovementDelay = actionID ~= 23 and actionID ~= 84
+
+				-- Reset the movement delay when a non-movement action is started
+				if actionID ~= 0 and noMovementDelay then
+					previousIconsBuffer.movementDelayCounter = 0
 				end
-			end
 
-			if actionID ~= 0 and noMovementDelay then
-				-- Use the action as is
-				primaryIcons = IEex_ActionIndicators_GetPrimaryIcons(sprite, action, actionID)
-				secondaryIcons = IEex_ActionIndicators_GetSecondaryIcons(sprite, action, actionID)
-				tertiaryIcons = IEex_ActionIndicators_GetTertiaryIcons(sprite, action, actionID)
-				storeIcons = true
-			else
-				-- Attempt to use previous icons
-				local previousIcons = nil
-				for i = 1, IEex_ActionIndicators_PreviousIconsBufferSize do
-					local previousIconsTemp = previousIconsBuffer[i]
-					if previousIconsTemp.valid then
-						previousIcons = previousIconsTemp
-						break
+				-- Slightly delay showing movement actions to prevent flicker on certain player-issued actions
+				if not noMovementDelay then
+					local delayCount = previousIconsBuffer.movementDelayCounter
+					if delayCount < IEex_ActionIndicators_MovementDelay then
+						previousIconsBuffer.movementDelayCounter = delayCount + 1
+					else
+						noMovementDelay = true
 					end
 				end
 
-				if previousIcons ~= nil then
-					primaryIcons = previousIcons[1]
-					secondaryIcons = IEex_ActionIndicators_GetSecondaryIcons(sprite, action, actionID, true) or previousIcons[2]
-					tertiaryIcons = previousIcons[3]
-					storeIcons = not noMovementDelay
-				else
-					primaryIcons = nil
+				if actionID ~= 0 and noMovementDelay then
+					-- Use the action as is
+					primaryIcons = IEex_ActionIndicators_GetPrimaryIcons(sprite, action, actionID)
 					secondaryIcons = IEex_ActionIndicators_GetSecondaryIcons(sprite, action, actionID)
-					tertiaryIcons = nil
+					tertiaryIcons = IEex_ActionIndicators_GetTertiaryIcons(sprite, action, actionID)
+					storeIcons = true
+				else
+					-- Attempt to use previous icons
+					local previousIcons = nil
+					for i = 1, IEex_ActionIndicators_PreviousIconsBufferSize do
+						local previousIconsTemp = previousIconsBuffer[i]
+						if previousIconsTemp.valid then
+							previousIcons = previousIconsTemp
+							break
+						end
+					end
+
+					if previousIcons ~= nil then
+						primaryIcons = previousIcons[1]
+						secondaryIcons = IEex_ActionIndicators_GetSecondaryIcons(sprite, action, actionID, true) or previousIcons[2]
+						tertiaryIcons = previousIcons[3]
+						storeIcons = not noMovementDelay
+					else
+						primaryIcons = nil
+						secondaryIcons = IEex_ActionIndicators_GetSecondaryIcons(sprite, action, actionID)
+						tertiaryIcons = nil
+					end
 				end
 			end
+
+			-- Advance the buffers
+			for i = IEex_ActionIndicators_PreviousIconsBufferSize, 2, -1 do
+				previousIconsBuffer[i] = IEex_Helper_DeepCopy(previousIconsBuffer[i - 1])
+			end
+
+			-- Store the resolved icons (or a dummy entry if no icons were resolved)
+			local previousIcons = previousIconsBuffer[1]
+			if storeIcons then
+				previousIcons.valid = true
+				previousIcons[1] = primaryIcons
+				previousIcons[2] = secondaryIcons
+				previousIcons[3] = tertiaryIcons
+			else
+				previousIcons.valid = false
+				previousIcons[1] = nil
+				previousIcons[2] = nil
+				previousIcons[3] = nil
+			end
+
+			local portraitBridge = IEex_Helper_GetBridge("IEex_ActionIndicators", portraitI)
+			IEex_Helper_SetBridge(portraitBridge, 0, primaryIcons)
+			IEex_Helper_SetBridge(portraitBridge, 1, secondaryIcons)
+			IEex_Helper_SetBridge(portraitBridge, 2, tertiaryIcons)
+
+			local actionIndicatorsPanel = IEex_ActionIndicators_GetPanel()
+			IEex_SetControlActive(IEex_GetControlFromPanel(actionIndicatorsPanel, portraitI * 3    ), primaryIcons   ~= nil and #primaryIcons   > 0)
+			IEex_SetControlActive(IEex_GetControlFromPanel(actionIndicatorsPanel, portraitI * 3 + 1), secondaryIcons ~= nil and #secondaryIcons > 0)
+			IEex_SetControlActive(IEex_GetControlFromPanel(actionIndicatorsPanel, portraitI * 3 + 2), tertiaryIcons  ~= nil and #tertiaryIcons  > 0)
 		end
-
-		-- Advance the buffers
-		for i = IEex_ActionIndicators_PreviousIconsBufferSize, 2, -1 do
-			previousIconsBuffer[i] = IEex_Helper_DeepCopy(previousIconsBuffer[i - 1])
-		end
-
-		-- Store the resolved icons (or a dummy entry if no icons were resolved)
-		local previousIcons = previousIconsBuffer[1]
-		if storeIcons then
-			previousIcons.valid = true
-			previousIcons[1] = primaryIcons
-			previousIcons[2] = secondaryIcons
-			previousIcons[3] = tertiaryIcons
-		else
-			previousIcons.valid = false
-			previousIcons[1] = nil
-			previousIcons[2] = nil
-			previousIcons[3] = nil
-		end
-
-		local portraitBridge = IEex_Helper_GetBridge("IEex_ActionIndicators", portraitI)
-		IEex_Helper_SetBridge(portraitBridge, 0, primaryIcons)
-		IEex_Helper_SetBridge(portraitBridge, 1, secondaryIcons)
-		IEex_Helper_SetBridge(portraitBridge, 2, tertiaryIcons)
-
-		local actionIndicatorsPanel = IEex_ActionIndicators_GetPanel()
-		IEex_SetControlActive(IEex_GetControlFromPanel(actionIndicatorsPanel, portraitI * 3    ), primaryIcons   ~= nil and #primaryIcons   > 0)
-		IEex_SetControlActive(IEex_GetControlFromPanel(actionIndicatorsPanel, portraitI * 3 + 1), secondaryIcons ~= nil and #secondaryIcons > 0)
-		IEex_SetControlActive(IEex_GetControlFromPanel(actionIndicatorsPanel, portraitI * 3 + 2), tertiaryIcons  ~= nil and #tertiaryIcons  > 0)
 	end
 end
 
@@ -2236,6 +2296,23 @@ end
 -- Thread: Sync --
 ------------------
 
+-- Static controlID -> {portraitI, indicatorI} map for the action indicator panel
+-- (control i*3 + slot). Built once so the per-frame render callback allocates
+-- nothing.
+IEex_ActionIndicators_RenderMap = {}
+for _aiControlID = 0, 17 do
+	IEex_ActionIndicators_RenderMap[_aiControlID] = { math.floor(_aiControlID / 3), _aiControlID % 3 }
+end
+
+-- Thread: Sync (render thread). The engine calls this for EVERY IEex_UI_Button
+-- control EVERY frame; the world action-indicator panel alone has 18 of them.
+-- The previous version rebuilt an 18-closure dispatch table + 2 wrapper tables on
+-- every single call -- ~20 allocations x (18 indicator controls + every other
+-- IEex_UI_Button in the UI) x frame-rate -> a GC storm on the render thread that
+-- cost ~40% fps while the panel was shown (measured 118 -> 70 fps walking a party).
+-- Now: index a precomputed map, and only the drawn (active) controls allocate the
+-- single icon list they actually render. Non-indicator controls fall straight
+-- through to the engine renderer exactly as before.
 function IEex_Extern_UI_ButtonRender(CUIControlButton, bForceRender)
 
 	IEex_AssertThread(IEex_Thread.Sync, true)
@@ -2245,81 +2322,37 @@ function IEex_Extern_UI_ButtonRender(CUIControlButton, bForceRender)
 	local panelID = IEex_GetPanelID(panel)
 	local controlID = IEex_GetControlID(CUIControlButton)
 
-	local renderActionIndicator = function(portraitI, indicatorI)
-		return function()
-			IEex_Helper_DecrementButtonDoRender(CUIControlButton)
-			local sprite = IEex_GetActorShare(IEex_GetActorIDPortrait(portraitI))
-			if not IEex_IsObjectSprite(sprite) then return end
-			local iconsDataBridge = IEex_Helper_GetBridge("IEex_ActionIndicators", portraitI, indicatorI)
-			if iconsDataBridge == nil then return end
-			local iconsData = IEex_Helper_ReadDataFromBridge(iconsDataBridge)
-			-- HD UI (2x): explicit icon dims/offsets are 1x, but the control (m_size) is already 2x,
-			-- so a 1x bounding box centers a tiny icon in the 2x slot. Scale the explicit values so the
-			-- icon fills the slot; the controlW/controlH fallback is already 2x -> leave it.
-			local hiScale = (IEEX_HD_UI and IEex_ReadDword(IEex_GetUIManagerFromPanel(panel) + 0xAA) ~= 0) and 2 or 1
-			for _, iconData in ipairs(iconsData) do
+	local indicator = (panelID == IEex_ActionIndicatorsPanelID and (resref == "GUIW08" or resref == "GUIW10"))
+		and IEex_ActionIndicators_RenderMap[controlID]
+		or nil
+
+	if indicator
+		and IEex_IsControlActiveForRender(CUIControlButton)
+		and IEex_ShouldControlButtonRender(CUIControlButton, bForceRender)
+	then
+		IEex_Helper_DecrementButtonDoRender(CUIControlButton)
+		local portraitI = indicator[1]
+		local sprite = IEex_GetActorShare(IEex_GetActorIDPortrait(portraitI))
+		if IEex_IsObjectSprite(sprite) then
+			local iconsDataBridge = IEex_Helper_GetBridge("IEex_ActionIndicators", portraitI, indicator[2])
+			if iconsDataBridge ~= nil then
+				local iconsData = IEex_Helper_ReadDataFromBridge(iconsDataBridge)
+				-- HD UI (2x): explicit icon dims/offsets are 1x, but the control (m_size) is already 2x,
+				-- so a 1x bounding box centers a tiny icon in the 2x slot. Scale the explicit values so the
+				-- icon fills the slot; the controlW/controlH fallback is already 2x -> leave it.
+				local hiScale = (IEEX_HD_UI and IEex_ReadDword(IEex_GetUIManagerFromPanel(panel) + 0xAA) ~= 0) and 2 or 1
 				local _, _, controlW, controlH = IEex_GetControlArea(CUIControlButton)
-				local resref = iconData[1]
-				local sequence = iconData[2]
-				local frame = iconData[3]
-				local width = iconData[4] and iconData[4] * hiScale or controlW
-				local height = iconData[5] and iconData[5] * hiScale or controlH
-				local offsetX = (iconData[6] or 0) * hiScale
-				local offsetY = (iconData[7] or 0) * hiScale
-				IEex_Helper_RenderButtonIcon(CUIControlButton, resref, sequence, frame, width, height, offsetX, offsetY)
+				for _, iconData in ipairs(iconsData) do
+					IEex_Helper_RenderButtonIcon(CUIControlButton, iconData[1], iconData[2], iconData[3],
+						iconData[4] and iconData[4] * hiScale or controlW,
+						iconData[5] and iconData[5] * hiScale or controlH,
+						(iconData[6] or 0) * hiScale, (iconData[7] or 0) * hiScale)
+				end
 			end
 		end
+		return
 	end
 
-	local worldHandler = {
-		[IEex_ActionIndicatorsPanelID] = {
-			[0] = renderActionIndicator(0, 0),
-			[1] = renderActionIndicator(0, 1),
-			[2] = renderActionIndicator(0, 2),
-			[3] = renderActionIndicator(1, 0),
-			[4] = renderActionIndicator(1, 1),
-			[5] = renderActionIndicator(1, 2),
-			[6] = renderActionIndicator(2, 0),
-			[7] = renderActionIndicator(2, 1),
-			[8] = renderActionIndicator(2, 2),
-			[9] = renderActionIndicator(3, 0),
-			[10] = renderActionIndicator(3, 1),
-			[11] = renderActionIndicator(3, 2),
-			[12] = renderActionIndicator(4, 0),
-			[13] = renderActionIndicator(4, 1),
-			[14] = renderActionIndicator(4, 2),
-			[15] = renderActionIndicator(5, 0),
-			[16] = renderActionIndicator(5, 1),
-			[17] = renderActionIndicator(5, 2),
-		},
-	}
-
-	local handlers = {
-		["GUIW08"] = worldHandler,
-		["GUIW10"] = worldHandler,
-	}
-
-	local handle = function()
-
-		local resrefHandler = handlers[resref]
-		if not resrefHandler then return end
-		local panelHandler = resrefHandler[panelID]
-		if not panelHandler then return end
-		local controlHandler = panelHandler[controlID]
-		if not controlHandler then return end
-
-		if
-			not IEex_IsControlActiveForRender(CUIControlButton)
-			or not IEex_ShouldControlButtonRender(CUIControlButton, bForceRender)
-		then
-			return
-		end
-
-		controlHandler()
-		return true
-	end
-
-	if handle() then return end
 	IEex_Call(0x4D5070, {bForceRender}, CUIControlButton, 0x0) -- CUIControlButton_Render()
 end
 

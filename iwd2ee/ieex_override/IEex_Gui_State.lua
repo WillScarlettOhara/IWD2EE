@@ -1632,8 +1632,19 @@ function IEex_Extern_BeforeWorldRender()
 			IEex_Quickloot_Show()
 		end
 
+		-- Anchor: bottom of the free area = viewport bottom, but never on top of the
+		-- action-indicator row (the quickloot panel is now sized to its real content,
+		-- so without this it would drop down onto the indicators).
+		local quicklootAnchor = IEex_GetMainViewportBottom(true)
+		if IEex_Helper_GetBridge("IEex_Options", "options", "actionIndicators") then
+			local indicatorsPanel = IEex_GetPanelFromEngine(worldScreen, IEex_ActionIndicatorsPanelID)
+			if IEex_IsPanelActive(indicatorsPanel) then
+				local _, indicatorsY = IEex_GetPanelArea(indicatorsPanel)
+				quicklootAnchor = math.min(quicklootAnchor, indicatorsY)
+			end
+		end
 		local _, _, _, panelHeight = IEex_GetPanelArea(quicklootPanel)
-		IEex_SetPanelXY(quicklootPanel, nil, IEex_GetMainViewportBottom(true) - panelHeight)
+		IEex_SetPanelXY(quicklootPanel, nil, quicklootAnchor - panelHeight)
 	end
 
 	---------------------------------------
@@ -3339,12 +3350,31 @@ function IEex_InstallQuickloot()
 	local div = (IEEX_HD_UI and IEex_ReadDword(IEex_GetUIManagerFromEngine(worldScreen) + 0xAA) ~= 0) and 2 or 1
 
 	local x1, y1, w1, h1 = IEex_GetPanelArea(panel1Memory)
+
+	-- Panel height: the historical h1 (full action-bar height) leaves a ~2/3 tail of
+	-- colorkey-transparent MOS BELOW the item row, overlapping the action-indicator
+	-- row -- under the HUD layer that region composites as a solid band (REPLACE
+	-- ignores colorkey). Measure the real content: bottom of the deepest control
+	-- (slots + arrows share panel-local Y offsets) + a small pad, so the panel rect
+	-- matches what is actually drawn.
+	local contentBottom = 0
+	for i = 7, 16 do
+		local _, refY = IEex_GetControlArea(IEex_GetControlFromPanel(panel1Memory, i))
+		local _, _, _, copyH = IEex_GetControlArea(IEex_GetControlFromPanel(panel8Memory, i - 7))
+		contentBottom = math.max(contentBottom, refY + 1 + copyH)
+	end
+	for _, arrowID in ipairs({6, 17}) do
+		local _, arrowY, _, arrowH = IEex_GetControlArea(IEex_GetControlFromPanel(panel1Memory, arrowID))
+		contentBottom = math.max(contentBottom, arrowY + arrowH)
+	end
+	local quicklootHeight = math.min(h1, contentBottom + 4)
+
 	local quicklootPanel = IEex_AddPanelToEngine(worldScreen, {
 		["id"]              = 23,
 		["x"]               = math.floor(x1 / div),
-		["y"]               = math.floor((y1 - h1) / div),
+		["y"]               = math.floor((y1 - quicklootHeight) / div),
 		["width"]           = math.floor(w1 / div),
-		["height"]          = math.floor(h1 / div),
+		["height"]          = math.floor(quicklootHeight / div),
 		["hasBackground"]   = 1,
 		["backgroundImage"] = "B3QKLOOT"
 	})

@@ -1581,6 +1581,19 @@ function IEex_Extern_BeforeWorldRender()
 		end
 	end
 
+	-- Dialog-family panels (debug console, dialog, container, dialog chat): while any is
+	-- active the game is paused and the engine shrinks the world viewport -- the IEex bars
+	-- (action indicators / quickloot) sit over a region the world no longer paints (solid
+	-- black) and are meaningless anyway -> hide them, and the HUD layer takes its dialog
+	-- bypass below.
+	local dialogFamilyActive = false
+	for _, i in ipairs({6, 7, 8, 22}) do
+		if IEex_IsPanelActive(IEex_GetPanelFromEngine(worldScreen, i)) then
+			dialogFamilyActive = true
+			break
+		end
+	end
+
 	--------------------------------------------
 	-- Action Indicators show/hide processing --
 	--------------------------------------------
@@ -1590,7 +1603,7 @@ function IEex_Extern_BeforeWorldRender()
 		local panel1 = IEex_GetPanelFromEngine(worldScreen, 1)
 		local actionIndicatorsPanel = IEex_GetPanelFromEngine(worldScreen, IEex_ActionIndicatorsPanelID)
 
-		if IEex_IsPanelActive(panel1) then
+		if IEex_IsPanelActive(panel1) and not dialogFamilyActive then
 
 			local _, panel1Y = IEex_GetPanelArea(panel1)
 			local _, _, _, panelHeight = IEex_GetPanelArea(actionIndicatorsPanel)
@@ -1613,11 +1626,7 @@ function IEex_Extern_BeforeWorldRender()
 
 		local quicklootPanel = IEex_GetPanelFromEngine(worldScreen, 23)
 
-		if IEex_IsPanelActive(quicklootPanel) and (
-			   IEex_IsPanelActive(IEex_GetPanelFromEngine(worldScreen, 6))  -- Debug Console
-			or IEex_IsPanelActive(IEex_GetPanelFromEngine(worldScreen, 7))  -- Dialog
-			or IEex_IsPanelActive(IEex_GetPanelFromEngine(worldScreen, 8))) -- Container
-		then
+		if IEex_IsPanelActive(quicklootPanel) and dialogFamilyActive then
 			IEex_Quickloot_Hide()
 		elseif IEex_IsPanelActive(IEex_GetPanelFromEngine(worldScreen, 1)) then -- Main Panel
 			IEex_Quickloot_Show()
@@ -1644,15 +1653,9 @@ function IEex_Extern_BeforeWorldRender()
 	-- these frames (IEex_Helper_HudLayerSkipFrame = the proven pre-layer path,
 	-- with the blanket invalidate below) -- dialog fps is a non-issue.
 	local hudLayerLive = IEex_Helper_IsHudLayerActive()
-	if hudLayerLive then
-		for _, i in ipairs({6, 7, 8, 22}) do -- debug console, dialog, container, dialog chat
-			local panel = IEex_GetPanelFromEngine(worldScreen, i)
-			if IEex_IsPanelActive(panel) or IEex_IsPanelInactiveRender(panel) then
-				IEex_Helper_HudLayerSkipFrame()
-				hudLayerLive = false
-				break
-			end
-		end
+	if hudLayerLive and dialogFamilyActive then
+		IEex_Helper_HudLayerSkipFrame()
+		hudLayerLive = false
 	end
 	if hudLayerLive then
 		-- LIVE panels only: these render state that changes WITHOUT an engine

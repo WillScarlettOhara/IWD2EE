@@ -132,4 +132,24 @@
 		]]})
 	end
 
+	--------------------------------------------------------------------------------
+	-- UI CENSUS (perf) -- wrap the single CUIPanel::Render callsite in
+	-- CUIManager::Render (`e8` @0x4D45A4 -> 0x4D3100, ecx = CUIPanel*, loop regs
+	-- esi/eax preserved by push_all) with IEex_Helper_UIPanelRenderTimed: calls the
+	-- original and, while [Options] "Perf Log" (IEex.ini) is on, buckets each
+	-- panel's render time by m_nID -> ranked "[UIcensus]" lines in IEex.log every
+	-- 512 frames. Self-gated in C++; ~free when logging is off. The patch is
+	-- exactly the 5-byte call slot -> falls through to 0x4D45A9.
+	--------------------------------------------------------------------------------
+	local uiCensusHook = IEex_WriteAssemblyAuto({[[
+		!push_all_registers_iwd2
+		51
+		!call >IEex_Helper_UIPanelRenderTimed
+		!pop_all_registers_iwd2
+		!jmp_dword :4D45A9
+	]]})
+	IEex_WriteAssembly(0x4D45A4, IEex_FlattenTable({
+		{[[ !jmp_dword ]], {uiCensusHook, 4, 4}},
+	}))
+
 end)()

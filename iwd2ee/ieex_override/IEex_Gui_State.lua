@@ -1638,7 +1638,20 @@ function IEex_Extern_BeforeWorldRender()
 	-- defeat the layer (measured ~1.5ms/frame of MOS+control redraw at 4K).
 	-- Keep it only for the fallback path where the UI draws straight into the
 	-- world-covered framebuffer.
-	if not IEex_Helper_IsHudLayerActive() then
+	if IEex_Helper_IsHudLayerActive() then
+		-- LIVE panels only: these render state that changes WITHOUT an engine
+		-- invalidate -- the portrait row (panel 1: engine portrait images +
+		-- state overlays) and the action indicators (panel 100: icon choice is
+		-- computed async-side and the button render override is gated on
+		-- pendingRenderCount). Everything else is event-driven and persists in
+		-- the layer.
+		for _, i in ipairs({1, IEex_ActionIndicatorsPanelID}) do
+			local panel = IEex_GetPanelFromEngine(worldScreen, i)
+			if IEex_IsPanelActive(panel) or IEex_IsPanelInactiveRender(panel) then
+				IEex_PanelInvalidate(panel)
+			end
+		end
+	else
 		for _, i in ipairs(IEex_AllWorldScreenPanelIDs) do
 			local panel = IEex_GetPanelFromEngine(worldScreen, i)
 			if IEex_IsPanelActive(panel) or IEex_IsPanelInactiveRender(panel) then

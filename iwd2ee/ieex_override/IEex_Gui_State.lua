@@ -1632,15 +1632,27 @@ function IEex_Extern_BeforeWorldRender()
 			IEex_Quickloot_Show()
 		end
 
-		-- Anchor: bottom of the free area = viewport bottom, but never on top of the
-		-- action-indicator row (the quickloot panel is now sized to its real content,
-		-- so without this it would drop down onto the indicators).
+		-- Anchor: bottom of the free area = viewport bottom. The content-sized bar
+		-- shares the row directly above the HUD with the action indicators (disjoint
+		-- X ranges); only if the rects DO overlap horizontally (narrow resolutions)
+		-- stack it above the indicator row instead.
 		local quicklootAnchor = IEex_GetMainViewportBottom(true)
 		if IEex_Helper_GetBridge("IEex_Options", "options", "actionIndicators") then
 			local indicatorsPanel = IEex_GetPanelFromEngine(worldScreen, IEex_ActionIndicatorsPanelID)
 			if IEex_IsPanelActive(indicatorsPanel) then
-				local _, indicatorsY = IEex_GetPanelArea(indicatorsPanel)
-				quicklootAnchor = math.min(quicklootAnchor, indicatorsY)
+				-- The indicators PANEL is full-width; its useful controls sit over the
+				-- portraits (right side). Compare against the leftmost CONTROL instead
+				-- of the panel rect, else this would always stack.
+				local qlX, _, qlW = IEex_GetPanelArea(quicklootPanel)
+				local indX, indicatorsY = IEex_GetPanelArea(indicatorsPanel)
+				local leftmost = math.huge
+				for i = 0, 2 do
+					local ctrlX = IEex_GetControlArea(IEex_GetControlFromPanel(indicatorsPanel, i))
+					leftmost = math.min(leftmost, indX + ctrlX)
+				end
+				if leftmost ~= math.huge and qlX + qlW > leftmost then
+					quicklootAnchor = math.min(quicklootAnchor, indicatorsY)
+				end
 			end
 		end
 		local _, _, _, panelHeight = IEex_GetPanelArea(quicklootPanel)
@@ -3358,22 +3370,30 @@ function IEex_InstallQuickloot()
 	-- (slots + arrows share panel-local Y offsets) + a small pad, so the panel rect
 	-- matches what is actually drawn.
 	local contentBottom = 0
+	local contentRight = 0
 	for i = 7, 16 do
-		local _, refY = IEex_GetControlArea(IEex_GetControlFromPanel(panel1Memory, i))
-		local _, _, _, copyH = IEex_GetControlArea(IEex_GetControlFromPanel(panel8Memory, i - 7))
+		local refX, refY = IEex_GetControlArea(IEex_GetControlFromPanel(panel1Memory, i))
+		local _, _, copyW, copyH = IEex_GetControlArea(IEex_GetControlFromPanel(panel8Memory, i - 7))
 		contentBottom = math.max(contentBottom, refY + 1 + copyH)
+		contentRight = math.max(contentRight, refX + 1 + copyW)
 	end
 	for _, arrowID in ipairs({6, 17}) do
-		local _, arrowY, _, arrowH = IEex_GetControlArea(IEex_GetControlFromPanel(panel1Memory, arrowID))
+		local arrowX, arrowY, arrowW, arrowH = IEex_GetControlArea(IEex_GetControlFromPanel(panel1Memory, arrowID))
 		contentBottom = math.max(contentBottom, arrowY + arrowH)
+		contentRight = math.max(contentRight, arrowX + arrowW)
 	end
 	local quicklootHeight = math.min(h1, contentBottom + 4)
+	-- Width: the slots + arrows only span the LEFT part of the action bar; the rest of
+	-- the MOS is unused stone. Clip it via the panel rect (the MOS renders clipped, no
+	-- asset edit) -- the shorter bar no longer overlaps the action indicators
+	-- horizontally, so both can share the row directly above the HUD.
+	local quicklootWidth = math.min(w1, contentRight + 4)
 
 	local quicklootPanel = IEex_AddPanelToEngine(worldScreen, {
 		["id"]              = 23,
 		["x"]               = math.floor(x1 / div),
 		["y"]               = math.floor((y1 - quicklootHeight) / div),
-		["width"]           = math.floor(w1 / div),
+		["width"]           = math.floor(quicklootWidth / div),
 		["height"]          = math.floor(quicklootHeight / div),
 		["hasBackground"]   = 1,
 		["backgroundImage"] = "B3QKLOOT"

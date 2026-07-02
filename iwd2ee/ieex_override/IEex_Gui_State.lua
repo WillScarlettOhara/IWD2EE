@@ -745,6 +745,11 @@ IEex_Helper_InitBridgeFromTable("IEex_ActionIndicators", {
 	[3] = { [0] = nil, [1] = nil, [2] = nil },
 	[4] = { [0] = nil, [1] = nil, [2] = nil },
 	[5] = { [0] = nil, [1] = nil, [2] = nil },
+	-- Bumped (async) whenever any portrait's icons / control-active flags are
+	-- re-resolved; the sync thread repaints panel 100 in the HUD layer only when
+	-- this moves (a counter, not a clearable flag: sync never writes it, so an
+	-- async bump can't be lost to a read-then-clear race).
+	["updateCounter"] = 0,
 })
 
 IEex_ActionIndicators_PanelHeight = 31
@@ -769,6 +774,12 @@ IEex_ActionIndicators_PreviousIconsBuffer = {
 }
 IEex_ActionIndicators_PreviousIconsBufferSize = 2
 IEex_ActionIndicators_MovementDelay = 2
+
+-- Sync-thread trackers for the HUD layer's event-driven repaint of the live
+-- panels (see IEex_Extern_BeforeWorldRender): last seen game tick (panel 1)
+-- and last consumed IEex_ActionIndicators updateCounter (panel 100).
+IEex_HudLayer_LastGameTime = -1
+IEex_HudLayer_LastIndicatorsCounter = -1
 
 IEex_NewScope(function()
 	for i = 0, 5 do
@@ -1038,6 +1049,8 @@ function IEex_ActionIndicators_Update()
 		return
 	end
 
+	local anyUpdated = false
+
 	for portraitI = 0, 5 do
 
 		local sprite = IEex_GetActorShare(IEex_GetActorIDPortrait(portraitI))
@@ -1157,7 +1170,16 @@ function IEex_ActionIndicators_Update()
 			IEex_SetControlActive(IEex_GetControlFromPanel(actionIndicatorsPanel, portraitI * 3    ), primaryIcons   ~= nil and #primaryIcons   > 0)
 			IEex_SetControlActive(IEex_GetControlFromPanel(actionIndicatorsPanel, portraitI * 3 + 1), secondaryIcons ~= nil and #secondaryIcons > 0)
 			IEex_SetControlActive(IEex_GetControlFromPanel(actionIndicatorsPanel, portraitI * 3 + 2), tertiaryIcons  ~= nil and #tertiaryIcons  > 0)
+
+			anyUpdated = true
 		end
+	end
+
+	-- Icons / active flags can only have changed inside a settle window above;
+	-- signal the sync thread to repaint panel 100 in the HUD layer.
+	if anyUpdated then
+		IEex_Helper_SetBridge("IEex_ActionIndicators", "updateCounter",
+			(IEex_Helper_GetBridge("IEex_ActionIndicators", "updateCounter") or 0) + 1)
 	end
 end
 
@@ -1681,13 +1703,42 @@ function IEex_Extern_BeforeWorldRender()
 		hudLayerLive = false
 	end
 	if hudLayerLive then
-		-- LIVE panels only: these render state that changes WITHOUT an engine
-		-- invalidate -- the portrait row (panel 1: engine portrait images +
-		-- state overlays) and the action indicators (panel 100: icon choice is
-		-- computed async-side and the button render override is gated on
-		-- pendingRenderCount). Everything else is event-driven and persists.
-		for _, i in ipairs({1, IEex_ActionIndicatorsPanelID}) do
-			local panel = IEex_GetPanelFromEngine(worldScreen, i)
+		-- EVENT-DRIVEN repaint of the two live panels (previously forced every
+		-- frame: ~0.62ms panel 1 + ~0.13ms panel 100 at 4K, plus their share of
+		-- GL command volume in swap).
+		--
+		-- Panel 1 (portrait row): engine UI events (hover/press/selection/swap)
+		-- invalidate the portrait CONTROLS natively and those repaints reach the
+		-- layer on their own -- but the portrait CONTENT (CInfGame::RenderPortrait:
+		-- damage tint, state overlays, casting glow) is live sprite state drawn
+		-- with no invalidate on change. All of it advances at AI-tick rate, so
+		-- repaint once per game tick (~15 Hz). While PAUSED ticks stop and the
+		-- content is frozen -- but fall back to per-frame invalidate anyway: it
+		-- covers the initial post-load stamp under auto-pause (sprites not yet
+		-- loaded -> black portraits with no tick to heal them), and paused fps
+		-- are irrelevant.
+		local invalidatePortraits = true
+		local game = IEex_GetGameData()
+		if game ~= 0x0 and IEex_ReadByte(game + 0x1B7C) ~= 0 then -- m_worldTime.m_active
+			local gameTime = IEex_ReadDword(game + 0x1B78)        -- m_worldTime.m_gameTime
+			invalidatePortraits = gameTime ~= IEex_HudLayer_LastGameTime
+			IEex_HudLayer_LastGameTime = gameTime
+		end
+		if invalidatePortraits then
+			local panel = IEex_GetPanelFromEngine(worldScreen, 1)
+			if IEex_IsPanelActive(panel) or IEex_IsPanelInactiveRender(panel) then
+				IEex_PanelInvalidate(panel)
+			end
+		end
+
+		-- Panel 100 (action indicators): icon choice + control-active flags are
+		-- resolved ONLY inside IEex_ActionIndicators_Update's settle window
+		-- (async thread), which bumps updateCounter after every pass. Repaint
+		-- when the counter moves.
+		local counter = IEex_Helper_GetBridge("IEex_ActionIndicators", "updateCounter")
+		if counter ~= IEex_HudLayer_LastIndicatorsCounter then
+			IEex_HudLayer_LastIndicatorsCounter = counter
+			local panel = IEex_GetPanelFromEngine(worldScreen, IEex_ActionIndicatorsPanelID)
 			if IEex_IsPanelActive(panel) or IEex_IsPanelInactiveRender(panel) then
 				IEex_PanelInvalidate(panel)
 			end

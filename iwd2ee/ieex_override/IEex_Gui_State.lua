@@ -1643,9 +1643,12 @@ function IEex_Extern_BeforeWorldRender()
 		-- invalidate -- the portrait row (panel 1: engine portrait images +
 		-- state overlays) and the action indicators (panel 100: icon choice is
 		-- computed async-side and the button render override is gated on
-		-- pendingRenderCount). Everything else is event-driven and persists in
-		-- the layer.
-		for _, i in ipairs({1, IEex_ActionIndicatorsPanelID}) do
+		-- pendingRenderCount). Dialog (7), container (8) and the dialog-mode
+		-- chat panel (22) join only while ACTIVE: their controls show/hide
+		-- (e.g. the Continue button) without repainting the vacated rect, which
+		-- lingers in the persistent layer -- per-frame invalidate costs nothing
+		-- outside dialogs. Everything else is event-driven and persists.
+		for _, i in ipairs({1, IEex_ActionIndicatorsPanelID, 7, 8, 22}) do
 			local panel = IEex_GetPanelFromEngine(worldScreen, i)
 			if IEex_IsPanelActive(panel) or IEex_IsPanelInactiveRender(panel) then
 				IEex_PanelInvalidate(panel)

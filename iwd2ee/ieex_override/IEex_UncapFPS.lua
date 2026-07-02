@@ -190,7 +190,12 @@ function IEex_Extern_CheckScroll()
 
 		if IEex_Helper_GetBridgeNL("IEex_Scroll_MiddleMouseState", "isDown") then
 
-			local cursorX, cursorY = IEex_ScreenToClient(IEex_GetCursorPos())
+			-- SAME coordinate space as the anchor (set from IEex_GetCursorXY at MMB-down):
+			-- m_ptPointer is capture-mapped (sub-native fill remap + logical-over-scaled-HUD).
+			-- Raw ScreenToClient(GetCursorPos()) is desktop-px -- at sub-native res with the
+			-- fill blit (e.g. 1080p on a 4K desktop) the first delta was anchor(game-res) vs
+			-- cursor(desktop-px) = a huge jump (camera teleport on middle-click).
+			local cursorX, cursorY = IEex_GetCursorXY()
 			local deltaX = IEex_Helper_GetBridgeNL("IEex_Scroll_MiddleMouseState", "oldX") - cursorX
 			local deltaY = IEex_Helper_GetBridgeNL("IEex_Scroll_MiddleMouseState", "oldY") - cursorY
 

@@ -618,9 +618,17 @@
 		]]},
 	}))
 
+	-- HUD LAYER (perf): route the re-injected world-UI render through
+	-- IEex_Helper_HudLayerRender -- renders the UI into a persistent game-res FBO
+	-- (panels repaint only when really dirtied) and composites it over the world
+	-- with one blended quad. Falls back to a plain CUIManager::Render call when
+	-- the layer is unavailable (software / no FBO ext / [IEex Options] "HUD
+	-- Layer"=0) -- IEex_Extern_BeforeWorldRender keeps its per-frame invalidate
+	-- fallback in exactly that case (IEex_Helper_IsHudLayerActive).
 	IEex_HookRestore(0x68DFB6, 0, 5, {[[
 		!mov(ecx,ebp)
-		!call :4D4540 ; CUIManager_Render ;
+		!push_ecx
+		!call >IEex_Helper_HudLayerRender ; wraps CUIManager::Render @0x4D4540 ;
 	]]})
 
 	---------------------------------------

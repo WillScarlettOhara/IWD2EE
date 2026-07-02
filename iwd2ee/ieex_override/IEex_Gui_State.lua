@@ -1632,10 +1632,18 @@ function IEex_Extern_BeforeWorldRender()
 	-- (so they render above viewport)   --
 	---------------------------------------
 
-	for _, i in ipairs(IEex_AllWorldScreenPanelIDs) do
-		local panel = IEex_GetPanelFromEngine(worldScreen, i)
-		if IEex_IsPanelActive(panel) or IEex_IsPanelInactiveRender(panel) then
-			IEex_PanelInvalidate(panel)
+	-- With the HUD layer active (GL: UI composited from its own persistent FBO,
+	-- IEex_Gui_Patch.lua @0x68DFB6) panels persist across frames and only real
+	-- engine invalidations repaint -- the blanket per-frame invalidate would
+	-- defeat the layer (measured ~1.5ms/frame of MOS+control redraw at 4K).
+	-- Keep it only for the fallback path where the UI draws straight into the
+	-- world-covered framebuffer.
+	if not IEex_Helper_IsHudLayerActive() then
+		for _, i in ipairs(IEex_AllWorldScreenPanelIDs) do
+			local panel = IEex_GetPanelFromEngine(worldScreen, i)
+			if IEex_IsPanelActive(panel) or IEex_IsPanelInactiveRender(panel) then
+				IEex_PanelInvalidate(panel)
+			end
 		end
 	end
 

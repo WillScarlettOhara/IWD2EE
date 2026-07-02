@@ -1638,17 +1638,29 @@ function IEex_Extern_BeforeWorldRender()
 	-- defeat the layer (measured ~1.5ms/frame of MOS+control redraw at 4K).
 	-- Keep it only for the fallback path where the UI draws straight into the
 	-- world-covered framebuffer.
-	if IEex_Helper_IsHudLayerActive() then
+	-- DIALOG MODE: dialog panels reflow/resize continuously and show/hide their
+	-- controls (Continue) -- in the persistent layer that left either residue
+	-- (event-driven) or flicker (forced repaint). Bypass the layer entirely for
+	-- these frames (IEex_Helper_HudLayerSkipFrame = the proven pre-layer path,
+	-- with the blanket invalidate below) -- dialog fps is a non-issue.
+	local hudLayerLive = IEex_Helper_IsHudLayerActive()
+	if hudLayerLive then
+		for _, i in ipairs({6, 7, 8, 22}) do -- debug console, dialog, container, dialog chat
+			local panel = IEex_GetPanelFromEngine(worldScreen, i)
+			if IEex_IsPanelActive(panel) or IEex_IsPanelInactiveRender(panel) then
+				IEex_Helper_HudLayerSkipFrame()
+				hudLayerLive = false
+				break
+			end
+		end
+	end
+	if hudLayerLive then
 		-- LIVE panels only: these render state that changes WITHOUT an engine
 		-- invalidate -- the portrait row (panel 1: engine portrait images +
 		-- state overlays) and the action indicators (panel 100: icon choice is
 		-- computed async-side and the button render override is gated on
-		-- pendingRenderCount). Dialog (7), container (8) and the dialog-mode
-		-- chat panel (22) join only while ACTIVE: their controls show/hide
-		-- (e.g. the Continue button) without repainting the vacated rect, which
-		-- lingers in the persistent layer -- per-frame invalidate costs nothing
-		-- outside dialogs. Everything else is event-driven and persists.
-		for _, i in ipairs({1, IEex_ActionIndicatorsPanelID, 7, 8, 22}) do
+		-- pendingRenderCount). Everything else is event-driven and persists.
+		for _, i in ipairs({1, IEex_ActionIndicatorsPanelID}) do
 			local panel = IEex_GetPanelFromEngine(worldScreen, i)
 			if IEex_IsPanelActive(panel) or IEex_IsPanelInactiveRender(panel) then
 				IEex_PanelInvalidate(panel)

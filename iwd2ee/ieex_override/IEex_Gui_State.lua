@@ -3295,11 +3295,28 @@ function IEex_InstallActionIndicators()
 	-- 1x install -> div=1, unchanged.
 	local div = (IEEX_HD_UI and IEex_ReadDword(IEex_GetUIManagerFromEngine(worldScreen) + 0xAA) ~= 0) and 2 or 1
 
+	-- Panel rect = the controls' real span, not the full bar width: the panel is
+	-- composited/cleared by its RECT under the HUD layer, and a full-width rect
+	-- overlaps the quickloot bar on the same row (showed as a black band over it).
+	local indMinX, indMaxX = math.huge, -math.huge
+	for refI = 0, 5 do
+		local refX = IEex_GetControlArea(IEex_GetControlFromPanel(panel1, refI))
+		local base = math.floor(refX / div)
+		indMinX = math.min(indMinX,
+			base + IEex_ActionIndicators_PrimarySlotOffsetX,
+			base + IEex_ActionIndicators_SecondarySlotOffsetX,
+			base + IEex_ActionIndicators_TertiarySlotOffsetX)
+		indMaxX = math.max(indMaxX,
+			base + IEex_ActionIndicators_PrimarySlotOffsetX + IEex_ActionIndicators_PrimarySlotSize,
+			base + IEex_ActionIndicators_SecondarySlotOffsetX + IEex_ActionIndicators_SecondarySlotSize,
+			base + IEex_ActionIndicators_TertiarySlotOffsetX + IEex_ActionIndicators_TertiarySlotSize)
+	end
+
 	local actionIndicatorsPanel = IEex_AddPanelToEngine(worldScreen, {
 		["id"]     = IEex_ActionIndicatorsPanelID,
-		["x"]      = math.floor(x1 / div),
+		["x"]      = math.floor(x1 / div) + indMinX,
 		["y"]      = math.floor(y1 / div) - IEex_ActionIndicators_PanelHeight,
-		["width"]  = math.floor(w1 / div),
+		["width"]  = indMaxX - indMinX,
 		["height"] = IEex_ActionIndicators_PanelHeight,
 	})
 
@@ -3312,7 +3329,7 @@ function IEex_InstallActionIndicators()
 		IEex_AddControlOverride(chuResref, IEex_ActionIndicatorsPanelID, i, "IEex_UI_Button")
 		IEex_AddControlToPanel(actionIndicatorsPanel, {
 			["id"]     = i,
-			["x"]      = math.floor(referenceControlX / div) + IEex_ActionIndicators_PrimarySlotOffsetX,
+			["x"]      = math.floor(referenceControlX / div) + IEex_ActionIndicators_PrimarySlotOffsetX - indMinX,
 			["y"]      = IEex_ActionIndicators_PanelHeight + IEex_ActionIndicators_PrimarySlotOffsetY,
 			["width"]  = IEex_ActionIndicators_PrimarySlotSize,
 			["height"] = IEex_ActionIndicators_PrimarySlotSize,
@@ -3324,7 +3341,7 @@ function IEex_InstallActionIndicators()
 		IEex_AddControlOverride(chuResref, IEex_ActionIndicatorsPanelID, i + 1, "IEex_UI_Button")
 		IEex_AddControlToPanel(actionIndicatorsPanel, {
 			["id"]     = i + 1,
-			["x"]      = math.floor(referenceControlX / div) + IEex_ActionIndicators_SecondarySlotOffsetX,
+			["x"]      = math.floor(referenceControlX / div) + IEex_ActionIndicators_SecondarySlotOffsetX - indMinX,
 			["y"]      = IEex_ActionIndicators_PanelHeight + IEex_ActionIndicators_SecondarySlotOffsetY,
 			["width"]  = IEex_ActionIndicators_SecondarySlotSize,
 			["height"] = IEex_ActionIndicators_SecondarySlotSize,
@@ -3336,7 +3353,7 @@ function IEex_InstallActionIndicators()
 		IEex_AddControlOverride(chuResref, IEex_ActionIndicatorsPanelID, i + 2, "IEex_UI_Button")
 		IEex_AddControlToPanel(actionIndicatorsPanel, {
 			["id"]     = i + 2,
-			["x"]      = math.floor(referenceControlX / div) + IEex_ActionIndicators_TertiarySlotOffsetX,
+			["x"]      = math.floor(referenceControlX / div) + IEex_ActionIndicators_TertiarySlotOffsetX - indMinX,
 			["y"]      = math.max(0, IEex_ActionIndicators_PanelHeight + IEex_ActionIndicators_TertiarySlotOffsetY),
 			["width"]  = IEex_ActionIndicators_TertiarySlotSize,
 			["height"] = IEex_ActionIndicators_TertiarySlotSize,

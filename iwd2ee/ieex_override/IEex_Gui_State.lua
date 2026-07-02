@@ -1607,7 +1607,7 @@ function IEex_Extern_BeforeWorldRender()
 
 			local _, panel1Y = IEex_GetPanelArea(panel1)
 			local _, _, _, panelHeight = IEex_GetPanelArea(actionIndicatorsPanel)
-			IEex_SetPanelXY(actionIndicatorsPanel, nil, panel1Y - panelHeight + 3)
+			IEex_SetPanelXY(actionIndicatorsPanel, nil, panel1Y - panelHeight) -- flush above the HUD (the old +3 overlap bit into the stone border)
 
 			if not IEex_IsPanelActive(actionIndicatorsPanel) then
 				IEex_ActionIndicators_Show()

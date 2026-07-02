@@ -99,11 +99,11 @@ IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration",
 --   Stretch UI (13), Vsync (17), UI Single Buffer (21), Smooth Cursor (23) are GL-only -> hidden in software
 --   (their C++ no-ops without a GL context: ComputeUIScale / EnsureVSync / gFl_active FBO / cursor resample).
 -- IEex_OptionRowShift repacks the visible rows (27px step) so a hidden row leaves no gap.
-IEEX_OPTION_ROW_ORDER = {7, 9, 5, 11, 13, 15, 17, 19, 21, 23, 25}
+IEEX_OPTION_ROW_ORDER = {7, 9, 5, 11, 13, 15, 17, 19, 21, 23, 25, 27}
 
 function IEex_OptionRowVisible(labelId)
 	if labelId == 5 then return not IEEX_GL_ACTIVE end
-	if labelId == 13 or labelId == 17 or labelId == 21 or labelId == 23 then return IEEX_GL_ACTIVE end
+	if labelId == 13 or labelId == 17 or labelId == 21 or labelId == 23 or labelId == 27 then return IEEX_GL_ACTIVE end
 	return true
 end
 
@@ -2665,6 +2665,17 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 						IEex_Helper_SetBridge(workingOptions, "maxFps", 0)
 					end
 				end,
+				-- "Tile Atlas" Toggle
+				[28] = function()
+					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
+					if IEex_Helper_GetBridge(workingOptions, "tileAtlas") then
+						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
+						IEex_Helper_SetBridge(workingOptions, "tileAtlas", false)
+					else
+						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
+						IEex_Helper_SetBridge(workingOptions, "tileAtlas", true)
+					end
+				end,
 			},
 		},
 		["GUIREC"] = {
@@ -2943,6 +2954,7 @@ function IEex_SetOptionDescription(labelId)
 		[21] = "Draws the interface into a single persistent buffer to reduce flickering of dynamic UI elements. Requires a restart to take effect.",
 		[23] = "Samples the mouse position at the rendering framerate instead of the game's logic tick rate, for smoother cursor movement. Requires a restart to take effect.",
 		[25] = "Limits the framerate to your display's refresh rate to reduce GPU and CPU load. Requires a restart to take effect.",
+		[27] = "Batches world-tile rendering through a single texture atlas for a large framerate gain at high resolutions. Requires a restart to take effect.",
 	}
 	local d = descriptions[labelId]
 	if d == nil then return end
@@ -2972,6 +2984,7 @@ function IEex_Extern_UI_LabelLDown(CUIControlLabel)
 				[21] = function() IEex_SetOptionDescription(21) end,
 				[23] = function() IEex_SetOptionDescription(23) end,
 				[25] = function() IEex_SetOptionDescription(25) end,
+				[27] = function() IEex_SetOptionDescription(27) end,
 			},
 		},
 	}
@@ -3808,6 +3821,38 @@ function IEex_InstallIEexOptions()
 		["framePressed"] = 2,
 	})
 
+	if IEex_OptionRowVisible(27) then
+
+	-- "Tile Atlas" Label - ID 27
+	IEex_AddControlOverride("GUIOPT", 14, 27, "IEex_UI_Label")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.LABEL,
+		["id"] = 27,
+		["x"] = 24,
+		["y"] = 367 - IEex_OptionRowShift(27),
+		["width"] = 358,
+		["height"] = 18,
+		["fontBam"] = "NORMAL",
+		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
+	})
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 27), "Tile Atlas (restart required)")
+
+	-- "Tile Atlas" Toggle - ID 28
+	IEex_AddControlOverride("GUIOPT", 14, 28, "IEex_UI_Button")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.BUTTON,
+		["id"] = 28,
+		["x"] = 394,
+		["y"] = 364 - IEex_OptionRowShift(27),
+		["width"] = 23,
+		["height"] = 24,
+		["bam"] = "GBTNOPT3",
+		["frameUnpressed"] = 1,
+		["framePressed"] = 2,
+	})
+
+	end
+
 	IEex_SetPanelActive(newOptionsPanel, false)
 end
 
@@ -4362,6 +4407,9 @@ function IEex_LoadOptions()
 	-- value != 9999.
 	IEex_Helper_SetBridge(options, "maxFps",
 		IEex_GetPrivateProfileInt("IEex Options", "Max FPS", 0, ".\\Icewind2.ini"))
+
+	IEex_Helper_SetBridge(options, "tileAtlas",
+		IEex_GetPrivateProfileInt("IEex Options", "Tile Atlas", 1, ".\\Icewind2.ini") ~= 0 and true or false)
 end
 
 function IEex_WriteOptions()
@@ -4404,6 +4452,9 @@ function IEex_WriteOptions()
 
 	IEex_WritePrivateProfileString("IEex Options", "Max FPS",
 		tostring(IEex_Helper_GetBridge(options, "maxFps")), ".\\Icewind2.ini")
+
+	IEex_WritePrivateProfileString("IEex Options", "Tile Atlas",
+		IEex_Helper_GetBridge(options, "tileAtlas") and "1" or "0", ".\\Icewind2.ini")
 end
 
 function IEex_InitOptionButtons()
@@ -4456,6 +4507,11 @@ function IEex_InitOptionButtons()
 
 	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 26),
 		IEex_Helper_GetBridge(options, "maxFps") ~= 9999 and 3 or 1)
+
+	if IEex_OptionRowVisible(27) then
+		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 28),
+			IEex_Helper_GetBridge(options, "tileAtlas") and 3 or 1)
+	end
 end
 
 -- Ship the option documentation INTO the ini. The [IEex Options] section is written at runtime (the

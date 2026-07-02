@@ -55,6 +55,45 @@
 	]]})
 
 	--------------------------------------------------------------------------------
+	-- STAGE 2b: zoom-aware band-select growth. CGameArea::OnMouseMove (0x476970)
+	-- grows m_selectSquare.right/bottom with INLINE screen+scroll arithmetic
+	-- (vanilla 1:1 world transform), while the anchor (OnActionButtonDown) goes
+	-- through the zoom-aware GetWorldCoordinates override above -> at z>1 the two
+	-- edges live in different spaces and the rect gains phantom size
+	-- ((dist from viewport centre)*(1-1/z)): OnActionButtonUp's "<=8px = click"
+	-- test misreads a plain move click as a band-select (spurious selection
+	-- rectangle), and a real band-drag selects a region that doesn't match the
+	-- visual rect. Route both growth sites through Export_BandSelectGrow
+	-- (identical to the vanilla arithmetic at z==1).
+	--   Site 1 @0x476C02..0x476C77 (group-protect/state-3 growth) -> resume 0x476DD6.
+	--   Site 2 @0x476C94..0x476D0C (normal growth); the width test that follows
+	--   expects edi=right, ebp=left (still live from 0x476C7C), eax=bottom and
+	--   ecx/flags = right-left -> recreate them, resume at the jns @0x476D12.
+	-- esi = CGameArea*, ebx = CPoint* pt at both sites; no external jumps enter
+	-- the replaced ranges (the 0x476DD6 tail reloads ebx from the stack itself).
+	--------------------------------------------------------------------------------
+	IEex_WriteAssembly(0x476C02, {[[
+		!push_all_registers_iwd2
+		53
+		56
+		!call >IEex_Helper_BandSelectGrow
+		!pop_all_registers_iwd2
+		!jmp_dword :476DD6
+	]]})
+	IEex_WriteAssembly(0x476C94, {[[
+		!push_all_registers_iwd2
+		53
+		56
+		!call >IEex_Helper_BandSelectGrow
+		!pop_all_registers_iwd2
+		8B BE E4 03 00 00
+		8B 86 E8 03 00 00
+		8B CF
+		2B CD
+		!jmp_dword :476D12
+	]]})
+
+	--------------------------------------------------------------------------------
 	-- STAGE 3a: replace CInfinity::SetViewPosition (0x5D11F0) with an overscroll-
 	-- aware reimplementation. When zoomed, allow panning past the map edges (~half
 	-- the viewport) so content the bottom UI would occlude can be repositioned;

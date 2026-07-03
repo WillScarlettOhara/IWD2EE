@@ -1835,6 +1835,16 @@ function IEex_Extern_InitGUIConstants()
 	IEex_WriteDword(0x8E79D4, resH)           -- WorldScreenConsoleBottom
 	IEex_WriteDword(0x8E79EC, resH)           -- WorldScreenToolbarBottom
 	IEex_SetCRect(0x8E79F8, 0, 0, resW, resH) -- WorldScreenContainerViewPortRect
+	-- Save-thumbnail (ICEWIND2.BMP) capture window: CScreenWorld::SaveScreen renders the area into this
+	-- fixed 512x384 physical-screen rect, then the save downsamples it (x5) to the 102x76 thumbnail. The
+	-- stock engine centres it PER RESOLUTION TIER in CBaldurChitin (800/1024/1600/2048); at any other /
+	-- higher resolution it falls back to the 800 top-left rect -> the thumbnail captures the top-left
+	-- corner (usually black / not the party). Recentre it for the ACTUAL resolution here (runs after the
+	-- tier switch). This formula reproduces the stock 800/1024/1600 tiers EXACTLY and generalises: 512
+	-- wide x 384 tall, 42px vertical up-bias. Output stays the stock 102x76 1x BMP -> loads with/without mod.
+	IEex_SetCRect(0x8E79A8,
+		math.floor(resW / 2) - 256, math.floor(resH / 2) - 234,
+		math.floor(resW / 2) + 256, math.floor(resH / 2) + 150) -- WorldScreenSaveScreenShotRect
 end
 
 function IEex_Extern_InitHighResolutionPaddingPanels(pBaldurChitin)

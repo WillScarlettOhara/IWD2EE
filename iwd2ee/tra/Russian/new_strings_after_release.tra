@@ -3623,9 +3623,9 @@
 @55932=~Не позволяет участникам отряда менять доспехи во время боя.~
 
 // 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/100)
-@101 = ~2x UI (HD high-resolution interface) - original fonts~
-@102 = ~2x UI (HD high-resolution interface)~
-@103 = ~2x UI (HD high-resolution interface) - Minimal panels (transparent margins) - original fonts~
+@101 = ~2x UI (интерфейс высокого разрешения HD) - оригинальные шрифты~
+@102 = ~2x UI (интерфейс высокого разрешения HD)~
+@103 = ~2x UI (интерфейс высокого разрешения HD) - Минимальные панели (прозрачные поля) - оригинальные шрифты~
 
-@56059 = ~2x UI (HD high-resolution interface) - non-pixelated fonts~
-@56060 = ~2x UI (HD high-resolution interface) - Minimal panels (transparent margins) - non-pixelated fonts~
+@56059 = ~2x UI (интерфейс высокого разрешения HD) - сглаженные шрифты~
+@56060 = ~2x UI (интерфейс высокого разрешения HD) - Минимальные панели (прозрачные поля) - сглаженные шрифты~

@@ -3727,9 +3727,9 @@ Tipo: Uma Mão~
 @55932=~Impede que os membros do grupo vistam armadura durante o combate.~
 
 // 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/100)
-@101 = ~2x UI (interface de alta resolucao) - fontes originais~
-@102 = ~2x UI (interface de alta resolucao)~
-@103 = ~2x UI (interface de alta resolucao) - Paineis minimalistas (margens transparentes) - fontes originais~
+@101 = ~2x UI (interface de alta resolução) - fontes originais~
+@102 = ~2x UI (interface de alta resolução)~
+@103 = ~2x UI (interface de alta resolução) - Painéis minimalistas (margens transparentes) - fontes originais~
 
-@56059 = ~2x UI (interface de alta resolucao) - fontes nao pixelizadas~
-@56060 = ~2x UI (interface de alta resolucao) - Paineis minimalistas (margens transparentes) - fontes nao pixelizadas~
+@56059 = ~2x UI (interface de alta resolução) - fontes não pixelizadas~
+@56060 = ~2x UI (interface de alta resolução) - Painéis minimalistas (margens transparentes) - fontes não pixelizadas~

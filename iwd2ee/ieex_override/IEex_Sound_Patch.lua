@@ -110,6 +110,49 @@
 		{[[ 90 90 90 90 90 ]]},
 	}))
 
+	--------------------------------------------------------------------------------
+	-- PC voices fall off with viewport distance (match positional SFX + NPC voices).
+	-- CGameSprite::VerbalConstant (0x702900) plays soundset speech two ways, keyed on
+	-- the speaker's alignment:
+	--   * EA_PC branch @0x702C3D:  cSound.Play(FALSE)                    -> GLOBAL (full volume)
+	--   * else/NPC     @0x702D25:  cSound.Play(m_pos.x, m_pos.y, 0, FALSE) -> POSITIONAL
+	-- So vanilla holds your own party's barks at full volume everywhere while NPC/enemy
+	-- voices already attenuate as the (zoomed or not) viewport pulls away. Route the PC
+	-- branch through the same positional CSound::Play (0x7A9DB0) so PC voices fade exactly
+	-- like the cast SFX: strRes.cSound is built by the default CSound ctor (0x7A8BB0), so
+	-- it already carries the zoom + SFX-Audible-Percent scaled m_nRange from the ctor hook
+	-- above, and the elliptical falloff applies for free.
+	--
+	-- Replaced region @0x702C37 (11 bytes): 6A00 push 0 (bReplay); 8D4C2434 lea ecx,
+	-- [esp+0x34] (&strRes.cSound); E8.. call 0x7A9B10 (global Play). It is immediately
+	-- followed by `test al,al` @0x702C42, which consumes Play's BOOL return.
+	--
+	-- The stub reproduces the NPC branch verbatim: this=esi across the whole function, so
+	-- m_pos.x=[esi+6], m_pos.y=[esi+0xA]; push order builds Play(x, y, z=0, bReplay=0);
+	-- lea ecx,[esp+0x40] reloads &cSound after the 4 arg pushes (esp is identical at both
+	-- branch entries -- PC lea +0x34 after 1 push and NPC lea +0x40 after 4 pushes both
+	-- resolve &cSound = entry_esp+0x30). Instead of a call it pushes 0x702C42 as the return
+	-- address then jmps into positional Play, whose `ret 0x10` pops that address (landing on
+	-- `test al,al`) and cleans the 4 args -> esp is balanced exactly as the original call
+	-- left it, with eax = Play's BOOL return. 68 42 2C 70 00 = push 0x00702C42.
+	-- WARNING (see above): keep the [[ ]] asm block pure hex + `!` directives, no `--`.
+	--------------------------------------------------------------------------------
+	local pcVoicePosStub = IEex_WriteAssemblyAuto({[[
+		8B 46 0A
+		8B 4E 06
+		6A 00
+		6A 00
+		50
+		51
+		8D 4C 24 40
+		68 42 2C 70 00
+		!jmp_dword :7A9DB0
+	]]})
+	IEex_WriteAssembly(0x702C37, IEex_FlattenTable({
+		{[[ !jmp_dword ]], {pcVoicePosStub, 4, 4}},
+		{[[ 90 90 90 90 90 90 ]]},
+	}))
+
 	IEex_EnableCodeProtection()
 
 end)()

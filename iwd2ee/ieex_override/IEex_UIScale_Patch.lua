@@ -398,6 +398,18 @@
 			{hd_match .. "!mov([esp+0C],0) @skip !pop(eax)"},
 			{"83 EC 10 53 8B D9 !jmp_dword :77F5F6"}, {0x83, 0xEC, 0x10, 0x53, 0x8B, 0xD9})
 
+		-- === HD fonts x glyph atlas: don't re-double the atlas quads ===
+		-- IEex_Gui_Patch.lua (0x7A12C6 NOP) routes m_bDoubleSize fonts through the
+		-- glyph-atlas fast path (CVidFont::RenderCharacters) instead of the
+		-- per-glyph-upload slow path. The atlas bakes through GetFrame/GetFrameData,
+		-- i.e. through the de-double above, so glyphs land in the atlas at their
+		-- native PRE-DOUBLED size -- but m_bDoubleSize stays TRUE on the font, so
+		-- RenderCharacters would scale its quads by nScale=2 on top = 4x text.
+		-- Every doubled font here ships a 2x HD BAM (incl. INFOFONT / STONEBIG /
+		-- STONESM3 via the list above), so nScale must stay 1: NOP the
+		-- "mov byte [esp+0x14], 2" @0x7A1687.
+		IEex_WriteAssembly(0x7A1687, {"!repeat(5,!nop)"})
+
 		-- === HD portrait status icons (STATES): force the portrait cell to NOT engine-double ===
 		-- The buff/status icons on portraits are CGameSprite.m_portraitIconVidCell (resref "STATES"), AI-upscaled
 		-- to 2x (Nomos8kDAT). The cell is built with bDoubleSize = m_bUseNewGui, so at 2x UI it doubled our 2x BAM

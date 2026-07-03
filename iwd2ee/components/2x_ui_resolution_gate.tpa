@@ -28,6 +28,13 @@
 PRINT ~[2x UI] Installing the 2x high-resolution UI (engine-native 2x tier + 2x assets, GL canvas).~
 PRINT ~[2x UI] Correct at ~~2048x1200 and above; below that the engine keeps the stock 1x UI.~
 
+// --- floating world text (CGameText) keeps a 1x font: the engine sizes it 1x by design
+//     (SetResRef bDoubleSize=FALSE), but the resref-keyed de-double + the 2x INFOFONT below would
+//     render it at 2x. Capture the player's CURRENT stock INFOFONT (biff, or a localized override
+//     copy -- language-correct either way) as IEEXFLT *BEFORE* the 2x fonts land in override; the
+//     IEex_UIScale_Patch.lua HD gate repoints the CGameText ctor resref to it. ---
+COPY_EXISTING ~INFOFONT.BAM~ ~override/IEEXFLT.BAM~
+
 // --- install the 2x art (BAM + portrait BMP + MOS) into override. NO pre-scaled CHU: the 2x layout
 //     now comes from the engine's NATIVE 2x tier (m_bUseNewGui+field_4A2C set by
 //     IEex_Extern_InitHighResolutionPaddingPanels when IEEX_HD_UI + res>=2048x1200), which doubles the

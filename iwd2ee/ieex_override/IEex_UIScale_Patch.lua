@@ -410,6 +410,20 @@
 		-- "mov byte [esp+0x14], 2" @0x7A1687.
 		IEex_WriteAssembly(0x7A1687, {"!repeat(5,!nop)"})
 
+		-- === Floating world text (CGameText): own 1x font resref ===
+		-- CGameText builds its font with bDoubleSize=FALSE (world text is 1x by
+		-- design: CGameText.cpp:26), but the de-double above is RESREF-keyed --
+		-- with the 2x INFOFONT in override its glyphs come back at native 2x size
+		-- whatever the caller asked -> floating text twice too big. Repoint the
+		-- ctor's CResRef string (push 0x8A7CA8 "INFOFONT" @0x4CB3C6, operand
+		-- @0x4CB3C7) to IEEXFLT = the player's stock 1x INFOFONT, captured by the
+		-- 2x component (COPY_EXISTING before the 2x fonts land in override, so it
+		-- is language-correct). Loading-screen parchment + worldmap labels keep
+		-- the 2x INFOFONT. If IEEXFLT.BAM is missing (lua deployed without the
+		-- component recopy) the font demand fails and floating text just doesn't
+		-- draw -- pair this file with the asset.
+		IEex_WriteDword(0x4CB3C7, IEex_WriteStringAuto("IEEXFLT"))
+
 		-- === HD portrait status icons (STATES): force the portrait cell to NOT engine-double ===
 		-- The buff/status icons on portraits are CGameSprite.m_portraitIconVidCell (resref "STATES"), AI-upscaled
 		-- to 2x (Nomos8kDAT). The cell is built with bDoubleSize = m_bUseNewGui, so at 2x UI it doubled our 2x BAM

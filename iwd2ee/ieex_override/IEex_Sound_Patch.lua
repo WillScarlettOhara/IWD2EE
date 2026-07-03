@@ -35,10 +35,32 @@
 		!mov([esi+0xD8],-1)
 	]]})
 
-	-- Resolution-scaled positional-SFX attenuation (m_nRange / m_nPanRange) is applied
-	-- in IEex_Extern_InitResolution (IEex_Gui_State.lua): it must run after the true
-	-- render width reaches CVideo::SCREENWIDTH @0x8BA31C, which is still the 800 default
-	-- at this file's load time, so it cannot be done here.
+	--------------------------------------------------------------------------------
+	-- Zoom + resolution-scaled positional-SFX audible radius. CSoundImp::Construct  --
+	-- @0x7A8BB0 hardcodes m_nRange (+0x20)=768 (`mov [esi+0x20],0x300` @0x7A8C57,    --
+	-- 7 bytes). Play (0x7A9DB0) + ResetVolume (0x7AA110) mute a world sound past     --
+	-- m_nRange world-units from the viewport centre, so the fixed 768 both mutes     --
+	-- edge casts at hi-res AND (once widened for resolution) lets you hear the whole --
+	-- map when zoomed in. Replace the store with a call to IEex_Helper_ScaleSoundRange,--
+	-- which sets m_nRange = 768 * SCREENWIDTH / (800 * g_fCameraZoom) -- the faithful --
+	-- 800x600 falloff re-based onto the VISIBLE world width (render width / zoom).    --
+	-- Per-construction, so casts/combat pick up the live zoom; software renderer keeps--
+	-- zoom=1.0 (pure resolution scaling). Ambient sounds override via CSound::SetRange--
+	-- after construction, keeping their authored range. Paired m_nPanRange resolution --
+	-- patch stays in IEex_Extern_InitResolution; do NOT also patch 0x7A8C5A there now --
+	-- (this region is a jmp to the stub below).                                      --
+	--------------------------------------------------------------------------------
+	local scaleSoundRangeStub = IEex_WriteAssemblyAuto({[[
+		!push_all_registers_iwd2
+		56                                          -- push esi (CSound* this) -> __stdcall arg
+		!call >IEex_Helper_ScaleSoundRange
+		!pop_all_registers_iwd2
+		!jmp_dword :7A8C5E                            -- resume after the replaced 7-byte store
+	]]})
+	IEex_WriteAssembly(0x7A8C57, IEex_FlattenTable({
+		{[[ !jmp_dword ]], {scaleSoundRangeStub, 4, 4}},
+		{[[ 90 90 ]]},                                -- pad the 5-byte jmp to the 7-byte store
+	}))
 
 	IEex_EnableCodeProtection()
 

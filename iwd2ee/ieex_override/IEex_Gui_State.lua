@@ -1798,6 +1798,23 @@ function IEex_Extern_InitResolution()
 	IEex_WriteDword(0x484BA2, maxNonInstantRange)
 	IEex_HookRestore(0x6902D4, 3, 2, {"!mov_ecx", {maxNonInstantRange, 4}})
 
+	------------------------------------------------------------------------------
+	-- Resolution-scale positional-SFX attenuation radius (paired with the crash --
+	-- hooks in IEex_Sound_Patch.lua). CSoundImp::Construct hardcodes m_nRange    --
+	-- (+0x20)=768 and CBaldurChitin init calls SetPanRange(1024); Play +         --
+	-- ResetVolume mute world SFX past m_nRange world-units from the viewport      --
+	-- centre, so above 800-wide the half-viewport outruns 768 and edge casts     --
+	-- hard-mute. Scale both by nWidth/800 (the true render width -- must be       --
+	-- applied HERE, not at Sound_Patch load time, when SCREENWIDTH @0x8BA31C is   --
+	-- still the 800 default). Overwrite only the imm32 operands so ambient        --
+	-- CSound::SetRange overrides survive. Edge falloff stays ~73% at every        --
+	-- resolution; no-op at native 800.                                            --
+	------------------------------------------------------------------------------
+	if nWidth > 800 then
+		IEex_WriteDword(0x7A8C5A, math.floor(768  * nWidth / 800 + 0.5))  -- m_nRange default  (movl [esi+0x20],imm32 @0x7A8C57 +3)
+		IEex_WriteDword(0x42629E, math.floor(1024 * nWidth / 800 + 0.5))  -- m_nPanRange arg   (push imm32        @0x42629D +1)
+	end
+
 	IEex_EnableCodeProtection()
 end
 

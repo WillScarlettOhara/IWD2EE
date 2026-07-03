@@ -35,26 +35,10 @@
 		!mov([esi+0xD8],-1)
 	]]})
 
-	--------------------------------------------------------------------------------
-	-- Resolution-scaled positional-SFX attenuation.                              --
-	-- CSoundImp::Construct (0x7A8BB0) hardcodes m_nRange (+0x20)=768; init calls  --
-	-- CSoundMixer::SetPanRange(1024) -> m_nPanRange (mixer+0xE0). Play (0x7A9DB0) --
-	-- & ResetVolume (0x7AA110) attenuate world SFX by squared world-distance from --
-	-- the viewport centre, gated by m_nRange, and divide pan by m_nPanRange.      --
-	-- Neither scales with resolution, so above 800-wide the viewport half-width   --
-	-- outruns 768 and edge sounds hard-mute (960>768 @1920). Scale both by        --
-	-- renderWidth/800 (live width @0x8BA31C, same global the HD-UI reads).        --
-	-- Overwrite ONLY the imm32 operands so ambient ranges set via CSound::SetRange--
-	-- after construction stay intact.                                            --
-	--------------------------------------------------------------------------------
-	local renderWidth = IEex_ReadWord(0x8BA31C, 0)   -- CVideo::SCREENWIDTH / g_resolution_x
-	if renderWidth and renderWidth > 800 then
-		local ratio    = renderWidth / 800
-		local newRange = math.floor(768  * ratio + 0.5)
-		local newPan   = math.floor(1024 * ratio + 0.5)
-		IEex_WriteDword(0x7A8C5A, newRange)  -- imm32 of `C7 46 20 <imm32>` (movl [esi+0x20],768) @0x7A8C57 +3
-		IEex_WriteDword(0x42629E, newPan)    -- imm32 of `68 <imm32>` (push 1024) @0x42629D +1
-	end
+	-- Resolution-scaled positional-SFX attenuation (m_nRange / m_nPanRange) is applied
+	-- in IEex_Extern_InitResolution (IEex_Gui_State.lua): it must run after the true
+	-- render width reaches CVideo::SCREENWIDTH @0x8BA31C, which is still the 800 default
+	-- at this file's load time, so it cannot be done here.
 
 	IEex_EnableCodeProtection()
 

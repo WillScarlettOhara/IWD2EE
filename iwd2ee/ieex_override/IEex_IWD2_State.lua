@@ -30426,9 +30426,21 @@ function MEDLGTOK(actionData, creatureData)
 		if actionID == 139 then
 			tokenRecipientID = sourceID
 		end
+		if not IEex_IsSprite(tokenRecipientID, true) then
+			for i = 0, 5, 1 do
+				if IEex_IsSprite(IEex_GetActorIDCharacter(i), false) then
+					tokenRecipientID = IEex_GetActorIDCharacter(i)
+					break;
+				end
+			end
+			if not IEex_IsSprite(tokenRecipientID, true) then return end
+		end
 		local recipientData = IEex_GetActorShare(tokenRecipientID)
 		if recipientData <= 0 then return end
 		local gender = IEex_ReadByte(recipientData + 0x34, 0x0)
+		if gender < 1 or gender > 2 then
+			gender = 1
+		end
 		if gender == 1 then
 			for k, v in pairs(ex_token_male) do
 				IEex_SetToken(k, IEex_FetchString(v))
@@ -30438,7 +30450,7 @@ function MEDLGTOK(actionData, creatureData)
 				IEex_SetToken(k, IEex_FetchString(v))
 			end
 		end
-		local racePlusSub = IEex_ReadByte(recipientData + 0x26, 0x0) * 0x10000 + IEex_GetActorStat(targetID, 93)
+		local racePlusSub = IEex_ReadByte(recipientData + 0x26, 0x0) * 0x10000 + IEex_GetActorStat(tokenRecipientID, 93)
 		local raceStrref = 1
 		if ex_race_name_ref_less_specific[racePlusSub] ~= nil then
 			raceStrref = ex_race_name_ref_less_specific[racePlusSub]

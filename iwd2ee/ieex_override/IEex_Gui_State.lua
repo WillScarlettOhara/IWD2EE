@@ -69,6 +69,14 @@ if not IEex_Vanilla then
 	-- existing key keeps the player's value (never re-clobbered to its default), an absent
 	-- key is created at its default. Software Renderer is handled above.
 	local ex_ini_option_defaults = {
+		{"Present Thread", 1},
+		{"HUD Layer", 1},
+		{"UI Scale", 100},
+		{"SFX Audible Percent", 60},
+		{"Loop Sleep Ms", 0},
+		{"IP Behavior Flags", 15},
+		{"IP Enemy Bumping", 1},
+		{"IP Directed Adjust", 1},
 		{"Windowed", 0},
 		{"Vsync", 1},
 		{"Max FPS", 0},
@@ -4743,6 +4751,15 @@ function IEex_InjectOptionIniComments()
 	local SENTINEL = "; These keys mirror the in-game IEex Options menu -- click or toggle an option there for its description."
 
 	local comments = {
+		["Present Thread"]                        = "OpenGL: present frames on a dedicated thread for smoother pacing; auto-falls back to inline present on any error. 1 = on.",
+		["HUD Layer"]                             = "OpenGL: composite the HUD on its own cached layer, re-blitting only when it changes. 1 = on; software / no-FBO uses the stock path.",
+		["UI Scale"]                              = "UI size as a percent of fill: 100 = fill (default), lower shrinks the UI within the screen. Render scale only. OpenGL.",
+		["SFX Audible Percent"]                   = "Sound-effect audible radius as a percent of screen width: ~96 = vanilla, 60 = hear-what-you-see (default), 50 = silent at the edge. Clamped 5-300.",
+		["Loop Sleep Ms"]                         = "Milliseconds to sleep per main-loop iteration. 0 = Sleep(0) yield (default); 1-2 eases a weak CPU when running uncapped.",
+		["IP Behavior Flags"]                     = "Improved Pathfinding behavior bitmask, default 15 = all on (1 stall-fix, 2 wait-for-mover, 4 arrived-stop, 8 lookahead). Advanced.",
+		["IP Enemy Bumping"]                      = "Improved Pathfinding: let moving enemies bump/shove each other, not just allies. 1 = on.",
+		["IP Directed Adjust"]                    = "Improved Pathfinding: nudge a blocked step toward the intended target instead of stalling. 1 = on.",
+		["AutoLoadSlot"]                          = "Dev/testing: auto-load this save slot on startup (>=0 auto-clicks Load Game); -1 or absent = off (default).",
 		["Improved Pathfinding"]                  = "Master toggle for the GemRB-inspired pathfinding improvements (retry/backoff, unstucking, ally soft-block). 1 = on.",
 		["IP Enemy Soft Block"]                   = "Improved Pathfinding sub-option: enemy searches soft-cost through bumpable allies instead of hard-blocking. Default off (enemies may path into the party line and grind).",
 		["Tile Atlas"]                            = "OpenGL: batch map tiles into an atlas texture for faster tile rendering. 1 = on. OpenGL only.",

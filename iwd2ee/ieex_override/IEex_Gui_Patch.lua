@@ -560,6 +560,22 @@
 	-- Redirect empty Continue button OnLButtonDoubleClick() => OnLButtonDown()
 	IEex_WriteDword(0x85A45C, 0x4D4D70)
 
+	--------------------------------------------------------------
+	-- Doubled fonts: use the glyph-atlas path (GL text at 2x)  --
+	--------------------------------------------------------------
+
+	-- CVidFont::TextOut3d @0x7A1210 gates m_bDoubleSize fonts to TextOutEx3d,
+	-- which re-uploads a full 512x512 texture PER GLYPH PER FRAME (no atlas) --
+	-- at the engine 2x UI tier every text draw takes that path and text-heavy
+	-- screens (dialog, record, inventory) collapse to a slideshow.
+	-- RenderCharacters @0x7A1660 (the atlas path) already doubles quads and
+	-- advances via nScale when m_bDoubleSize, sampling the 1x atlas with
+	-- GL_NEAREST -- pixel-identical to the Blt-doubled slow path. NOP the
+	-- doubled-font branch of the gate (jne 0x7A1601 @0x7A12C6) so doubled
+	-- fonts fall through to CheckIfLoaded + the atlas renderer.
+	-- TextOut3d early-returns unless Is3dAccelerated, so this only affects GL.
+	IEex_WriteAssembly(0x7A12C6, {"!repeat(6,!nop)"})
+
 	-----------------------------------------
 	-- Also use space to "Continue" dialog --
 	-----------------------------------------

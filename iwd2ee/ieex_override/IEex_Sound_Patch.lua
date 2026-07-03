@@ -153,6 +153,55 @@
 		{[[ 90 90 90 90 90 90 ]]},
 	}))
 
+	--------------------------------------------------------------------------------
+	-- Same fix for the OTHER PC-voice path: CGameSprite::PlaySound(BYTE soundID,...)
+	-- (0x7011E0) is the creature-soundset dispatcher (SELECT=9, SELECT_ACTION=11,
+	-- attack/hurt/die, ...) -- this is what a portrait click / selection uses via
+	-- CInfGame::SelectCharacter. It has the SAME party-PC vs. other split as
+	-- VerbalConstant (routes on CInfGame::GetCharacterPortraitNum): party PCs hit a
+	-- GLOBAL CSound::Play(BOOL) (0x7A9B10) while non-PCs hit positional Play (0x7A9DB0).
+	-- Three PC global sites, all identical shape:  6A00 push 0 (bReplay); 8BCF mov
+	-- ecx,edi (edi = &cSound: a stack strRes at site 1, the sprite's embedded CSound at
+	-- [esi+0x4F2C] at sites 2/3); E8.. call 0x7A9B10  (9 bytes). Each is followed by a
+	-- `test al,al` (directly, or after a `jmp 0x7027D0`) that consumes Play's BOOL return.
+	--
+	-- Route each through positional Play so PC selection/action voices fade like the SFX.
+	-- this=esi throughout the fn (m_pos.x=[esi+6], m_pos.y=[esi+0xA]); &cSound is already
+	-- in edi and every such cSound is SetChannel'd (its m_nArea = the sprite's area, set
+	-- alongside m_nChannel -- required for the original global Play's m_aChannels[m_nChannel]
+	-- to be valid), so positional Play's area guard passes for an on-screen PC exactly as
+	-- it already does for the non-PC branch. Stub mirrors VerbalConstant: build
+	-- Play(x, y, 0, 0), reload this from edi (unclobbered by the pushes), push the site's
+	-- own return address, jmp into Play whose `ret 0x10` lands back on `test al,al` with
+	-- esp balanced and eax = Play's return. 9-byte site -> 5-byte jmp + 4 NOP.
+	-- WARNING (see above): keep the [[ ]] asm block pure hex + `!` directives, no `--`.
+	--------------------------------------------------------------------------------
+	local function IEex_HookPCVoicePositional(hookAddress, returnAddress)
+		local retLE = string.format("%02X %02X %02X %02X",
+			returnAddress % 0x100,
+			math.floor(returnAddress / 0x100) % 0x100,
+			math.floor(returnAddress / 0x10000) % 0x100,
+			math.floor(returnAddress / 0x1000000) % 0x100)
+		local stub = IEex_WriteAssemblyAuto({[[
+			8B 46 0A
+			8B 4E 06
+			6A 00
+			6A 00
+			50
+			51
+			8B CF
+			68 ]] .. retLE .. [[
+			!jmp_dword :7A9DB0
+		]]})
+		IEex_WriteAssembly(hookAddress, IEex_FlattenTable({
+			{[[ !jmp_dword ]], {stub, 4, 4}},
+			{[[ 90 90 90 90 ]]},
+		}))
+	end
+	IEex_HookPCVoicePositional(0x70238F, 0x702398)
+	IEex_HookPCVoicePositional(0x70256B, 0x702574)
+	IEex_HookPCVoicePositional(0x7027BE, 0x7027C7)
+
 	IEex_EnableCodeProtection()
 
 end)()

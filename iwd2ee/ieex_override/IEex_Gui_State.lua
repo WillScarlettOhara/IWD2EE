@@ -88,14 +88,6 @@ if not IEex_Vanilla then
 	for _, opt in ipairs(ex_ini_option_defaults) do
 		IEex_WritePrivateProfileInt("IEex Options", opt[1], IEex_GetPrivateProfileInt("IEex Options", opt[1], opt[2], ".\\Icewind2.ini"), ".\\Icewind2.ini")
 	end
-
-	-- Seed IEex.ini [Options] diagnostic keys so they are present (off) by default instead of
-	-- absent. Same read-with-default then write-back (existing value kept, absent key created at
-	-- 0). Both are read by the DLL -- Perf Log: per-frame perf CSV; Path Log: pathfinding stats
-	-- line -- and default off.
-	for _, key in ipairs({"Perf Log", "Path Log"}) do
-		IEex_WritePrivateProfileInt("Options", key, IEex_GetPrivateProfileInt("Options", key, 0, ".\\IEex.ini"), ".\\IEex.ini")
-	end
 	if softwareRenderer then
 		-- Without cnc-ddraw (ddraw.dll in the game root) the stock software blit is unaccelerated
 		-- and crawls at high resolutions. cnc-ddraw is harmless under GL (the GL path never calls

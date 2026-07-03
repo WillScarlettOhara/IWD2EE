@@ -120,7 +120,7 @@
 	-- voices already attenuate as the (zoomed or not) viewport pulls away. Route the PC
 	-- branch through the same positional CSound::Play (0x7A9DB0) so PC voices fade with
 	-- viewport distance -- but with a WIDER voice range than SFX (see
-	-- VOICE_RANGE_WORLD below) so a PC at the screen edge is still clearly heard.
+	-- the zoom-aware voice-range helper below) so a PC at the screen edge is still clearly heard.
 	-- strRes.cSound is built by the default CSound ctor (0x7A8BB0) so it inherits the
 	-- elliptical falloff for free; the stub overrides m_nRange for audibility.
 	--
@@ -139,31 +139,31 @@
 	-- WARNING (see above): keep the [[ ]] asm block pure hex + `!` directives, no `--`.
 	--------------------------------------------------------------------------------
 
-	-- Voice audible radius, in world units, written into m_nRange (cSound+0x20) each play.
-	-- Voices need a wider radius than SFX (~0.6 screen) so a PC near the screen edge stays
-	-- audible under the quadratic falloff 100*(1-(d/range)^2). At 4K (screen ~3840 wide) the
-	-- horizontal edge is d ~= 1920, so range 4500 => 1-(1920/4500)^2 ~= 82%.
+	-- Voice audible radius is set per play by IEex_Helper_ScaleVoiceRange (IEexHelper.dll),
+	-- which mirrors the SFX range helper: radius = "Voice Audible Percent" (Icewind2.ini
+	-- [IEex Options], default 120) % of the VISIBLE screen width = SCREENWIDTH / g_fCameraZoom.
+	-- So it tracks ZOOM (radius shrinks as you zoom in, matching what you see) and resolution,
+	-- and it's live-tunable. Wider than SFX (60%) so a PC at the screen edge stays ~83% audible.
 	--
-	-- HARD CEILING ~4633: positional Play (0x7A9DB0) and ResetVolume (0x7AA110) compute
-	-- m_nRangeVolume = 100 * (m_nRange^2 - distance) / m_nRange^2 in SIGNED 32-bit. The
-	-- intermediate 100 * m_nRange^2 overflows int32 once m_nRange > sqrt(2^31/100) ~= 4633,
-	-- wrapping NEGATIVE -> the sound goes fully SILENT even at distance 0. SFX never hit this
-	-- (their range ~= 0.6*width ~= 2304 at 4K); an earlier 2*SCREENWIDTH=7680 voice range did,
-	-- which is why widening the range paradoxically silenced voices. Keep this < ~4500.
-	-- (Lifting the ceiling would mean hooking that 100*range^2 to 64-bit at both sites.)
-	local VOICE_RANGE_WORLD = 4500
-	local voiceRangeLE = string.format("%02X %02X %02X %02X",
-		VOICE_RANGE_WORLD % 0x100,
-		math.floor(VOICE_RANGE_WORLD / 0x100) % 0x100,
-		math.floor(VOICE_RANGE_WORLD / 0x10000) % 0x100,
-		math.floor(VOICE_RANGE_WORLD / 0x1000000) % 0x100)
+	-- The helper clamps the radius to 4600 to dodge an int32 overflow in the engine's own
+	-- m_nRangeVolume = 100 * (m_nRange^2 - distance) / m_nRange^2 (positional Play 0x7A9DB0 +
+	-- ResetVolume 0x7AA110, signed 32-bit): 100*m_nRange^2 wraps NEGATIVE once m_nRange > ~4633,
+	-- muting the sound at ALL distances -- which is why an earlier fixed 7680 range silenced
+	-- voices. At 4K/zoom 1 the clamp binds (edge ~83% is the ceiling); zooming in drops below it.
+	--
+	-- Each stub loads &cSound, then calls the helper as: push &cSound; call helper (__stdcall,
+	-- ret 4). esi (sprite) / edi (&cSound) are saved around the call defensively.
 
-	-- VerbalConstant stub: &strRes.cSound = [esp+0x30] at entry -> edx (scratch); widen its
-	-- m_nRange, then run the positional-Play sequence (this cSound already carries a real
-	-- m_nArea from its SetChannel, so no area fixup needed here -- unlike PlaySound below).
+	-- VerbalConstant stub: &strRes.cSound = [esp+0x30] at entry -> eax; push esi (save sprite)
+	-- + push &cSound as the arg, call the zoom-aware range helper, pop esi; then run the
+	-- positional-Play sequence (this cSound already carries a real m_nArea from its SetChannel,
+	-- so no area fixup needed here -- unlike PlaySound below).
 	local pcVoicePosStub = IEex_WriteAssemblyAuto({[[
-		8D 54 24 30
-		C7 42 20 ]] .. voiceRangeLE .. [[
+		8D 44 24 30
+		56
+		50
+		!call >IEex_Helper_ScaleVoiceRange
+		5E
 		8B 46 0A
 		8B 4E 06
 		6A 00
@@ -215,12 +215,17 @@
 			math.floor(returnAddress / 0x100) % 0x100,
 			math.floor(returnAddress / 0x10000) % 0x100,
 			math.floor(returnAddress / 0x1000000) % 0x100)
-		-- Stub: fix m_nArea (edi+0x60) from the sprite (esi+0x12); widen m_nRange (edi+0x20)
-		-- to VOICE_RANGE_WORLD (overflow-safe, see note above); then Play(x, y, 0, 0), this=edi.
+		-- Stub: fix m_nArea (edi+0x60) from the sprite (esi+0x12); set m_nRange (edi+0x20) via
+		-- the zoom-aware voice-range helper (save esi/edi across the call); then Play, this=edi.
 		local stub = IEex_WriteAssemblyAuto({[[
 			8B 56 12
 			89 57 60
-			C7 47 20 ]] .. voiceRangeLE .. [[
+			56
+			57
+			57
+			!call >IEex_Helper_ScaleVoiceRange
+			5F
+			5E
 			8B 46 0A
 			8B 4E 06
 			6A 00

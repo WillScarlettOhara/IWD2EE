@@ -15,6 +15,7 @@ IEex_Normal_Patch_Files = {
 	"override/IEex_Sound_Patch.lua",
 	"override/IEex_LoadTimes_Patch.lua",
 	"override/IEex_UncapFPS_Patch.lua",
+	"override/IEex_Pathfinding_Patch.lua",
 	"override/IEex_MiscFixes_Patch.lua",
 	"override/IEex_Debug_Patch.lua",
 }

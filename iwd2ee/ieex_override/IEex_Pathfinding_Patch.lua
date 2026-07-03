@@ -95,6 +95,90 @@
 		IEex_WriteAssembly(0x707E2A, {"08"})
 	end
 
+	--------------------------------------------------------------------------
+	-- Phases 2+3 — behavior-policy detours inside CGameSprite::AIUpdateWalk --
+	-- (0x6F9040). Two decision seams route through IEexHelper policies; the --
+	-- rest of the function stays engine bytes. Policies return the exact    --
+	-- vanilla decision when "IP Behavior Flags"=0 or in multiplayer.        --
+	--                                                                       --
+	-- Seam 1 @0x6F9651 (waypoint-arrival test, reached only when the        --
+	-- half-cell check failed):                                              --
+	--     cmp ecx,edi        ; ecx = distSq(pos,posDest)                    --
+	--     jl  0x6F9AB3       ; edi = distSq(posOld,posDest)                 --
+	--   eax route: 0 = continue movement (0x6F9AB3)                         --
+	--              1 = waypoint transition/arrival (0x6F9659)               --
+	--              2 = return from function (SEH slot -1, epilogue 0x6FA7E7)--
+	--                                                                       --
+	-- Seam 2 @0x6F9CF7 (next-cell mobile-cost check; old cell already       --
+	-- RemoveObject'd, al = GetMobileCost result):                           --
+	--     cmp al,[0x84D6A3]  ; COST_IMPASSABLE                              --
+	--     jne 0x6F9F22                                                      --
+	--   eax route: 0 = vanilla (engine ClearBumpPath + revert, 0x6F9D03)    --
+	--              1 = cell usable (AddObject + sounds, 0x6F9F22)           --
+	--              2 = handled by policy (visibility/exit, 0x6FA665)        --
+	--              3 = vanilla revert, skip engine ClearBumpPath (0x6F9D1C) --
+	--------------------------------------------------------------------------
+
+	if IEex_LabelDefault("IEex_Helper_PF_ArrivalPolicy", nil) then
+
+		-- Cave bytes (raw hex kept minimal; NO comments inside [[ ]] - assembler footgun):
+		--   51 52 53 55 56 57       push ecx/edx/ebx/ebp/esi/edi (ebx is LIVE into both
+		--                           arrival and continue paths: 0x6F972C / 0x6F9B48 read [ebx])
+		--   57 51 56                push edi (distPrevSq), ecx (distNowSq), esi (this) - stdcall args
+		--   5F 5E 5D 5B 5A 59       pop edi/esi/ebp/ebx/edx/ecx (eax = route survives)
+		--   83 F8 01/02             cmp eax,1 / cmp eax,2
+		--   C7 44 24 60 FF..        mov dword [esp+0x60],-1 (SEH unwind slot, as 0x6FA7DF does)
+		-- All three routing targets re-establish their own flags (mov+test/cmp at entry).
+		if IEex_PF_VerifyBytes(0x6F9651, {0x3B, 0xCF, 0x0F, 0x8C, 0x5A, 0x04, 0x00, 0x00}) then
+			local arrivalCave = IEex_WriteAssemblyAuto({[[
+				51 52 53 55 56 57
+				57
+				51
+				56
+				!call >IEex_Helper_PF_ArrivalPolicy
+				5F 5E 5D 5B 5A 59
+				83 F8 01
+				!je_dword :6F9659
+				83 F8 02
+				!jne_dword :6F9AB3
+				C7 44 24 60 FF FF FF FF
+				!jmp_dword :6FA7E7
+			]]})
+			IEex_WriteAssembly(0x6F9651, IEex_FlattenTable({
+				{"!jmp_dword", {arrivalCave, 4, 4}},
+				{"!repeat(3,!nop)"},
+			}))
+		end
+
+		--   0F B6 C0                movzx eax,al (al = GetMobileCost result at the seam)
+		--   50 56                   push eax (cost), esi (this) - stdcall args
+		--   rest as seam-1 cave; all four targets set their own flags at entry.
+		if IEex_PF_VerifyBytes(0x6F9CF7, {0x3A, 0x05, 0xA3, 0xD6, 0x84, 0x00, 0x0F, 0x85, 0x1F, 0x02, 0x00, 0x00}) then
+			local collisionCave = IEex_WriteAssemblyAuto({[[
+				51 52 53 55 56 57
+				0F B6 C0
+				50
+				56
+				!call >IEex_Helper_PF_CollisionPolicy
+				5F 5E 5D 5B 5A 59
+				83 F8 01
+				!je_dword :6F9F22
+				83 F8 02
+				!je_dword :6FA665
+				83 F8 03
+				!je_dword :6F9D1C
+				!jmp_dword :6F9D03
+			]]})
+			IEex_WriteAssembly(0x6F9CF7, IEex_FlattenTable({
+				{"!jmp_dword", {collisionCave, 4, 4}},
+				{"!repeat(7,!nop)"},
+			}))
+		end
+
+	else
+		print("[IEex_Pathfinding] helper policies not exported by IEexHelper.dll - detours skipped (constants pack still active)")
+	end
+
 	IEex_EnableCodeProtection()
 
 end)()

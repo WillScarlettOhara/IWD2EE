@@ -6183,7 +6183,7 @@ function IEex_Extern_OnUpdateRecordDescription(CScreenCharacter, CGameSprite, CU
 						totalAttacks = totalAttacks + 1
 						extraAttacks = extraAttacks + 1
 						usingImptwf = true
-						if imptwfFeatCount > 1 and (IEex_GetActorStat(targetID, 103) < 14 or wearingLightArmor or (IEex_ReadByte(creatureData + 0x5EC, 0x0) >= 21 and bit.band(IEex_ReadDword(creatureData + 0x75C), 0x2) > 0 and bit.band(IEex_ReadDword(creatureData + 0x764), 0x40) > 0)) then
+						if imptwfFeatCount > 1 and (IEex_GetActorStat(targetID, 103) < 15 or wearingLightArmor or (IEex_ReadByte(creatureData + 0x5EC, 0x0) >= 21 and bit.band(IEex_ReadDword(creatureData + 0x75C), 0x2) > 0 and bit.band(IEex_ReadDword(creatureData + 0x764), 0x40) > 0)) then
 							totalAttacks = totalAttacks + 1
 							extraAttacks = extraAttacks + 1
 						end
@@ -6210,10 +6210,6 @@ function IEex_Extern_OnUpdateRecordDescription(CScreenCharacter, CGameSprite, CU
 						extraAttacks = extraAttacks * 2 + normalAPR
 					end
 					manyshotAttacks = manyshotAttacks * 2
-					totalAttacks = normalAPR + extraAttacks + extraMainhandAttacks + manyshotAttacks
-				end
-				if imptwfFeatCount > 2 and numWeapons >= 2 then
-					extraAttacks = extraMainhandAttacks + (normalAPR - 1)
 					totalAttacks = normalAPR + extraAttacks + extraMainhandAttacks + manyshotAttacks
 				end
 				if string.match(line, numberOfAttacksString) then

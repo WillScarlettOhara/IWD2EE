@@ -19511,8 +19511,6 @@ function MEAPRBON(effectData, creatureData)
 						trueAPR = trueAPR + theparameter1
 					elseif theparameter2 == 1 then
 						trueAPR = theparameter1
-					elseif theparameter2 == 1 then
-						trueAPR = math.floor(trueAPR * theparameter1 / 100)
 					end
 				elseif theopcode == 288 and theparameter2 == 241 then
 					local thegeneralitemcategory = IEex_ReadByte(eData + 0x48, 0x0)
@@ -19531,7 +19529,7 @@ function MEAPRBON(effectData, creatureData)
 				if imptwfFeatCount > 0 and (IEex_GetActorStat(targetID, 103) < 9 or wearingLightArmor or (IEex_ReadByte(creatureData + 0x5EC, 0x0) >= 16 and bit.band(IEex_ReadDword(creatureData + 0x75C), 0x2) > 0 and bit.band(IEex_ReadDword(creatureData + 0x764), 0x40) > 0)) then
 					trueAPR = trueAPR + 1
 					usingImptwf = true
-					if imptwfFeatCount > 1 and (IEex_GetActorStat(targetID, 103) < 14 or wearingLightArmor or (IEex_ReadByte(creatureData + 0x5EC, 0x0) >= 21 and bit.band(IEex_ReadDword(creatureData + 0x75C), 0x2) > 0 and bit.band(IEex_ReadDword(creatureData + 0x764), 0x40) > 0)) then
+					if imptwfFeatCount > 1 and (IEex_GetActorStat(targetID, 103) < 15 or wearingLightArmor or (IEex_ReadByte(creatureData + 0x5EC, 0x0) >= 21 and bit.band(IEex_ReadDword(creatureData + 0x75C), 0x2) > 0 and bit.band(IEex_ReadDword(creatureData + 0x764), 0x40) > 0)) then
 						trueAPR = trueAPR + 1
 					end
 				end
@@ -20382,7 +20380,7 @@ function IEex_ExtraAttacks(creatureData)
 				totalAttacks = totalAttacks + 1
 				extraAttacks = extraAttacks + 1
 				usingImptwf = true
-				if imptwfFeatCount > 1 and (IEex_GetActorStat(targetID, 103) < 14 or wearingLightArmor or (IEex_ReadByte(creatureData + 0x5EC, 0x0) >= 21 and bit.band(IEex_ReadDword(creatureData + 0x75C), 0x2) > 0 and bit.band(IEex_ReadDword(creatureData + 0x764), 0x40) > 0)) then
+				if imptwfFeatCount > 1 and (IEex_GetActorStat(targetID, 103) < 15 or wearingLightArmor or (IEex_ReadByte(creatureData + 0x5EC, 0x0) >= 21 and bit.band(IEex_ReadDword(creatureData + 0x75C), 0x2) > 0 and bit.band(IEex_ReadDword(creatureData + 0x764), 0x40) > 0)) then
 					totalAttacks = totalAttacks + 1
 					extraAttacks = extraAttacks + 1
 				end
@@ -20406,10 +20404,6 @@ function IEex_ExtraAttacks(creatureData)
 			end
 			totalAttacks = normalAPR + extraAttacks + extraMainhandAttacks
 			manyshotAttacks = manyshotAttacks * 2
-		end
-		if imptwfFeatCount > 2 and numWeapons >= 2 then
-			extraAttacks = extraMainhandAttacks + (normalAPR - 1)
-			totalAttacks = normalAPR + extraAttacks + extraMainhandAttacks + manyshotAttacks
 		end
 		if hasLongAnimation and normalAPR > 2 and isBow then
 			if actionID ~= 3 and actionID ~= 94 and actionID ~= 105 and actionID ~= 134 then

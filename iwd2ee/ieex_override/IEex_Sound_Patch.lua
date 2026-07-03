@@ -120,7 +120,7 @@
 	-- voices already attenuate as the (zoomed or not) viewport pulls away. Route the PC
 	-- branch through the same positional CSound::Play (0x7A9DB0) so PC voices fade with
 	-- viewport distance -- but with a WIDER voice range than SFX (see
-	-- VOICE_RANGE_SCREEN_WIDTHS below) so a PC at the screen edge is still clearly heard.
+	-- VOICE_RANGE_WORLD below) so a PC at the screen edge is still clearly heard.
 	-- strRes.cSound is built by the default CSound ctor (0x7A8BB0) so it inherits the
 	-- elliptical falloff for free; the stub overrides m_nRange for audibility.
 	--
@@ -139,31 +139,31 @@
 	-- WARNING (see above): keep the [[ ]] asm block pure hex + `!` directives, no `--`.
 	--------------------------------------------------------------------------------
 
-	-- Voice audible radius = SCREENWIDTH * VOICE_RANGE_SCREEN_WIDTHS, in world units, SET
-	-- absolutely each play from the live SCREENWIDTH (USHORT @0x8BA31C). Voices need a much
-	-- wider radius than SFX (~0.6 screen) so a PC at the screen edge stays clearly audible:
-	-- the quadratic falloff 100*(1-(d/range)^2) leaves the horizontal edge (d ~= 0.5*width)
-	-- at ~1-0.25/K^2 -- K=2 => ~94%, reaching silence ~1 screen past the edge. SET (not
-	-- multiply) so the sprite's persistent member cSound ([esi+0x4F2C], PlaySound sites 2/3)
-	-- can't compound across repeated plays. Not zoom-scaled (IWD2 zoom is >=1, so a fixed
-	-- 2*width radius always blankets the visible screen). Raise this to carry voices further.
-	-- asm to widen a cSound (its address in a reg R): movzx eax,word[0x8BA31C];
-	-- imul eax,eax,K; mov [R+0x20],eax. 0F B7 05 1C A3 8B 00 = movzx from SCREENWIDTH.
-	local VOICE_RANGE_SCREEN_WIDTHS = 2
-	local voiceKLE = string.format("%02X %02X %02X %02X",
-		VOICE_RANGE_SCREEN_WIDTHS % 0x100,
-		math.floor(VOICE_RANGE_SCREEN_WIDTHS / 0x100) % 0x100,
-		math.floor(VOICE_RANGE_SCREEN_WIDTHS / 0x10000) % 0x100,
-		math.floor(VOICE_RANGE_SCREEN_WIDTHS / 0x1000000) % 0x100)
+	-- Voice audible radius, in world units, written into m_nRange (cSound+0x20) each play.
+	-- Voices need a wider radius than SFX (~0.6 screen) so a PC near the screen edge stays
+	-- audible under the quadratic falloff 100*(1-(d/range)^2). At 4K (screen ~3840 wide) the
+	-- horizontal edge is d ~= 1920, so range 4500 => 1-(1920/4500)^2 ~= 82%.
+	--
+	-- HARD CEILING ~4633: positional Play (0x7A9DB0) and ResetVolume (0x7AA110) compute
+	-- m_nRangeVolume = 100 * (m_nRange^2 - distance) / m_nRange^2 in SIGNED 32-bit. The
+	-- intermediate 100 * m_nRange^2 overflows int32 once m_nRange > sqrt(2^31/100) ~= 4633,
+	-- wrapping NEGATIVE -> the sound goes fully SILENT even at distance 0. SFX never hit this
+	-- (their range ~= 0.6*width ~= 2304 at 4K); an earlier 2*SCREENWIDTH=7680 voice range did,
+	-- which is why widening the range paradoxically silenced voices. Keep this < ~4500.
+	-- (Lifting the ceiling would mean hooking that 100*range^2 to 64-bit at both sites.)
+	local VOICE_RANGE_WORLD = 4500
+	local voiceRangeLE = string.format("%02X %02X %02X %02X",
+		VOICE_RANGE_WORLD % 0x100,
+		math.floor(VOICE_RANGE_WORLD / 0x100) % 0x100,
+		math.floor(VOICE_RANGE_WORLD / 0x10000) % 0x100,
+		math.floor(VOICE_RANGE_WORLD / 0x1000000) % 0x100)
 
 	-- VerbalConstant stub: &strRes.cSound = [esp+0x30] at entry -> edx (scratch); widen its
 	-- m_nRange, then run the positional-Play sequence (this cSound already carries a real
 	-- m_nArea from its SetChannel, so no area fixup needed here -- unlike PlaySound below).
 	local pcVoicePosStub = IEex_WriteAssemblyAuto({[[
 		8D 54 24 30
-		0F B7 05 1C A3 8B 00
-		69 C0 ]] .. voiceKLE .. [[
-		89 42 20
+		C7 42 20 ]] .. voiceRangeLE .. [[
 		8B 46 0A
 		8B 4E 06
 		6A 00
@@ -216,13 +216,11 @@
 			math.floor(returnAddress / 0x10000) % 0x100,
 			math.floor(returnAddress / 0x1000000) % 0x100)
 		-- Stub: fix m_nArea (edi+0x60) from the sprite (esi+0x12); widen m_nRange (edi+0x20)
-		-- to VOICE_RANGE_SCREEN_WIDTHS * SCREENWIDTH; then Play(x, y, 0, 0) with this=edi.
+		-- to VOICE_RANGE_WORLD (overflow-safe, see note above); then Play(x, y, 0, 0), this=edi.
 		local stub = IEex_WriteAssemblyAuto({[[
 			8B 56 12
 			89 57 60
-			0F B7 05 1C A3 8B 00
-			69 C0 ]] .. voiceKLE .. [[
-			89 47 20
+			C7 47 20 ]] .. voiceRangeLE .. [[
 			8B 46 0A
 			8B 4E 06
 			6A 00

@@ -926,7 +926,7 @@
 			{0x4F435547, 0x3042544E, "GUCONTBM"}, -- GUCONTB0  container
 			{0x45445547, 0x30485441, "GUDEATHM"}, -- GUDEATH0  death screen
 			{0x42575547, 0x30335054, "GUWBTP3M"}, -- GUWBTP30  worldmap travel
-			{0x4B513342, 0x544F4F4C, "B3QKLOOM"}, -- B3QKLOOT  quickloot bar
+			{0x4B513342, 0x544F4F4C, "B3QKLOOM"}, -- B3QKLOOT  quickloot (panel 611 < 1024 MOS -> composite skips left cap only)
 		}
 
 		-- Detour is entered by jmp (esp unshifted): &resref @[esp+4], nType @[esp+8]. eax/edx are dead at

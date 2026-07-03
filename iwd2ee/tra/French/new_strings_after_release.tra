@@ -3679,9 +3679,9 @@ Type d’arme : à une main~
 @55932=~Empêche les membres du groupe de mettre une armure pendant le combat.~
 
 // 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/100)
-@101 = ~2x UI (interface haute résolution HD) - Panneaux décorés - polices originales~
+@101 = ~2x UI (interface haute résolution HD) - polices originales~
 @102 = ~2x UI (interface haute résolution HD)~
 @103 = ~2x UI (interface haute résolution HD) - Panneaux minimalistes (marges transparentes) - polices originales~
 
-@56059 = ~2x UI (interface haute résolution HD) - Panneaux décorés - polices non pixelisées~
+@56059 = ~2x UI (interface haute résolution HD) - polices non pixelisées~
 @56060 = ~2x UI (interface haute résolution HD) - Panneaux minimalistes (marges transparentes) - polices non pixelisées~

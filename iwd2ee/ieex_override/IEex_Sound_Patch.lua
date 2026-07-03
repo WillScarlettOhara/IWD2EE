@@ -62,6 +62,47 @@
 		{[[ 90 90 ]]},                                -- pad the 5-byte jmp to the 7-byte store
 	}))
 
+	--------------------------------------------------------------------------------
+	-- Elliptical falloff. Play (0x7A9DB0) + ResetVolume (0x7AA110) attenuate by      --
+	-- CIRCULAR world distance dx^2+dy^2 vs m_nRange^2, which over-covers vertically   --
+	-- on a wide screen (hear further above/below than sideways). Replace the inline   --
+	-- dx^2+dy^2 at both sites with IEex_Helper_EllipticalSoundDist(dx,dy), which       --
+	-- stretches dy by the live viewport aspect so the audible region matches the       --
+	-- screen rectangle at any aspect (16:9 / 21:9 / 32:9 / 16:10 / 4:3 -- live res).  --
+	--                                                                                 --
+	-- Play  @0x7A9ED5: displaced 10B (mov esi,edx; imul eax,eax; imul edx,esi; add    --
+	--   eax,edx); at entry eax=dy, edx=dx, ecx=m_nRange^2. Set esi=dx (callee-saved,  --
+	--   used by the pan divide), save/restore ecx, call helper -> eax=dist, resume    --
+	--   at the cmp @0x7A9EDF.                                                          --
+	-- Reset @0x7AA1FA: displaced 10B (mov ecx,edi; imul eax,eax; imul ecx,edi; add    --
+	--   eax,ecx); at entry eax=dy, edi=dx (callee-saved, used by the pan divide);     --
+	--   call helper -> eax=dist, resume at the cdq @0x7AA204.                          --
+	--------------------------------------------------------------------------------
+	local playDistStub = IEex_WriteAssemblyAuto({[[
+		8B F2                                       -- mov esi,edx (dx -> esi, callee-saved for pan)
+		51                                          -- push ecx (save m_nRange^2)
+		50                                          -- push eax (arg2: dy)
+		56                                          -- push esi (arg1: dx)
+		!call >IEex_Helper_EllipticalSoundDist
+		59                                          -- pop ecx (restore m_nRange^2)
+		!jmp_dword :7A9EDF
+	]]})
+	IEex_WriteAssembly(0x7A9ED5, IEex_FlattenTable({
+		{[[ !jmp_dword ]], {playDistStub, 4, 4}},
+		{[[ 90 90 90 90 90 ]]},                     -- pad the 5-byte jmp to the 10-byte displaced region
+	}))
+
+	local resetDistStub = IEex_WriteAssemblyAuto({[[
+		50                                          -- push eax (arg2: dy)
+		57                                          -- push edi (arg1: dx, callee-saved for pan)
+		!call >IEex_Helper_EllipticalSoundDist
+		!jmp_dword :7AA204
+	]]})
+	IEex_WriteAssembly(0x7AA1FA, IEex_FlattenTable({
+		{[[ !jmp_dword ]], {resetDistStub, 4, 4}},
+		{[[ 90 90 90 90 90 ]]},                     -- pad the 5-byte jmp to the 10-byte displaced region
+	}))
+
 	IEex_EnableCodeProtection()
 
 end)()

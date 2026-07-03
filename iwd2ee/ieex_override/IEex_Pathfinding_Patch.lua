@@ -179,6 +179,86 @@
 		print("[IEex_Pathfinding] helper policies not exported by IEexHelper.dll - detours skipped (constants pack still active)")
 	end
 
+	--------------------------------------------------------------------------
+	-- Phase 4 — enemy unstick (ClearBumpPath @0x6FA900, combat conga fix).  --
+	-- Gate seam @0x6FA929 replaces "cmp al,[EA_GOODCUTOFF] / jbe proceed":  --
+	-- with [IEex Options] "IP Enemy Bumping"=1 (default), EA>30 sprites may --
+	-- bump too, but PF_BumpObstaclePolicy (seam @0x6FACBB, replaces the     --
+	-- m_bBumpable/field_54B8 skip pair) forbids shoving EA<=30 obstacles -- --
+	-- enemies displace their own side only, never PCs.                      --
+	-- Cave regs: ebx=bumper(this), esi=obstacle; both callee-saved by the   --
+	-- stdcall policies; eax/ecx/edx dead at all four targets (verified).    --
+	--------------------------------------------------------------------------
+
+	if IEex_LabelDefault("IEex_Helper_PF_BumpGatePolicy", nil) then
+
+		if IEex_PF_VerifyBytes(0x6FA929, {0x3A, 0x05, 0x3B, 0x7C, 0x84, 0x00, 0x76, 0x07}) then
+			local bumpGateCave = IEex_WriteAssemblyAuto({[[
+				0F B6 C0
+				50
+				53
+				!call >IEex_Helper_PF_BumpGatePolicy
+				85 C0
+				!jne_dword :6FA938
+				33 C0
+				!jmp_dword :6FB417
+			]]})
+			IEex_WriteAssembly(0x6FA929, IEex_FlattenTable({
+				{"!jmp_dword", {bumpGateCave, 4, 4}},
+				{"!repeat(3,!nop)"},
+			}))
+		end
+
+		if IEex_PF_VerifyBytes(0x6FACBB, {
+			0x8B, 0x86, 0xA8, 0x54, 0x00, 0x00, 0x85, 0xC0, 0x0F, 0x84, 0xC4, 0x06, 0x00, 0x00,
+			0x8B, 0x86, 0xB8, 0x54, 0x00, 0x00, 0x85, 0xC0, 0x0F, 0x85, 0xB6, 0x06, 0x00, 0x00,
+		}) then
+			local bumpObstacleCave = IEex_WriteAssemblyAuto({[[
+				56
+				53
+				!call >IEex_Helper_PF_BumpObstaclePolicy
+				85 C0
+				!je_dword :6FB38D
+				!jmp_dword :6FACD7
+			]]})
+			IEex_WriteAssembly(0x6FACBB, IEex_FlattenTable({
+				{"!jmp_dword", {bumpObstacleCave, 4, 4}},
+				{"!repeat(23,!nop)"},
+			}))
+		end
+
+	end
+
+	--------------------------------------------------------------------------
+	-- Phase 4b (optional, default OFF) — search-side soft-block: keep       --
+	-- m_bBump for EA>30 search requests too (enemy searches then soft-cost  --
+	-- through bumpable allies instead of hard-blocking). @0x54961E jbe->jmp --
+	-- skips the bBump=FALSE forcing in SearchThreadMain. Risk: enemies path --
+	-- through the party line then grind (4a refuses to shove PCs).          --
+	--------------------------------------------------------------------------
+
+	if IEex_GetPrivateProfileInt("IEex Options", "IP Enemy Soft Block", 0, ".\\Icewind2.ini") ~= 0 then
+		if IEex_PF_VerifyBytes(0x54961E, {0x76, 0x0F}) then
+			IEex_WriteAssembly(0x54961E, {"EB"})
+		end
+	end
+
+	--------------------------------------------------------------------------
+	-- Phase 5 — directed destination adjust. Whole-replace of               --
+	-- CGameArea::SnapshotAdjustTarget @0x46A630 (worker thread, ret 0x14).  --
+	-- Vanilla line-probe first (exact port); on failure, expanding ring     --
+	-- search (r=1..6) around the goal picks the nearest passable snapshot   --
+	-- cell, tie-broken toward the approach side ("stop just before" an      --
+	-- occupied destination). Gated by "IP Directed Adjust" (default 1)      --
+	-- inside the DLL; vanilla-exact when off.                               --
+	--------------------------------------------------------------------------
+
+	if IEex_LabelDefault("IEex_Helper_PF_SnapshotAdjustTarget", nil) then
+		if IEex_PF_VerifyBytes(0x46A630, {0x83, 0xEC, 0x14, 0x8B, 0x44, 0x24, 0x20}) then
+			IEex_WriteAssembly(0x46A630, {"!jmp_dword >IEex_Helper_PF_SnapshotAdjustTarget !nop !nop"})
+		end
+	end
+
 	IEex_EnableCodeProtection()
 
 end)()

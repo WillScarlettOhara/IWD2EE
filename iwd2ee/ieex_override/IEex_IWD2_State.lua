@@ -19890,8 +19890,16 @@ function IEex_ExtraAttacks(creatureData)
 			maxAttacksOfOpportunity = 1
 		end
 	end
-	local imptwfFeatCount = IEex_ReadByte(creatureData + 0x744 + ex_feat_name_id["ME_IMPROVED_TWO_WEAPON_FIGHTING"], 0x0)
-	local manyshotFeatCount = IEex_ReadByte(creatureData + 0x744 + ex_feat_name_id["ME_MANYSHOT"], 0x0)
+	local imptwfFeatID = ex_feat_name_id["ME_IMPROVED_TWO_WEAPON_FIGHTING"]
+	local imptwfFeatCount = 0
+	if imptwfFeatID ~= nil then
+		imptwfFeatCount = IEex_ReadByte(creatureData + 0x744 + imptwfFeatID, 0x0)
+	end
+	local manyshotFeatID = ex_feat_name_id["ME_MANYSHOT"]
+	local manyshotFeatCount = 0
+	if manyshotFeatID ~= nil then
+		manyshotFeatCount = IEex_ReadByte(creatureData + 0x744 + manyshotFeatID, 0x0)
+	end
 	local rapidShotEnabled = (IEex_ReadByte(creatureData + 0x4C64, 0x0) > 0)
 	local rapidShotActive = false
 	local monkLevel = IEex_GetActorStat(targetID, 101)

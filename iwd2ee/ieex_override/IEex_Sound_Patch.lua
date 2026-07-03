@@ -166,14 +166,21 @@
 	-- `test al,al` (directly, or after a `jmp 0x7027D0`) that consumes Play's BOOL return.
 	--
 	-- Route each through positional Play so PC selection/action voices fade like the SFX.
-	-- this=esi throughout the fn (m_pos.x=[esi+6], m_pos.y=[esi+0xA]); &cSound is already
-	-- in edi and every such cSound is SetChannel'd (its m_nArea = the sprite's area, set
-	-- alongside m_nChannel -- required for the original global Play's m_aChannels[m_nChannel]
-	-- to be valid), so positional Play's area guard passes for an on-screen PC exactly as
-	-- it already does for the non-PC branch. Stub mirrors VerbalConstant: build
-	-- Play(x, y, 0, 0), reload this from edi (unclobbered by the pushes), push the site's
-	-- own return address, jmp into Play whose `ret 0x10` lands back on `test al,al` with
-	-- esp balanced and eax = Play's return. 9-byte site -> 5-byte jmp + 4 NOP.
+	-- this=esi throughout the fn (CGameObject: m_pos @0x06 so x=[esi+6]/y=[esi+0xA],
+	-- m_pArea @0x12); &cSound is already in edi.
+	--
+	-- CRITICAL: unlike VerbalConstant (which SetChannel's its cSound with nArea = m_pArea),
+	-- PlaySound's PC branch SetChannel's with nArea = 0 (e.g. @0x70255B: push 0 = nArea).
+	-- Positional Play (0x7A9DB0) bails with `ret 0x10` when m_nArea (+0x60) == 0
+	-- (@0x7A9DCF) or when m_nArea != m_pSoundMixer->m_nActiveArea (+0xF0, @0x7A9DDA) -- so
+	-- calling it as-is made every PC voice SILENT. The stub first writes the speaker's own
+	-- m_pArea ([esi+0x12]) into cSound.m_nArea ([edi+0x60]) so the guard passes for an
+	-- on-screen PC exactly as it does for the non-PC branch (whose cSound carries a real
+	-- area). m_nChannel is left as SetChannel set it; only the area was zero.
+	--
+	-- Then build Play(x, y, 0, 0), reload this from edi (unclobbered by the pushes), push
+	-- the site's own return address, jmp into Play whose `ret 0x10` lands back on `test
+	-- al,al` with esp balanced and eax = Play's return. 9-byte site -> 5-byte jmp + 4 NOP.
 	-- WARNING (see above): keep the [[ ]] asm block pure hex + `!` directives, no `--`.
 	--------------------------------------------------------------------------------
 	local function IEex_HookPCVoicePositional(hookAddress, returnAddress)
@@ -183,6 +190,8 @@
 			math.floor(returnAddress / 0x10000) % 0x100,
 			math.floor(returnAddress / 0x1000000) % 0x100)
 		local stub = IEex_WriteAssemblyAuto({[[
+			8B 56 12
+			89 57 60
 			8B 46 0A
 			8B 4E 06
 			6A 00

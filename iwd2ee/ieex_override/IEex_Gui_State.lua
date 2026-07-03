@@ -77,7 +77,6 @@ if not IEex_Vanilla then
 		{"Smooth Cursor", 1},
 		{"Stretch UI to Screen", 0},
 		{"UI Borders", 1},
-		{"UI Canvas Scale x10", 10},
 		{"Transparent Fog of War", 0},
 		{"Action Indicators", 1},
 		{"Highlight Empty Containers in Gray", 1},

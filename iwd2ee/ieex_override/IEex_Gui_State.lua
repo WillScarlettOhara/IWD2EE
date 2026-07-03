@@ -62,6 +62,40 @@ if not IEex_Vanilla then
 	local softwareRenderer = IEex_GetPrivateProfileInt("IEex Options", "Software Renderer", 0, ".\\Icewind2.ini") ~= 0
 	IEex_WritePrivateProfileInt("IEex Options", "Software Renderer", softwareRenderer and 1 or 0, ".\\Icewind2.ini")
 	IEex_WritePrivateProfileInt("Program Options", "3D Acceleration", softwareRenderer and 0 or 1, ".\\Icewind2.ini")
+
+	-- Seed the remaining [IEex Options] keys so a fresh Icewind2.ini is fully populated on
+	-- the first launch (the in-game IEex Options menu otherwise materialises each key only
+	-- when its row is built/toggled). Read-with-default then write BACK the read value: an
+	-- existing key keeps the player's value (never re-clobbered to its default), an absent
+	-- key is created at its default. Software Renderer is handled above.
+	local ex_ini_option_defaults = {
+		{"Windowed", 0},
+		{"Vsync", 1},
+		{"Max FPS", 0},
+		{"Show FPS", 0},
+		{"Tile Atlas", 1},
+		{"Smooth Cursor", 1},
+		{"Stretch UI to Screen", 0},
+		{"UI Borders", 1},
+		{"UI Canvas Scale x10", 10},
+		{"Transparent Fog of War", 0},
+		{"Action Indicators", 1},
+		{"Highlight Empty Containers in Gray", 1},
+		{"Improved Pathfinding", 1},
+		{"IP Enemy Soft Block", 0},
+		{"Prevent Equipping Armor During Combat", 0},
+	}
+	for _, opt in ipairs(ex_ini_option_defaults) do
+		IEex_WritePrivateProfileInt("IEex Options", opt[1], IEex_GetPrivateProfileInt("IEex Options", opt[1], opt[2], ".\\Icewind2.ini"), ".\\Icewind2.ini")
+	end
+
+	-- Seed IEex.ini [Options] diagnostic keys so they are present (off) by default instead of
+	-- absent. Same read-with-default then write-back (existing value kept, absent key created at
+	-- 0). Both are read by the DLL -- Perf Log: per-frame perf CSV; Path Log: pathfinding stats
+	-- line -- and default off.
+	for _, key in ipairs({"Perf Log", "Path Log"}) do
+		IEex_WritePrivateProfileInt("Options", key, IEex_GetPrivateProfileInt("Options", key, 0, ".\\IEex.ini"), ".\\IEex.ini")
+	end
 	if softwareRenderer then
 		-- Without cnc-ddraw (ddraw.dll in the game root) the stock software blit is unaccelerated
 		-- and crawls at high resolutions. cnc-ddraw is harmless under GL (the GL path never calls
@@ -4718,6 +4752,11 @@ function IEex_InjectOptionIniComments()
 	local SENTINEL = "; These keys mirror the in-game IEex Options menu -- click or toggle an option there for its description."
 
 	local comments = {
+		["Improved Pathfinding"]                  = "Master toggle for the GemRB-inspired pathfinding improvements (retry/backoff, unstucking, ally soft-block). 1 = on.",
+		["IP Enemy Soft Block"]                   = "Improved Pathfinding sub-option: enemy searches soft-cost through bumpable allies instead of hard-blocking. Default off (enemies may path into the party line and grind).",
+		["Tile Atlas"]                            = "OpenGL: batch map tiles into an atlas texture for faster tile rendering. 1 = on. OpenGL only.",
+		["UI Canvas Scale x10"]                   = "HD UI canvas scale x10: 10 = native 1.0x; >=11 enables the HD UI upscale (e.g. 20 = 2x). Written by the HD/2x UI component.",
+		["Windowed"]                              = "1 = run in a window; 0 = fullscreen (default). No-op under Wine.",
 		["Last Resolution"]                       = "(internal) last resolution the game ran at.",
 		["Transparent Fog of War"]                = "Transparent fog of war instead of the interlaced version. Software renderer only; ignored under OpenGL.",
 		["Action Indicators"]                     = "Action indicators above character portraits showing each character's current action(s).",

@@ -3063,7 +3063,7 @@ function IEex_SetOptionDescription(labelId)
 		[13] = "Stretches the interface to fill the entire screen. When off, the UI renders at its native size with letterboxed black borders (crisper); when on, it is scaled up to fill the display (larger, but slightly softer).",
 		[15] = "Displays an on-screen counter showing the render framerate, the AI (game-logic) update rate, and the VRAM pool usage.",
 		[17] = "Synchronizes frame presentation with your monitor's refresh rate to eliminate screen tearing.",
-		[19] = "Adds decorative stone borders that frame the interface and fill the empty margins at the screen edges (for example on widescreen displays). Requires a restart to take effect.",
+		[19] = "Adds decorative stone borders around the interface: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty margins at the screen edges (for example on widescreen displays). When off, the world shows through those margins. Requires a restart to take effect.",
 		[21] = "Draws the interface into a single persistent buffer to reduce flickering of dynamic UI elements. Requires a restart to take effect.",
 		[23] = "Samples the mouse position at the rendering framerate instead of the game's logic tick rate, for smoother cursor movement. Requires a restart to take effect.",
 		[25] = "Limits the framerate to your display's refresh rate to reduce GPU and CPU load. Requires a restart to take effect.",
@@ -3870,7 +3870,7 @@ function IEex_InstallIEexOptions()
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
 	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 19), "Decorative UI Borders (restart required)")
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 19), "Decorative UI & HUD Borders (restart required)")
 
 	-- "UI Borders" Toggle - ID 20
 	IEex_AddControlOverride("GUIOPT", 14, 20, "IEex_UI_Button")
@@ -4699,7 +4699,7 @@ function IEex_InjectOptionIniComments()
 		["Stretch UI to Screen"]                  = "1 = stretch the UI to fill the screen (larger, softer); 0 = native size, letterboxed (crisper). OpenGL only.",
 		["Show FPS"]                              = "On-screen counter: render framerate, AI (game-logic) rate, and VRAM pool usage.",
 		["Vsync"]                                 = "Sync frame presentation to the display refresh to remove tearing. OpenGL only.",
-		["UI Borders"]                            = "Decorative stone borders filling the empty screen-edge margins. Restart required.",
+		["UI Borders"]                            = "Decorative stone borders: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty screen-edge margins. Restart required.",
 		["UI Single Buffer"]                      = "Single persistent UI buffer to reduce flicker of dynamic elements. Restart required. OpenGL only.",
 		["Smooth Cursor"]                         = "Sample the mouse at the render framerate for smoother cursor motion. Restart required. OpenGL only.",
 		["Max FPS"]                               = "Frame cap: 0 = auto (just under display refresh), 9999 = uncapped. The 'Cap FPS to Display Refresh' menu toggle flips 0/9999.",

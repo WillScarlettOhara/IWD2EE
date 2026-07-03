@@ -598,6 +598,18 @@
 			{0x50414D57, 0x00000031}, -- WMAP1
 			{0x50414D57, 0x00000032}, -- WMAP2
 			{0x50414D57, 0x00000033}, -- WMAP3
+			-- World-HUD MINIMAL (transparent-margin) variants: loaded only when "UI Borders" is off (the
+			-- IEex_Gui_Patch.lua GetResObject redirect swaps the decorated resref for these). Listed here so
+			-- the 2x de-double treats them like their decorated originals -> crisp native 2x, not 4x NN.
+			{0x4D4F4347, 0x4D31314D}, -- GCOMM11M
+			{0x4D4F4347, 0x4D32314D}, -- GCOMM12M
+			{0x54434147, 0x4D31314E}, -- GACTN11M
+			{0x44574D47, 0x4D424D4D}, -- GMWDMMBM
+			{0x44574D47, 0x4D424C53}, -- GMWDSLBM
+			{0x4F435547, 0x4D42544E}, -- GUCONTBM
+			{0x45445547, 0x4D485441}, -- GUDEATHM
+			{0x42575547, 0x4D335054}, -- GUWBTP3M
+			{0x4B513342, 0x4D4F4F4C}, -- B3QKLOOM
 		}
 		local mos_match = "!push(eax) !mov(eax,[ecx+0x10]) !test_eax_eax !jz_dword >skip "
 		for k, p in ipairs(mos_list) do

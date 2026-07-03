@@ -604,15 +604,9 @@ SUBCOMPONENT @102
       INCLUDE ~%mod_folder%/components/2x_ui_resolution_gate.tpa~
       INCLUDE ~%mod_folder%/components/2x_ui_aa_fonts.tpa~
 
-BEGIN @103 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 100
-SUBCOMPONENT @102
-
-      INCLUDE ~%mod_folder%/components/2x_ui_resolution_gate.tpa~
-      INCLUDE ~%mod_folder%/components/2x_ui_minimal_panels.tpa~
-
-BEGIN @56060 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 102
-SUBCOMPONENT @102
-
-      INCLUDE ~%mod_folder%/components/2x_ui_resolution_gate.tpa~
-      INCLUDE ~%mod_folder%/components/2x_ui_minimal_panels.tpa~
-      INCLUDE ~%mod_folder%/components/2x_ui_aa_fonts.tpa~
+// The former "Minimal panels (transparent margins)" sub-choices (@103 DESIGNATED 100 / @56060 DESIGNATED
+// 102, which did a destructive COPY mos_2x_minimal -> override) are RETIRED. The world-HUD decorative
+// frame is now controlled at RUNTIME by the "UI Borders" toggle (IEex_Gui_Patch.lua GetResObject
+// redirect), which strips it at BOTH 1x and 2x with the decorated + minimal art coexisting under distinct
+// resrefs -- no separate, destructive install-time component. DESIGNATED 100/102 are left unused (NOT
+// recycled) so existing WeiDU manifests don't shift; the @103/@56060 tra strings are now orphaned.

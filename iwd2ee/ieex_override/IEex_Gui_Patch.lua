@@ -901,6 +901,61 @@
 		!pop_all_registers_iwd2
 	]]}))
 
+	-- World-HUD decorative frame off (unifies the "UI Borders" toggle). The STON10 padding panels handled
+	-- above only frame the menu/record screens -- CScreenWorld never AddPanel's them, so that path can't
+	-- reach the world HUD. The world HUD's stone frame is instead BAKED INTO its panel MOS (command bar,
+	-- world map, container, death, travel). So when the player turns "UI Borders" off, redirect those MOS
+	-- at load time to a transparent-margin (minimal) variant -- the toggle then strips the world HUD too,
+	-- at BOTH 1x and 2x. Chokepoint: every MOS consumer funnels through CDimm::GetResObject(&resref, nType,
+	-- bWarn) @0x786DF0 (CResHelper::SetResRef -> GetResObject; MOS nType == 1004 = 0x3EC). We repoint the
+	-- incoming &resref (@[esp+4]) at a private 8-byte buffer holding the minimal resref; GetResObject only
+	-- READS the resref (FindKey), so the caller's own CResRef is never mutated. Session-fixed: read once at
+	-- patch time like the STON memset above (restart to apply). Minimal art ships as GCOMM11M etc. (last
+	-- resref char -> 'M'); WeiDU stages the tier-correct (1x or 2x) art under that resref. The 2x de-double
+	-- list (IEex_UIScale_Patch.lua mos_list) also carries the minimal resrefs so 2x stays crisp, not 4x.
+	if IEex_GetPrivateProfileInt("IEex Options", "UI Borders", 1, ".\\Icewind2.ini") == 0 then
+
+		-- {decorated dword0, decorated dword1, minimal resref}. The two dwords are the LE halves of the
+		-- 8-char decorated resref (same encoding as mos_list); match either half fails -> next entry.
+		local worldBorderRedirect = {
+			{0x4D4F4347, 0x3831314D, "GCOMM11M"}, -- GCOMM118  command bar
+			{0x4D4F4347, 0x3832314D, "GCOMM12M"}, -- GCOMM128  command bar (6-char party)
+			{0x54434147, 0x3831314E, "GACTN11M"}, -- GACTN118  action dial
+			{0x44574D47, 0x30424D4D, "GMWDMMBM"}, -- GMWDMMB0  world map
+			{0x44574D47, 0x30424C53, "GMWDSLBM"}, -- GMWDSLB0  world map
+			{0x4F435547, 0x3042544E, "GUCONTBM"}, -- GUCONTB0  container
+			{0x45445547, 0x30485441, "GUDEATHM"}, -- GUDEATH0  death screen
+			{0x42575547, 0x30335054, "GUWBTP3M"}, -- GUWBTP30  worldmap travel
+			{0x4B513342, 0x544F4F4C, "B3QKLOOM"}, -- B3QKLOOT  quickloot bar
+		}
+
+		-- Detour is entered by jmp (esp unshifted): &resref @[esp+4], nType @[esp+8]. eax/edx are dead at
+		-- the function entry (the 2 displaced movs reload both), so the detour clobbers them freely -- no
+		-- push/pop needed. On a MOS resref match, overwrite the &resref stack slot with the minimal-resref
+		-- buffer address (raw  mov dword [esp+4], imm32 = C7 44 24 04 <imm32 LE>), then fall through to @skip.
+		local function leBytes(addr)
+			return string.format("%02X %02X %02X %02X",
+				addr % 0x100, math.floor(addr / 0x100) % 0x100, math.floor(addr / 0x10000) % 0x100, math.floor(addr / 0x1000000) % 0x100)
+		end
+		local redirect = "!mov(eax,[esp+0x8]) !cmp_eax_dword #000003EC !jne_dword >skip "
+		for k, e in ipairs(worldBorderRedirect) do
+			local buf = IEex_Malloc(0x8)
+			IEex_WriteLString(buf, e[3], 8)
+			redirect = redirect
+				.. "!mov(eax,[esp+0x4]) !mov(eax,[eax]) !cmp_eax_dword #" .. string.format("%08X", e[1]) .. " !jne_dword >n" .. k .. " "
+				.. "!mov(eax,[esp+0x4]) !mov(eax,[eax+0x4]) !cmp_eax_dword #" .. string.format("%08X", e[2]) .. " !jne_dword >n" .. k .. " "
+				.. "C7 44 24 04 " .. leBytes(buf) .. " !jmp_dword >skip @n" .. k .. " "
+		end
+		redirect = redirect .. "@skip"
+
+		-- CDimm::GetResObject prologue = mov eax,[esp+0C] ; mov edx,[esp+04]  (8 bytes). Re-run after the
+		-- detour: edx picks up the rewritten [esp+04] = the minimal buffer. 0x786DF0 + 8 = 0x786DF8 (push esi).
+		IEex_AttemptHook(0x786DF0,
+			{redirect},
+			{"8B 44 24 0C 8B 54 24 04 !jmp_dword :786DF8"},
+			{0x8B, 0x44, 0x24, 0x0C, 0x8B, 0x54, 0x24, 0x04})
+	end
+
 	-- Disable instances where the engine rendered the mouse at non-buffer-flip moments.
 	-- This renders the mouse before everything is drawn to the screen, yet blocks
 	-- the mouse from rendering again at buffer-flip, causing it to flicker.

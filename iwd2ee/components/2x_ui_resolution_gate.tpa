@@ -34,6 +34,11 @@ PRINT ~[2x UI] Correct at ~~2048x1200 and above; below that the engine keeps the
 //     stock CHU. The selective de-double (IEex_UIScale_Patch.lua) keeps the 2x art crisp. ---
 COPY ~%mod_folder%/bam/bam_2x_ui~ ~override~
 COPY ~%mod_folder%/mos/mos_2x_ui~ ~override~
+// World-HUD MINIMAL (transparent-margin) panel MOS, 2x-authored, under distinct resrefs (GCOMM11M etc.).
+// Overwrites the 1x-authored mos_min_1x (shipped by the core) so 2x installs get crisp 2x minimal art.
+// The runtime "UI Borders" toggle (IEex_Gui_Patch.lua GetResObject redirect) swaps to these when off;
+// they are also in the IEex_UIScale_Patch.lua de-double mos_list so they render native-crisp, not 4x.
+COPY ~%mod_folder%/mos/mos_min_2x~ ~override~
 
 // --- Russian: the text/UI fonts (NORMAL/TOOLFONT/STONESML/STONESM3/STONEBIG) are cp1252 (Latin) in
 //     bam_2x_ui and can't render Cyrillic. Overwrite them with cyrillic-merged hybrids (Latin glyphs

@@ -36,7 +36,10 @@
 
 	-- Verify original bytes at address before patching; skip + log on mismatch
 	-- (exe drift / foreign mod protection).
+	local IEex_PF_Patched = 0
+	local IEex_PF_Total = 0
 	local function IEex_PF_VerifyBytes(address, expectedBytes)
+		IEex_PF_Total = IEex_PF_Total + 1
 		for i = 1, #expectedBytes do
 			local actual = IEex_ReadByte(address + i - 1, 0)
 			if actual ~= expectedBytes[i] then
@@ -46,6 +49,7 @@
 				return false
 			end
 		end
+		IEex_PF_Patched = IEex_PF_Patched + 1
 		return true
 	end
 
@@ -260,5 +264,7 @@
 	end
 
 	IEex_EnableCodeProtection()
+
+	print(string.format("[IEex_Pathfinding] loaded (%d/%d sites patched)", IEex_PF_Patched, IEex_PF_Total))
 
 end)()

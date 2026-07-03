@@ -96,14 +96,17 @@ IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration",
 -- IEex Options menu (panel 14) option rows, top->bottom by LABEL id. Some rows are renderer-specific
 -- and are not built (and their toggle is skipped in IEex_InitOptionButtons) in the wrong renderer:
 --   Transparent Fog of War (5) is SOFTWARE-only  -> hidden under GL  (Export_RenderFoW early-returns in GL).
---   Stretch UI (13), Vsync (17), UI Single Buffer (21), Smooth Cursor (23) are GL-only -> hidden in software
---   (their C++ no-ops without a GL context: ComputeUIScale / EnsureVSync / gFl_active FBO / cursor resample).
+--   Stretch UI (13), Vsync (17), Smooth Cursor (23) are GL-only -> hidden in software
+--   (their C++ no-ops without a GL context: ComputeUIScale / EnsureVSync / cursor resample).
+--   Improved Pathfinding (21) is renderer-independent -> always visible. (Row 21 was 'UI Single
+--   Buffer', now hardwired via its ini key only: =0 is never correct with the GL present FBO --
+--   RENDER_COUNT=2 on a single buffer truncates dialog/UI text until an alt-tab FBO rebuild.)
 -- IEex_OptionRowShift repacks the visible rows (27px step) so a hidden row leaves no gap.
 IEEX_OPTION_ROW_ORDER = {7, 9, 5, 11, 13, 15, 17, 19, 21, 23, 25, 27}
 
 function IEex_OptionRowVisible(labelId)
 	if labelId == 5 then return not IEEX_GL_ACTIVE end
-	if labelId == 13 or labelId == 17 or labelId == 21 or labelId == 23 or labelId == 27 then return IEEX_GL_ACTIVE end
+	if labelId == 13 or labelId == 17 or labelId == 23 or labelId == 27 then return IEEX_GL_ACTIVE end
 	return true
 end
 
@@ -2769,15 +2772,15 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 						IEex_Helper_SetBridge(workingOptions, "uiBorders", true)
 					end
 				end,
-				-- "UI Single Buffer" Toggle
+				-- "Improved Pathfinding" Toggle
 				[22] = function()
 					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "uiSingleBuffer") then
+					if IEex_Helper_GetBridge(workingOptions, "improvedPathfinding") then
 						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "uiSingleBuffer", false)
+						IEex_Helper_SetBridge(workingOptions, "improvedPathfinding", false)
 					else
 						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "uiSingleBuffer", true)
+						IEex_Helper_SetBridge(workingOptions, "improvedPathfinding", true)
 					end
 				end,
 				-- "Smooth Cursor" Toggle
@@ -3088,7 +3091,7 @@ function IEex_SetOptionDescription(labelId)
 		[15] = "Displays an on-screen counter showing the render framerate, the AI (game-logic) update rate, and the VRAM pool usage.",
 		[17] = "Synchronizes frame presentation with your monitor's refresh rate to eliminate screen tearing.",
 		[19] = "Adds decorative stone borders around the interface: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty margins at the screen edges (for example on widescreen displays). When off, the world shows through those margins. Requires a restart to take effect.",
-		[21] = "Draws the interface into a single persistent buffer to reduce flickering of dynamic UI elements. Requires a restart to take effect.",
+		[21] = "GemRB-inspired pathfinding improvements: characters wait for walkers instead of shuffling, stop cleanly next to occupied destinations, no longer stop short of their goal, and enemies unclog doorways by shoving their own allies (never party members). Fine-tuning keys (IP *) live in icewind2.ini under [IEex Options]. Requires a restart to fully take effect.",
 		[23] = "Samples the mouse position at the rendering framerate instead of the game's logic tick rate, for smoother cursor movement. Requires a restart to take effect.",
 		[25] = "Limits the framerate to your display's refresh rate to reduce GPU and CPU load. Requires a restart to take effect.",
 		[27] = "Batches world-tile rendering through a single texture atlas for a large framerate gain at high resolutions. Requires a restart to take effect.",
@@ -3912,7 +3915,7 @@ function IEex_InstallIEexOptions()
 
 	if IEex_OptionRowVisible(21) then
 
-	-- "UI Single Buffer" Label - ID 21
+	-- "Improved Pathfinding" Label - ID 21
 	IEex_AddControlOverride("GUIOPT", 14, 21, "IEex_UI_Label")
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
@@ -3924,9 +3927,9 @@ function IEex_InstallIEexOptions()
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
 	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 21), "UI Single Buffer (restart required)")
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 21), "Improved Pathfinding (restart required)")
 
-	-- "UI Single Buffer" Toggle - ID 22
+	-- "Improved Pathfinding" Toggle - ID 22
 	IEex_AddControlOverride("GUIOPT", 14, 22, "IEex_UI_Button")
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.BUTTON,
@@ -4577,8 +4580,8 @@ function IEex_LoadOptions()
 	IEex_Helper_SetBridge(options, "uiBorders",
 		IEex_GetPrivateProfileInt("IEex Options", "UI Borders", 1, ".\\Icewind2.ini") ~= 0 and true or false)
 
-	IEex_Helper_SetBridge(options, "uiSingleBuffer",
-		IEex_GetPrivateProfileInt("IEex Options", "UI Single Buffer", 1, ".\\Icewind2.ini") ~= 0 and true or false)
+	IEex_Helper_SetBridge(options, "improvedPathfinding",
+		IEex_GetPrivateProfileInt("IEex Options", "Improved Pathfinding", 1, ".\\Icewind2.ini") ~= 0 and true or false)
 
 	IEex_Helper_SetBridge(options, "smoothCursor",
 		IEex_GetPrivateProfileInt("IEex Options", "Smooth Cursor", 1, ".\\Icewind2.ini") ~= 0 and true or false)
@@ -4625,8 +4628,8 @@ function IEex_WriteOptions()
 	IEex_WritePrivateProfileString("IEex Options", "UI Borders",
 		IEex_Helper_GetBridge(options, "uiBorders") and "1" or "0", ".\\Icewind2.ini")
 
-	IEex_WritePrivateProfileString("IEex Options", "UI Single Buffer",
-		IEex_Helper_GetBridge(options, "uiSingleBuffer") and "1" or "0", ".\\Icewind2.ini")
+	IEex_WritePrivateProfileString("IEex Options", "Improved Pathfinding",
+		IEex_Helper_GetBridge(options, "improvedPathfinding") and "1" or "0", ".\\Icewind2.ini")
 
 	IEex_WritePrivateProfileString("IEex Options", "Smooth Cursor",
 		IEex_Helper_GetBridge(options, "smoothCursor") and "1" or "0", ".\\Icewind2.ini")
@@ -4678,7 +4681,7 @@ function IEex_InitOptionButtons()
 
 	if IEex_OptionRowVisible(21) then
 		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 22),
-			IEex_Helper_GetBridge(options, "uiSingleBuffer") and 3 or 1)
+			IEex_Helper_GetBridge(options, "improvedPathfinding") and 3 or 1)
 	end
 
 	if IEex_OptionRowVisible(23) then

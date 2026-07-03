@@ -367,10 +367,13 @@
 		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) 25 FF FF 00 00 !cmp_eax_dword #00005053 !jz_dword >hit "
 		-- HD item icons: PREFIX gate -- one branch covers all I* item icons (and eax,0xFF (char0); cmp 'I').
 		-- I* via CResCell = item icons + INITIALS/INVBUT (HD/de-doubled). SP* scroll item icons are caught
-		-- by the SP* branch above; FIST/TEMP/USPLAT15 by resref. INFOFONT (also starts with 'I') ships a
-		-- 2x AA BAM (Rajdhani/Play, src_scale=2), so it is de-doubled like the other HD fonts -> >hit.
-		-- Check it BEFORE the I* prefix gate (so it routes to the font >hit, not the item-icon path).
-		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) !cmp_eax_dword #4F464E49 !jne_dword >notinfo !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #544E4F46 !jz_dword >hit @notinfo "
+		-- by the SP* branch above; FIST/TEMP/USPLAT15 by resref. INFOFONT (also starts with 'I') ships NO
+		-- 2x BAM in the BASE component (the engine NN-doubles the stock 1x = correct), so it must NOT be
+		-- de-doubled: route it to >skip BEFORE the I* prefix gate would catch it. The "non-pixelated
+		-- fonts" option DOES ship a 2x AA INFOFONT and flips this branch >skip -> >hit at install
+		-- (2x_ui_aa_fonts.tpa REPLACE_TEXTUALLY on the @notinfo line). DEPLOY FOOTGUN: on an install
+		-- with that option, copying this file from the repo resets the flip -- re-apply >hit after cp.
+		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) !cmp_eax_dword #4F464E49 !jne_dword >notinfo !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #544E4F46 !jz_dword >skip @notinfo "
 		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) 25 FF 00 00 00 !cmp_eax_dword #00000049 !jz_dword >hit "
 		hd_match = hd_match .. "!jmp_dword >skip @hit "
 		-- === HD cursor save-under: enlarge the pointer backup surfaces (height 64 -> 256) ===

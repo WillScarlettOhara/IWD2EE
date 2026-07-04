@@ -2248,6 +2248,29 @@ COPY_EXISTING ~USRCAB61.spl~ ~override~
 COPY_EXISTING ~USRCAB70.spl~ ~override~
 	SAY UNIDENTIFIED_DESC @56021
 
+// #126: give the original (vanilla) bard songs a description so right-clicking the song's
+// action-bar button shows info like a spell. Vanilla SPIN144-151 ship with udesc = -1.
+// These are the ORIGINAL-game song mechanics; if Class Revisions is installed it re-copies
+// these SPLs later with its own (revised) descriptions, overwriting these.
+COPY_EXISTING ~SPIN144.spl~ ~override~   // The Tale of Curran Strongheart
+	SAY UNIDENTIFIED_DESC @56067
+	SAY IDENTIFIED_DESC @56067
+COPY_EXISTING ~SPIN145.spl~ ~override~   // Tymora's Melody
+	SAY UNIDENTIFIED_DESC @56068
+	SAY IDENTIFIED_DESC @56068
+COPY_EXISTING ~SPIN146.spl~ ~override~   // The Song of Kaudies
+	SAY UNIDENTIFIED_DESC @56069
+	SAY IDENTIFIED_DESC @56069
+COPY_EXISTING ~SPIN147.spl~ ~override~   // The Siren's Yearning
+	SAY UNIDENTIFIED_DESC @56070
+	SAY IDENTIFIED_DESC @56070
+COPY_EXISTING ~SPIN148.spl~ ~override~   // The War Chant of Sith
+	SAY UNIDENTIFIED_DESC @56071
+	SAY IDENTIFIED_DESC @56071
+COPY_EXISTING ~SPIN151.spl~ ~override~   // The Ballad of Three Heroes
+	SAY UNIDENTIFIED_DESC @56072
+	SAY IDENTIFIED_DESC @56072
+
 COMPILE ~%mod_folder%/dlg/USMULTIG.d~
 
 COPY ~iwd2.exe~ ~iwd2.exe~

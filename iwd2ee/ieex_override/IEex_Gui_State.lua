@@ -1963,7 +1963,11 @@ end
 function IEex_Extern_OnActionbarUnhandledRButtonClick(nIndex)
 	IEex_AssertThread(IEex_Thread.Async, true)
 	local nState = IEex_GetActionbarState()
-	if nState == 0x66 or nState == 0x67 or nState == 0x6A or nState == 0x6B then
+	-- 0x66/0x67 = spell pick, 0x6A/0x6B = innate, 0x70/0x7A = bard-song pick (#126).
+	-- Song list entries use the same 0x15-0x20 button types as spells, so the info
+	-- panel works for them too once the song states reach this handler.
+	if nState == 0x66 or nState == 0x67 or nState == 0x6A or nState == 0x6B
+		or nState == 0x70 or nState == 0x7A then
 		local nButtonType = IEex_GetActionbarButtonType(nIndex)
 		if nButtonType >= 0x15 and nButtonType <= 0x20 then
 			local nScrollIndex = IEex_GetActionbarScrollIndex()

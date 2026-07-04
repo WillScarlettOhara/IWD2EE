@@ -306,17 +306,30 @@ COPY_EXISTING_REGEXP ~.*\.cre~ ~override~
 
 
 // revised bard songs with new name for Song of Kaudies
+// #126: give each song an SPL description so right-clicking its action-bar button shows
+// info like a spell. Text is the per-song blurb from this component's own @570 bard
+// writeup (so it matches the class_revisions song mechanics, not the spell_learning @527 variant).
 
 COPY ~%mod_folder%/spl/SPIN144.spl~ ~override~
+  SAY UNIDENTIFIED_DESC @56061
+  SAY IDENTIFIED_DESC @56061
 COPY ~%mod_folder%/spl/SPIN145.spl~ ~override~
+  SAY UNIDENTIFIED_DESC @56063
+  SAY IDENTIFIED_DESC @56063
 COPY ~%mod_folder%/spl/SPIN146.spl~ ~override~
   SAY NAME1 @897
   SAY NAME2 @897
-  SAY UNIDENTIFIED_DESC @897
-  SAY IDENTIFIED_DESC @897 
+  SAY UNIDENTIFIED_DESC @56062
+  SAY IDENTIFIED_DESC @56062
 COPY ~%mod_folder%/spl/SPIN147.spl~ ~override~
+  SAY UNIDENTIFIED_DESC @56064
+  SAY IDENTIFIED_DESC @56064
 COPY ~%mod_folder%/spl/SPIN148.spl~ ~override~
+  SAY UNIDENTIFIED_DESC @56065
+  SAY IDENTIFIED_DESC @56065
 COPY ~%mod_folder%/spl/SPIN151.spl~ ~override~
+  SAY UNIDENTIFIED_DESC @56066
+  SAY IDENTIFIED_DESC @56066
 
 // extra spells needed to make the songs work; each song casts these spells
 

@@ -3475,6 +3475,8 @@ function IEex_InstallPortraitGrid(chuResref)
 	local abLeft = blockLeft + 8 * s
 	local abTop = blockTop + 12 * s
 	local cmdTop = blockTop + 60 * s
+	-- Exposed for IEex_Refonte_RepositionQuickloot (panel 23 re-anchors above this block).
+	IEex_Refonte_BarBlock = { ["left"] = blockLeft, ["top"] = blockTop, ["w"] = blockW, ["h"] = blockH }
 
 	-- Action bar (ctrl 6-17, panel 1, in-place like the portraits).
 	for i = 6, 17 do
@@ -3552,6 +3554,10 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- whole rect). No GACTN bezel rect anymore: portraits AND action bar both left the stock band,
 	-- so the band simply is not composited -- the world shows there (PoE-style floating HUD).
 	-- No-op without the HUD layer / on an older DLL that lacks the export.
+
+	-- Panel 23 (quickloot bar) was built by IEex_InstallQuickloot BEFORE this relocation
+	-- ran, so it sits at panel 1's stock origin (old-HUD spot). Re-anchor it to the refonte.
+	IEex_Refonte_RepositionQuickloot()
 end
 
 -- Re-register the full refonte composite-rect set: statics (portrait slots id 1,
@@ -3594,6 +3600,22 @@ function IEex_Refonte_ApplyLogHeight(idx)
 			IEex_SetControlArea(c, r[1] - o.x, r[2] - o.y, r[3], r[4])
 		end
 	end
+
+	-- Reflow the text display (ctrl 1). m_nVisibleLines (+0xA6C) is derived from the box
+	-- height ONLY at CHU-init (CUIControlTextDisplay: m_nVisibleLines = m_size.cy / m_nFontHeight).
+	-- SetControlArea above rewrote m_size.cy but NOT m_nVisibleLines, so a taller box would keep
+	-- the original line count and the text would stay in the old band (the enlargement was inert).
+	-- Recompute it from the new height + font height (+0xA60), then ScrollToBottom (0x4E3D60) so
+	-- the enlarged box immediately reveals more scrollback.
+	local textCtrl = IEex_GetControlFromPanel(panel0, 1)
+	if textCtrl ~= 0x0 then
+		local fontH = IEex_ReadWord(textCtrl + 0xA60)
+		if fontH > 0 then
+			IEex_WriteWord(textCtrl + 0xA6C, math.floor((h - 36 * s) / fontH))
+			IEex_Call(0x4E3D60, {}, textCtrl, 0x0)
+		end
+	end
+
 	IEex_Refonte_LogRect = { ["x"] = g.x, ["y"] = logY, ["w"] = g.w, ["h"] = h }
 	IEex_Refonte_RegisterRects()
 	IEex_PanelInvalidate(panel0)
@@ -3603,6 +3625,23 @@ function IEex_Refonte_CycleLogHeight()
 	local idx = (IEex_Refonte_LogHeightIdx % #IEex_Refonte_LogHeights) + 1
 	IEex_Refonte_ApplyLogHeight(idx)
 	IEex_WritePrivateProfileInt("IEex Options", "Refonte Log Height", idx, ".\\Icewind2.ini")
+end
+
+-- Re-anchor the quickloot bar (panel 23) above the refonte bottom-centre bar block.
+-- IEex_InstallQuickloot builds the panel from panel 1's stock (centred) origin because it
+-- runs BEFORE IEex_InstallPortraitGrid relocates the action bar -- so it lands at the old
+-- world-HUD spot. The bar's internal controls are panel-relative, so moving the panel
+-- origin carries them; centre it horizontally on the block and sit it just above the top.
+function IEex_Refonte_RepositionQuickloot()
+	local blk = IEex_Refonte_BarBlock
+	if not blk then return end
+	local panel23 = IEex_GetPanelFromEngine(IEex_GetEngineWorld(), 23)
+	if panel23 == 0x0 then return end
+	local s = IEex_Refonte_Scale or 1
+	local _, _, qw, qh = IEex_GetPanelArea(panel23)
+	local qx = blk.left + math.floor((blk.w - qw) / 2)
+	local qy = blk.top - qh - 4 * s
+	IEex_SetPanelArea(panel23, qx, qy, qw, qh, true)
 end
 
 function IEex_InstallActionIndicators()

@@ -3456,17 +3456,41 @@ function IEex_InstallPortraitGrid(chuResref)
 		if strip ~= 0x0 then IEex_SetControlActive(strip, false) end
 	end
 
-	-- Action bar (ctrl 6-17): one centered row, sitting 2px above the command band
-	-- (panel 0). Phase-B row 1 of 2; the flattened command row replaces panel 0's
-	-- band next. Stock geometry kept (38x38, 3px gaps), positions panel-1-relative.
-	local p0x, p0y = IEex_GetPanelArea(IEex_GetPanelFromEngine(worldScreen, 0))
+	-- Phase B: two stacked centered rows of EQUAL width (489 at 1x) at the screen
+	-- bottom -- action bar on top, flattened command bar below.
+	--   action row: 12 x 38 + 11 x 3 gaps                       = 489
+	--   command row: 5 x 38 + WIDE middle 79 + 5 x 38 + 10 x 3  = 489
+	-- The wide middle slot takes the geosphere button (widest stock art, 64px);
+	-- stock button art is interim -- shapes were authored for the stone cluster
+	-- and will be redone for the flat bar.
 	local btnW, btnH, btnGap = 38 * s, 38 * s, 3 * s
 	local abW = 12 * btnW + 11 * btnGap
 	local abLeft = math.floor((resW - abW) / 2)
-	local abTop = p0y - btnH - 2 * s
+	local cmdTop = resH - 4 * s - btnH
+	local abTop = cmdTop - btnGap - btnH
+
+	-- Action bar (ctrl 6-17, panel 1, in-place like the portraits).
 	for i = 6, 17 do
 		local ctrl = IEex_GetControlFromPanel(panel1, i)
 		IEex_SetControlArea(ctrl, (abLeft - x1) + (i - 6) * (btnW + btnGap), abTop - y1, btnW, btnH)
+	end
+
+	-- Command bar: panel 0's buttons flattened onto one row (in-place within panel 0
+	-- -- its band rect already covers the screen bottom, and its full-rect composite
+	-- keeps the GCOMM art + combat log visible until Phase C empties the band).
+	-- Order: 4,5,6,7,8 | geosphere 10 (wide) | 9,11,12,13,14.
+	local panel0 = IEex_GetPanelFromEngine(worldScreen, 0)
+	local p0x, p0y = IEex_GetPanelArea(panel0)
+	local wideW = abW - 10 * (btnW + btnGap)                  -- = 79 at 1x
+	local cmdOrder = {4, 5, 6, 7, 8, 10, 9, 11, 12, 13, 14}
+	local cx = abLeft
+	for _, id in ipairs(cmdOrder) do
+		local ctrl = IEex_GetControlFromPanel(panel0, id)
+		if ctrl ~= 0x0 then
+			local w = (id == 10) and wideW or btnW
+			IEex_SetControlArea(ctrl, cx - p0x, cmdTop - p0y, w, btnH)
+			cx = cx + w + btnGap
+		end
 	end
 
 	-- Widen panel 1's rect so IsOver (portrait hover / targeting) still covers the relocated row.
@@ -3488,6 +3512,9 @@ function IEex_InstallPortraitGrid(chuResref)
 		-- Action row: ONE bar rect (2px padded) -- the black behind the buttons reads as the
 		-- HUD bar backdrop, PoE/BG2EE-style.
 		IEex_Helper_HudAddPanelContentRect(1, abLeft - 2 * s, abTop - 2 * s, abW + 4 * s, btnH + 4 * s)
+		-- Command row: id -1 = pure INPUT BLOCKER (right-click swallow); the row displays
+		-- through panel 0's own full-rect composite, so no panel-1 rect must cover it.
+		IEex_Helper_HudAddPanelContentRect(-1, abLeft - 2 * s, cmdTop - 2 * s, abW + 4 * s, btnH + 4 * s)
 	end
 end
 

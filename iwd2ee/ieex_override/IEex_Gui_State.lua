@@ -3818,9 +3818,9 @@ function IEex_InstallQuickloot()
 	-- [1..10] item slots, [11] right arrow. Sizes 1x-authored (the ctor doubles for HD).
 	local gBtn, gPitch, gInset = 38, 41, 8
 	local quicklootWidth, quicklootHeight = 505, 51
-	-- Sit the buttons in the stone, not centred on the whole bar: the art's top trim is
-	-- ~10px, so plain centring (slotY 6) pushes them up into it. Nudge down to ~9.
-	local slotY = 9
+	-- Sit the buttons low in the bar (art top trim is thick; centring pushes them up into
+	-- it). Bar 51 - btn 38 = 13 max; 12 leaves a 1px bottom margin.
+	local slotY = 12
 
 	local quicklootPanel = IEex_AddPanelToEngine(worldScreen, {
 		["id"]              = 23,

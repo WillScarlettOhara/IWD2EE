@@ -767,18 +767,14 @@ end
 
 IEex_WorldScreenSpellInfoPanelID = 50
 IEex_ActionIndicatorsPanelID = 100
-IEex_PortraitGridPanelID = 30
--- PROTOTYPE (Phase A of the PoE/BG2EE world-HUD refonte): relocate the party portraits onto a NEW
--- bottom-right grid panel. Flip to false to disable the whole prototype (portraits stay stock).
+-- PROTOTYPE (Phase A of the PoE/BG2EE world-HUD refonte): relocate the party portraits to a
+-- bottom-right 6x1 row. Flip to false to disable (portraits stay in their stock position).
 IEex_PortraitGridEnabled = true
 IEex_AllWorldScreenPanelIDs = {0, 1, 7, 8, 9, 6, 17, 19, 21, 22}
 if not IEex_Vanilla then
 	table.insert(IEex_AllWorldScreenPanelIDs, 23) -- Quickloot
 	table.insert(IEex_AllWorldScreenPanelIDs, IEex_WorldScreenSpellInfoPanelID)
 	table.insert(IEex_AllWorldScreenPanelIDs, IEex_ActionIndicatorsPanelID)
-	if IEex_PortraitGridEnabled then
-		table.insert(IEex_AllWorldScreenPanelIDs, IEex_PortraitGridPanelID)
-	end
 end
 
 IEex_Helper_InitBridgeFromTable("IEex_ActionIndicators", {
@@ -1772,15 +1768,6 @@ function IEex_Extern_BeforeWorldRender()
 			if IEex_IsPanelActive(panel) or IEex_IsPanelInactiveRender(panel) then
 				IEex_PanelInvalidate(panel)
 			end
-			-- PROTOTYPE: the relocated portrait grid (panel 30) carries the same live sprite
-			-- content (damage tint / state overlays / casting glow) with no engine invalidate on
-			-- change, so refresh it on the same per-tick cadence as panel 1.
-			if IEex_PortraitGridEnabled then
-				local gridPanel = IEex_GetPanelFromEngine(worldScreen, IEex_PortraitGridPanelID)
-				if gridPanel ~= 0x0 and (IEex_IsPanelActive(gridPanel) or IEex_IsPanelInactiveRender(gridPanel)) then
-					IEex_PanelInvalidate(gridPanel)
-				end
-			end
 		end
 
 		-- Panel 100 (action indicators): icon choice + control-active flags are
@@ -2105,7 +2092,6 @@ IEex_Helper_InitBridgeFromTable("IEex_GUIConstants", {
 	["controlTypeMeta"] = {
 		["ButtonWorldContainerSlot"] = { ["constructor"] = 0x6956F0, ["size"] = 0x666 },
 		["ButtonMageSpellInfoIcon"] =  { ["constructor"] = 0x66E3A0, ["size"] = 0x676 },
-		["PortraitWorld"] =            { ["constructor"] = 0x779F10, ["size"] = 0x66A },
 	},
 
 	["controlOverrides"] = {
@@ -3412,63 +3398,48 @@ IEex_AbsoluteOnce("IEex_CustomControls", function()
 	IEex_DefineCustomControl("IEex_UI_Scrollbar", IEex_ControlStructType.SCROLL_BAR, {})
 end)
 
--- PROTOTYPE (Phase A of the PoE/BG2EE world-HUD refonte): relocate the 6 party portraits onto a
--- NEW panel in the bottom-right corner, as a 3x2 grid. This instantiates the real engine
--- CUIControlPortraitWorld class on a foreign panel via the controlTypeMeta override seam (the same
--- mechanism ButtonWorldContainerSlot uses for the quickloot slots). Portraits still render at the
--- stock 42x42 until the DLL RenderPortrait patch lands -- this step validates panel + control
--- instantiation, rendering, and hit-test (click/select/double-click/drag-reorder) on a foreign
--- panel FIRST. The stock panel-1 portraits are left in place for side-by-side comparison.
+-- PROTOTYPE (Phase A of the PoE/BG2EE world-HUD refonte): relocate the 6 party portraits to a
+-- bottom-right 6x1 row, KEEPING them as panel-1 controls (ids 0-5).
+--
+-- Why in-place and not a new panel: the engine hardcodes panel 1 for portrait hover -> spell-target
+-- (sets m_iPicked in CScreenWorld::AsynchronousUpdate @0x68C3D0, which iterates GetPanel(1)'s
+-- controls 0..NumChars under the cursor), plus portrait tooltips and invalidation. A separate panel
+-- breaks all of it -- first symptom: you can't pick a cast target by clicking a portrait. So move
+-- the controls IN PLACE and WIDEN panel 1's rect so its IsOver test still covers the relocated row.
+-- Panel 1 also composites REPLACE in the HUD layer, so the portraits stay opaque (no garbage-alpha
+-- blend that turned the new-panel version transparent).
 function IEex_InstallPortraitGrid(chuResref)
 
 	local worldScreen = IEex_GetEngineWorld()
 	local mgr = IEex_GetUIManagerFromEngine(worldScreen)
-	-- Manager double-size factor: the CUIPanel / control ctors double 1x-authored coords when the
-	-- world manager runs the engine 2x tier (HD UI on). IEex_GetResolution() is DEVICE px, so the
-	-- bottom-right anchor is computed in device space and written raw via SetPanelXY.
+	-- Engine 2x tier (HD UI) stores control/panel geometry at 2x device px; SetControlArea /
+	-- SetPanelArea write raw device px, so scale the 1x-authored sizes by the manager double factor.
 	local s = (mgr ~= 0 and IEex_ReadDword(mgr + 0xAA) ~= 0) and 2 or 1
 	local resW, resH = IEex_GetResolution()
 
-	local slotW, slotH, gapX, gapY, cols, rows, inset = 46, 46, 4, 4, 3, 2, 12
-	local gridW = cols * slotW + (cols - 1) * gapX
-	local gridH = rows * slotH + (rows - 1) * gapY
+	local panel1 = IEex_GetPanelFromEngine(worldScreen, 1)
+	local x1, y1, w1, h1 = IEex_GetPanelArea(panel1)
 
-	local panel = IEex_AddPanelToEngine(worldScreen, {
-		["id"]            = IEex_PortraitGridPanelID,
-		["x"]             = 0,
-		["y"]             = 0,
-		["width"]         = gridW,  -- 1x; the CUIPanel ctor doubles under HD
-		["height"]        = gridH,
-		["hasBackground"] = 0,
-	})
+	local slotW, slotH, gap, inset = 46 * s, 46 * s, 4 * s, 12 * s
+	local rowW = 6 * slotW + 5 * gap
 
-	-- Bottom-right corner, DEVICE px (SetPanelXY writes m_ptOrigin raw, no doubling).
-	IEex_SetPanelXY(panel, resW - gridW * s - inset, resH - gridH * s - inset)
-
+	-- 6x1 row anchored to the screen bottom-right; control coords are panel-1-relative device px.
+	local rowLeft = resW - rowW - inset
+	local rowTop  = resH - slotH - inset
 	for i = 0, 5 do
-		local col = i % cols
-		local row = math.floor(i / cols)
-		IEex_AddControlOverride(chuResref, IEex_PortraitGridPanelID, i, "PortraitWorld")
-		IEex_AddControlToPanel(panel, {
-			["type"]           = IEex_ControlStructType.BUTTON,
-			["id"]             = i,
-			["x"]              = col * (slotW + gapX),  -- 1x; the control ctor doubles under HD
-			["y"]              = row * (slotH + gapY),
-			["width"]          = slotW,
-			["height"]         = slotH,
-			-- Stock world-portrait frame BAM (GUIW08/GUIW10 panel-1 ctrl 0-5 use GUIRSPOR, one
-			-- cycle per slot). CUIControlButton::Render (0x4D5100) DEMANDS this BAM and, on a
-			-- portrait, returns FALSE without it -- which aborts CUIControlPortraitWorld::Render
-			-- before RenderPortrait. An empty resref left m_cVidCell.pRes as an invalid non-null
-			-- CRes -> crash in CResBAM_Demand. Match stock: GUIRSPOR, sequence = slot index.
-			["bam"]            = "GUIRSPOR",
-			["sequence"]       = i,
-			["frameUnpressed"] = 0,
-			["framePressed"]   = 1,
-		})
+		local ctrl = IEex_GetControlFromPanel(panel1, i)
+		IEex_SetControlArea(ctrl, (rowLeft - x1) + i * (slotW + gap), rowTop - y1, slotW, slotH)
 	end
 
-	IEex_SetPanelActive(panel, true)
+	-- Hide the stock HP-bar strips (ctrl 50-55) so they don't orphan at the old portrait location.
+	for i = 50, 55 do
+		local strip = IEex_GetControlFromPanel(panel1, i)
+		if strip ~= 0x0 then IEex_SetControlActive(strip, false) end
+	end
+
+	-- Widen panel 1's rect so IsOver (portrait hover / targeting) still covers the relocated row.
+	-- Origin unchanged -> viewport floor (panel-1 top) unchanged; only extend down/right.
+	IEex_SetPanelArea(panel1, x1, y1, math.max(w1, resW - inset - x1), math.max(h1, resH - inset - y1))
 end
 
 function IEex_InstallActionIndicators()

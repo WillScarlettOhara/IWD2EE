@@ -1726,12 +1726,21 @@ function IEex_Extern_BeforeWorldRender()
 			end
 		end
 		local _, _, qlWidth, panelHeight = IEex_GetPanelArea(quicklootPanel)
-		if IEex_PortraitGridEnabled and IEex_Refonte_BarBlock then
-			-- Refonte: sit the bar just above the bottom-centre bar block. The viewport-
-			-- bottom anchor (below) assumes the stock HUD band and floats it far too high.
-			local blk = IEex_Refonte_BarBlock
-			local rs = IEex_Refonte_Scale or 1
-			IEex_SetPanelXY(quicklootPanel, blk.left + math.floor((blk.w - qlWidth) / 2), blk.top - panelHeight - 4 * rs)
+		local panel1 = IEex_GetPanelFromEngine(worldScreen, 1)
+		local abFirst = IEex_GetControlFromPanel(panel1, 6)
+		local abLast = IEex_GetControlFromPanel(panel1, 17)
+		if IEex_PortraitGridEnabled and abFirst ~= 0x0 and abLast ~= 0x0 then
+			-- Refonte: sit the bar just above the ACTION BAR (panel 1 ctrl 6..17, relocated
+			-- to the bottom-centre block). Read the row's LIVE geometry rather than the
+			-- refonte globals -- this per-tick handler runs in a lua State where the CHU-set
+			-- IEex_Refonte_BarBlock is nil, so the global path silently fell through to the
+			-- viewport anchor and floated the bar to the top of the screen.
+			local p1x, p1y = IEex_GetPanelArea(panel1)
+			local c6x, c6y = IEex_GetControlArea(abFirst)
+			local c17x, _, c17w = IEex_GetControlArea(abLast)
+			local rowLeft = p1x + c6x
+			local rowW = (p1x + c17x + c17w) - rowLeft
+			IEex_SetPanelXY(quicklootPanel, rowLeft + math.floor((rowW - qlWidth) / 2), p1y + c6y - panelHeight - 4)
 		else
 			IEex_SetPanelXY(quicklootPanel, nil, quicklootAnchor - panelHeight)
 		end
@@ -3624,6 +3633,27 @@ function IEex_Refonte_ApplyLogHeight(idx)
 		if fontH > 0 then
 			IEex_WriteWord(textCtrl + 0xA6C, math.floor(textH / fontH))
 			IEex_Call(0x4E3D60, {}, textCtrl, 0x0)
+		end
+	end
+
+	-- Resize the scrollbar's cached track. field_140 (+0x140 = track px) and field_142
+	-- (+0x142 = thumb range) are frozen at CTOR from the CHU height; the render derives
+	-- the down arrow (pt+upH+field_140), track and thumb from them -- so SetControlArea
+	-- alone leaves the arrow floating mid-box while the frame grows. Recompute from the
+	-- new height: track = m_size.cy - upBtnH - downBtnH; range = track - thumbH (thumbH
+	-- recovered from the old track-range delta). Buttons: +0x138 up, +0x13C down.
+	local sbCtrl = IEex_GetControlFromPanel(panel0, 2)
+	if sbCtrl ~= 0x0 then
+		local upBtn = IEex_ReadDword(sbCtrl + 0x138)
+		local downBtn = IEex_ReadDword(sbCtrl + 0x13C)
+		if upBtn ~= 0 and downBtn ~= 0 then
+			local thumbH = IEex_ReadSignedWord(sbCtrl + 0x140) - IEex_ReadSignedWord(sbCtrl + 0x142)
+			local track = textH - IEex_ReadWord(upBtn + 0x1A) - IEex_ReadWord(downBtn + 0x1A)
+			if track < 1 then track = 1 end
+			local range = track - thumbH
+			if range < 1 then range = 1 end
+			IEex_WriteWord(sbCtrl + 0x140, track)
+			IEex_WriteWord(sbCtrl + 0x142, range)
 		end
 	end
 

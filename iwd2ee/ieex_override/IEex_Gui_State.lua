@@ -1668,7 +1668,16 @@ function IEex_Extern_BeforeWorldRender()
 
 			local _, panel1Y = IEex_GetPanelArea(panel1)
 			local _, _, _, panelHeight = IEex_GetPanelArea(actionIndicatorsPanel)
-			IEex_SetPanelXY(actionIndicatorsPanel, nil, panel1Y - panelHeight) -- flush above the HUD (the old +3 overlap bit into the stone border)
+			-- Anchor: stock = flush above the HUD (panel-1 top; the old +3 overlap bit into the
+			-- stone border). Refonte: panel 1 is a widened bounding box whose top stays at the
+			-- stock action bar, but the portraits live in the bottom-right row -- anchor to the
+			-- portrait controls' actual top instead (control 0 Y is panel-relative device px).
+			local anchorY = panel1Y
+			if IEex_PortraitGridEnabled then
+				local _, ctrl0Y = IEex_GetControlArea(IEex_GetControlFromPanel(panel1, 0))
+				anchorY = panel1Y + ctrl0Y
+			end
+			IEex_SetPanelXY(actionIndicatorsPanel, nil, anchorY - panelHeight)
 
 			if not IEex_IsPanelActive(actionIndicatorsPanel) then
 				IEex_ActionIndicators_Show()

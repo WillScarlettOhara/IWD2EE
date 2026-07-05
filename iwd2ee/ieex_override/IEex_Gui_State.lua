@@ -1740,7 +1740,10 @@ function IEex_Extern_BeforeWorldRender()
 			local c17x, _, c17w = IEex_GetControlArea(abLast)
 			local rowLeft = p1x + c6x
 			local rowW = (p1x + c17x + c17w) - rowLeft
-			IEex_SetPanelXY(quicklootPanel, rowLeft + math.floor((rowW - qlWidth) / 2), p1y + c6y - panelHeight - 4)
+			-- Sit the bar's BOTTOM above the bar block (the action row is 12px below the
+			-- block top), not overlapping it -- else the block's hover repaint redraws the
+			-- overlapped seam and shows artifacts. 16 = 12 (block cap) + 4 gap.
+			IEex_SetPanelXY(quicklootPanel, rowLeft + math.floor((rowW - qlWidth) / 2), p1y + c6y - panelHeight - 16)
 		else
 			IEex_SetPanelXY(quicklootPanel, nil, quicklootAnchor - panelHeight)
 		end
@@ -3808,65 +3811,58 @@ function IEex_InstallQuickloot()
 		contentBottom = math.max(contentBottom, arrowY + arrowH)
 		contentRight = math.max(contentRight, arrowX + arrowW)
 	end
-	local quicklootHeight = math.min(h1, contentBottom + 4)
-	-- Content base: the stock action bar sits inset in its toolbar, so the left scroll
-	-- arrow (ctrl 6) -- the leftmost control -- starts well right of panel-left. Subtract
-	-- that base X from every placement so the bar's content hugs the panel's left edge
-	-- (no dead gap) and size the panel to the actual content span (not the stock offset).
-	local qlBaseX = IEex_GetControlArea(IEex_GetControlFromPanel(panel1Memory, 6))
-	local quicklootWidth = math.min(w1, contentRight - qlBaseX + 4)
+	-- Lay the bar on the SAME 12-slot grid as the refonte action bar (btnW 38, pitch 41,
+	-- 1x-authored -> the world manager's ctor doubles for HD) so it aligns 1:1 with the
+	-- action bar directly below it: [0] left arrow, [1..10] ten item slots, [11] right
+	-- arrow. Width = 12*38 + 11*3 = 489 == action bar width; the per-tick centres it on
+	-- the row. Height keeps the stock content measure so the B3QKLOOM trim reads right.
+	local gBtn, gPitch = 38, 41
+	local quicklootWidth = 12 * gBtn + 11 * (gPitch - gBtn)          -- 489
+	local quicklootHeight = math.floor(math.min(h1, contentBottom + 4) / div)
+	local slotY = math.max(0, math.floor((quicklootHeight - gBtn) / 2))
 
 	local quicklootPanel = IEex_AddPanelToEngine(worldScreen, {
 		["id"]              = 23,
 		["x"]               = math.floor(x1 / div),
-		["y"]               = math.floor((y1 - quicklootHeight) / div),
-		["width"]           = math.floor(quicklootWidth / div),
-		["height"]          = math.floor(quicklootHeight / div),
+		["y"]               = math.floor(y1 / div) - quicklootHeight,
+		["width"]           = quicklootWidth,
+		["height"]          = quicklootHeight,
 		["hasBackground"]   = 1,
-		["backgroundImage"] = "B3QKLOOM"   -- no-decoration variant (plain stone strip, no ornate end-caps)
+		["backgroundImage"] = "B3QKLOOM"   -- always-minimal (opaque) quickloot bg for the refonte world HUD
 	})
 
+	-- Ten item slots: panel 8 controls 0-9 supply the id + button BAM; the grid supplies
+	-- the geometry (uniform 38x38, matching the action bar buttons) at positions 1..10.
 	for i = 7, 16 do
-
-		local referenceControl = IEex_GetControlFromPanel(panel1Memory, i)
 		local copyControl = IEex_GetControlFromPanel(panel8Memory, i - 7)
-
-		local referenceControlX, referenceControlY = IEex_GetControlArea(referenceControl)
-		local _, _, copyControlW, copyControlH = IEex_GetControlArea(copyControl)
-
 		IEex_AddControlToPanel(quicklootPanel, {
 			["id"]     = IEex_GetControlID(copyControl),
-			["x"]      = math.floor((referenceControlX + 1 - qlBaseX) / div),
-			["y"]      = math.floor((referenceControlY + 1) / div),
-			["width"]  = math.floor(copyControlW / div),
-			["height"] = math.floor(copyControlH / div),
+			["x"]      = (i - 6) * gPitch,
+			["y"]      = slotY,
+			["width"]  = gBtn,
+			["height"] = gBtn,
 			["type"]   = IEex_ControlStructType.BUTTON,
 			["bam"]    = IEex_GetControlButtonBAM(copyControl),
 		})
 	end
 
-	local leftArrow = IEex_GetControlFromPanel(panel1Memory, 6)
-	local leftArrowX, leftArrowY, leftArrowW, leftArrowH = IEex_GetControlArea(leftArrow)
 	IEex_AddControlToPanel(quicklootPanel, {
-		["id"]             = 10,
-		["x"]              = math.floor((leftArrowX - qlBaseX) / div),
-		["y"]              = math.floor(leftArrowY / div),
-		["width"]          = math.floor(leftArrowW / div),
-		["height"]         = math.floor(leftArrowH / div),
+		["id"]             = 10,               -- left scroll arrow, grid position 0
+		["x"]              = 0,
+		["y"]              = slotY,
+		["width"]          = gBtn,
+		["height"]         = gBtn,
 		["type"]           = IEex_ControlStructType.BUTTON,
 		["bam"]            = "GUIBTACT",
 		["frameUnpressed"] = 48,
 		["framePressed"]   = 49,
 	})
-
-	local rightArrow = IEex_GetControlFromPanel(panel1Memory, 17)
-	local rightArrowX, rightArrowY, rightArrowW, rightArrowH = IEex_GetControlArea(rightArrow)
 	IEex_AddControlToPanel(quicklootPanel, {
-		["id"]             = 11,
-		["x"]              = math.floor((rightArrowX - qlBaseX) / div),
-		["y"]              = math.floor(rightArrowY / div),
-		["width"]          = math.floor(rightArrowW / div),
-		["height"]         = math.floor(rightArrowH / div),
+		["id"]             = 11,               -- right scroll arrow, grid position 11
+		["x"]              = 11 * gPitch,
+		["y"]              = slotY,
+		["width"]          = gBtn,
+		["height"]         = gBtn,
 		["type"]           = IEex_ControlStructType.BUTTON,
 		["bam"]            = "GUIBTACT",
 		["frameUnpressed"] = 52,

@@ -1736,14 +1736,15 @@ function IEex_Extern_BeforeWorldRender()
 			-- IEex_Refonte_BarBlock is nil, so the global path silently fell through to the
 			-- viewport anchor and floated the bar to the top of the screen.
 			local p1x, p1y = IEex_GetPanelArea(panel1)
-			local c6x, c6y = IEex_GetControlArea(abFirst)
+			local c6x, c6y, c6w = IEex_GetControlArea(abFirst)
 			local c17x, _, c17w = IEex_GetControlArea(abLast)
 			local rowLeft = p1x + c6x
 			local rowW = (p1x + c17x + c17w) - rowLeft
-			-- Sit the bar's BOTTOM above the bar block (the action row is 12px below the
-			-- block top), not overlapping it -- else the block's hover repaint redraws the
-			-- overlapped seam and shows artifacts. 16 = 12 (block cap) + 4 gap.
-			IEex_SetPanelXY(quicklootPanel, rowLeft + math.floor((rowW - qlWidth) / 2), p1y + c6y - panelHeight - 16)
+			-- Sit the bar FLUSH on the block: its bottom == the block top (the action row is
+			-- 12px below the block top; scale that cap by the live button width = 38*s). The
+			-- 505 art centred on the 489 row lands its left edge on the block left (-8).
+			local blockCap = math.floor(c6w * 12 / 38)
+			IEex_SetPanelXY(quicklootPanel, rowLeft + math.floor((rowW - qlWidth) / 2), p1y + c6y - panelHeight - blockCap)
 		else
 			IEex_SetPanelXY(quicklootPanel, nil, quicklootAnchor - panelHeight)
 		end
@@ -3811,15 +3812,13 @@ function IEex_InstallQuickloot()
 		contentBottom = math.max(contentBottom, arrowY + arrowH)
 		contentRight = math.max(contentRight, arrowX + arrowW)
 	end
-	-- Lay the bar on the SAME 12-slot grid as the refonte action bar (btnW 38, pitch 41,
-	-- 1x-authored -> the world manager's ctor doubles for HD) so it aligns 1:1 with the
-	-- action bar directly below it: [0] left arrow, [1..10] ten item slots, [11] right
-	-- arrow. Width = 12*38 + 11*3 = 489 == action bar width; the per-tick centres it on
-	-- the row. Height keeps the stock content measure so the B3QKLOOM trim reads right.
-	local gBtn, gPitch = 38, 41
-	local quicklootWidth = 12 * gBtn + 11 * (gPitch - gBtn)          -- 489
-	local quicklootHeight = math.floor(math.min(h1, contentBottom + 4) / div)
-	local slotY = math.max(0, math.floor((quicklootHeight - gBtn) / 2))
+	-- B3QKLOOM = the user's bar art (quickloot.png, 505x51 == the IEEXBARB block width).
+	-- Lay the action bar's grid inside it: 12 buttons, btnW 38, pitch 41, left inset 8
+	-- (489 centred in 505, exactly like the action row in the block) -- [0] left arrow,
+	-- [1..10] item slots, [11] right arrow. Sizes 1x-authored (the ctor doubles for HD).
+	local gBtn, gPitch, gInset = 38, 41, 8
+	local quicklootWidth, quicklootHeight = 505, 51
+	local slotY = math.floor((quicklootHeight - gBtn) / 2)
 
 	local quicklootPanel = IEex_AddPanelToEngine(worldScreen, {
 		["id"]              = 23,
@@ -3837,7 +3836,7 @@ function IEex_InstallQuickloot()
 		local copyControl = IEex_GetControlFromPanel(panel8Memory, i - 7)
 		IEex_AddControlToPanel(quicklootPanel, {
 			["id"]     = IEex_GetControlID(copyControl),
-			["x"]      = (i - 6) * gPitch,
+			["x"]      = gInset + (i - 6) * gPitch,
 			["y"]      = slotY,
 			["width"]  = gBtn,
 			["height"] = gBtn,
@@ -3848,7 +3847,7 @@ function IEex_InstallQuickloot()
 
 	IEex_AddControlToPanel(quicklootPanel, {
 		["id"]             = 10,               -- left scroll arrow, grid position 0
-		["x"]              = 0,
+		["x"]              = gInset,
 		["y"]              = slotY,
 		["width"]          = gBtn,
 		["height"]         = gBtn,
@@ -3859,7 +3858,7 @@ function IEex_InstallQuickloot()
 	})
 	IEex_AddControlToPanel(quicklootPanel, {
 		["id"]             = 11,               -- right scroll arrow, grid position 11
-		["x"]              = 11 * gPitch,
+		["x"]              = gInset + 11 * gPitch,
 		["y"]              = slotY,
 		["width"]          = gBtn,
 		["height"]         = gBtn,

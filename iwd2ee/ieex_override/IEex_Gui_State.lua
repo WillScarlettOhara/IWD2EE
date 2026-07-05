@@ -3450,13 +3450,21 @@ function IEex_InstallPortraitGrid(chuResref)
 		local row = math.floor(i / cols)
 		IEex_AddControlOverride(chuResref, IEex_PortraitGridPanelID, i, "PortraitWorld")
 		IEex_AddControlToPanel(panel, {
-			["type"]   = IEex_ControlStructType.BUTTON,
-			["id"]     = i,
-			["x"]      = col * (slotW + gapX),  -- 1x; the control ctor doubles under HD
-			["y"]      = row * (slotH + gapY),
-			["width"]  = slotW,
-			["height"] = slotH,
-			["bam"]    = "",
+			["type"]           = IEex_ControlStructType.BUTTON,
+			["id"]             = i,
+			["x"]              = col * (slotW + gapX),  -- 1x; the control ctor doubles under HD
+			["y"]              = row * (slotH + gapY),
+			["width"]          = slotW,
+			["height"]         = slotH,
+			-- Stock world-portrait frame BAM (GUIW08/GUIW10 panel-1 ctrl 0-5 use GUIRSPOR, one
+			-- cycle per slot). CUIControlButton::Render (0x4D5100) DEMANDS this BAM and, on a
+			-- portrait, returns FALSE without it -- which aborts CUIControlPortraitWorld::Render
+			-- before RenderPortrait. An empty resref left m_cVidCell.pRes as an invalid non-null
+			-- CRes -> crash in CResBAM_Demand. Match stock: GUIRSPOR, sequence = slot index.
+			["bam"]            = "GUIRSPOR",
+			["sequence"]       = i,
+			["frameUnpressed"] = 0,
+			["framePressed"]   = 1,
 		})
 	end
 

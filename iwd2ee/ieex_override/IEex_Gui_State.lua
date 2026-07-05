@@ -1757,19 +1757,18 @@ function IEex_Extern_BeforeWorldRender()
 		-- loaded -> black portraits with no tick to heal them), and paused fps
 		-- are irrelevant.
 		local invalidatePortraits = true
-		-- Refonte: the relocated portraits sit in a screen corner no OTHER panel's invalidation
-		-- covers, and the engine's own selection-change control-invalidate only re-renders a control
-		-- when its panel is ALSO dirty that frame. The tick-gate below skips the invalidate while
-		-- manually paused (m_active stays 1, gameTime frozen) -> the selection border goes STALE until
-		-- some unrelated refresh. Keep panel 1 per-frame fresh when the refonte is active; the stock
-		-- path stays tick-gated for perf. TODO(perf): event-driven (invalidate only on selection change).
-		if not IEex_PortraitGridEnabled then
-			local game = IEex_GetGameData()
-			if game ~= 0x0 and IEex_ReadByte(game + 0x1B7C) ~= 0 then -- m_worldTime.m_active
-				local gameTime = IEex_ReadDword(game + 0x1B78)        -- m_worldTime.m_gameTime
-				invalidatePortraits = gameTime ~= IEex_HudLayer_LastGameTime
-				IEex_HudLayer_LastGameTime = gameTime
-			end
+		-- Refonte: the stale-selection-border cause was PIXEL RESIDUE in the persistent layer, not
+		-- invalidation timing -- RenderPortrait draws NOTHING where it means "off" (the ring DrawLines
+		-- are skipped when rgbColor==0), and the relocated corner has no MOS beneath to erase old green
+		-- (GUIRSPOR's opaque art heals only the ring's bottom row). The DLL now owns panel-1 freshness
+		-- while the refonte's content-rects are registered: HudLayerSparseClear scissor-clears every
+		-- registered rect + full-invalidates the panel before each repaint. The tick-gate below stays
+		-- for the portrait CONTENT cadence (damage tint, casting glow at AI-tick rate) in BOTH layouts.
+		local game = IEex_GetGameData()
+		if game ~= 0x0 and IEex_ReadByte(game + 0x1B7C) ~= 0 then -- m_worldTime.m_active
+			local gameTime = IEex_ReadDword(game + 0x1B78)        -- m_worldTime.m_gameTime
+			invalidatePortraits = gameTime ~= IEex_HudLayer_LastGameTime
+			IEex_HudLayer_LastGameTime = gameTime
 		end
 		if invalidatePortraits then
 			local panel = IEex_GetPanelFromEngine(worldScreen, 1)

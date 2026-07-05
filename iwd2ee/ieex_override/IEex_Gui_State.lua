@@ -3606,8 +3606,8 @@ function IEex_Refonte_ApplyLogHeight(idx)
 	IEex_Refonte_LogHeightIdx = idx
 	local logY = resH - 8 * s - h
 	-- Interior for the 551-wide user bg (thin ~6px frame, NO baked scrollbar): tight 8px
-	-- insets, the live scrollbar (ctrl 2) sits in the right margin, text fills the rest.
-	local textH = h - 30 * s
+	-- insets top+bottom, live scrollbar (ctrl 2) in the right margin, text fills the rest.
+	local textH = h - 16 * s
 	local place = {
 		[1]  = { g.x + 8 * s,   logY + 8 * s,      517 * s, textH },
 		[2]  = { g.x + 533 * s, logY + 8 * s,      12 * s,  textH },
@@ -3631,7 +3631,11 @@ function IEex_Refonte_ApplyLogHeight(idx)
 	if textCtrl ~= 0x0 then
 		local fontH = IEex_ReadWord(textCtrl + 0xA60)
 		if fontH > 0 then
-			IEex_WriteWord(textCtrl + 0xA6C, math.floor(textH / fontH))
+			-- m_nVisibleLines is at +0xA6A (disasm 0x4E1D32 `mov [esi+0xa6a], ax`); the RE
+			-- header mislabels it 0xA6C, which is field_A6C -- a per-line counter DisplayString
+			-- increments, so writing there both left the real line count stale AND corrupted the
+			-- counter -> hang when NPC dialogue appended log lines.
+			IEex_WriteWord(textCtrl + 0xA6A, math.floor(textH / fontH))
 			IEex_Call(0x4E3D60, {}, textCtrl, 0x0)
 		end
 	end

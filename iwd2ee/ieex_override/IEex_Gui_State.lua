@@ -3447,8 +3447,12 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- No-op without the HUD layer / on an older DLL that lacks the export.
 	if IEex_Helper_HudClearPanelContentRects then
 		IEex_Helper_HudClearPanelContentRects()
-		IEex_Helper_HudAddPanelContentRect(1, x1, y1, w1, h1)
-		IEex_Helper_HudAddPanelContentRect(1, rowLeft, rowTop, rowW, slotH)
+		IEex_Helper_HudAddPanelContentRect(1, x1, y1, w1, h1)  -- action bar / GACTN bezel
+		-- One rect PER portrait (not the whole row) so the inter-portrait gaps show the world,
+		-- not opaque black -- a single row rect would REPLACE the 4px gaps between frames too.
+		for i = 0, 5 do
+			IEex_Helper_HudAddPanelContentRect(1, rowLeft + i * (slotW + gap), rowTop, slotW, slotH)
+		end
 	end
 end
 

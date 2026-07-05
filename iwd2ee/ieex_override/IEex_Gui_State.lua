@@ -3474,11 +3474,11 @@ function IEex_InstallPortraitGrid(chuResref)
 		IEex_SetControlArea(ctrl, (abLeft - x1) + (i - 6) * (btnW + btnGap), abTop - y1, btnW, btnH)
 	end
 
-	-- Combat log: bottom-left box skinned with the ORIGINAL bezel art (IEEXLOGB.BMP =
-	-- GCOMM118 crop (104,0)-(696,107); the DLL composites it opaque under the blended
-	-- log text, id -2 rect). Controls keep stock GUIW10 sizes at the art's stock
-	-- relative offsets: text +16+7, scrollbar +562+4, chat +14+77.
-	local logW, logH = 592 * s, 107 * s
+	-- Combat log: bottom-left box skinned with IEEXLOGB.BMP (composed bezel, uniform
+	-- 12px borders + original corners; the DLL composites it opaque under the blended
+	-- log text, id -2 rect, vertical 3-slice). Width hugs the content: 12 border + 4
+	-- pad + 534 text + 4 + 12 scrollbar + 4 + 12 border = 582.
+	local logW, logH = 582 * s, 107 * s
 	local logX, logY = 8 * s, resH - 8 * s - logH
 
 	-- Panel 0 reposition: origin = top-left of ALL its content (log box + command row)
@@ -3509,8 +3509,8 @@ function IEex_InstallPortraitGrid(chuResref)
 		end
 	end
 
-	-- Log cluster at the art-relative stock offsets (sizes read live = tier-correct).
-	local logOffsets = { [1] = {16, 7}, [2] = {562, 4}, [3] = {14, 77} }
+	-- Log cluster at the art-relative offsets (sizes read live = tier-correct).
+	local logOffsets = { [1] = {16, 7}, [2] = {554, 6}, [3] = {14, 77} }
 	for id, off in pairs(logOffsets) do
 		local c = IEex_GetControlFromPanel(panel0, id)
 		if c ~= 0x0 then

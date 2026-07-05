@@ -1757,11 +1757,19 @@ function IEex_Extern_BeforeWorldRender()
 		-- loaded -> black portraits with no tick to heal them), and paused fps
 		-- are irrelevant.
 		local invalidatePortraits = true
-		local game = IEex_GetGameData()
-		if game ~= 0x0 and IEex_ReadByte(game + 0x1B7C) ~= 0 then -- m_worldTime.m_active
-			local gameTime = IEex_ReadDword(game + 0x1B78)        -- m_worldTime.m_gameTime
-			invalidatePortraits = gameTime ~= IEex_HudLayer_LastGameTime
-			IEex_HudLayer_LastGameTime = gameTime
+		-- Refonte: the relocated portraits sit in a screen corner no OTHER panel's invalidation
+		-- covers, and the engine's own selection-change control-invalidate only re-renders a control
+		-- when its panel is ALSO dirty that frame. The tick-gate below skips the invalidate while
+		-- manually paused (m_active stays 1, gameTime frozen) -> the selection border goes STALE until
+		-- some unrelated refresh. Keep panel 1 per-frame fresh when the refonte is active; the stock
+		-- path stays tick-gated for perf. TODO(perf): event-driven (invalidate only on selection change).
+		if not IEex_PortraitGridEnabled then
+			local game = IEex_GetGameData()
+			if game ~= 0x0 and IEex_ReadByte(game + 0x1B7C) ~= 0 then -- m_worldTime.m_active
+				local gameTime = IEex_ReadDword(game + 0x1B78)        -- m_worldTime.m_gameTime
+				invalidatePortraits = gameTime ~= IEex_HudLayer_LastGameTime
+				IEex_HudLayer_LastGameTime = gameTime
+			end
 		end
 		if invalidatePortraits then
 			local panel = IEex_GetPanelFromEngine(worldScreen, 1)

@@ -767,11 +767,18 @@ end
 
 IEex_WorldScreenSpellInfoPanelID = 50
 IEex_ActionIndicatorsPanelID = 100
+IEex_PortraitGridPanelID = 30
+-- PROTOTYPE (Phase A of the PoE/BG2EE world-HUD refonte): relocate the party portraits onto a NEW
+-- bottom-right grid panel. Flip to false to disable the whole prototype (portraits stay stock).
+IEex_PortraitGridEnabled = true
 IEex_AllWorldScreenPanelIDs = {0, 1, 7, 8, 9, 6, 17, 19, 21, 22}
 if not IEex_Vanilla then
 	table.insert(IEex_AllWorldScreenPanelIDs, 23) -- Quickloot
 	table.insert(IEex_AllWorldScreenPanelIDs, IEex_WorldScreenSpellInfoPanelID)
 	table.insert(IEex_AllWorldScreenPanelIDs, IEex_ActionIndicatorsPanelID)
+	if IEex_PortraitGridEnabled then
+		table.insert(IEex_AllWorldScreenPanelIDs, IEex_PortraitGridPanelID)
+	end
 end
 
 IEex_Helper_InitBridgeFromTable("IEex_ActionIndicators", {
@@ -1765,6 +1772,15 @@ function IEex_Extern_BeforeWorldRender()
 			if IEex_IsPanelActive(panel) or IEex_IsPanelInactiveRender(panel) then
 				IEex_PanelInvalidate(panel)
 			end
+			-- PROTOTYPE: the relocated portrait grid (panel 30) carries the same live sprite
+			-- content (damage tint / state overlays / casting glow) with no engine invalidate on
+			-- change, so refresh it on the same per-tick cadence as panel 1.
+			if IEex_PortraitGridEnabled then
+				local gridPanel = IEex_GetPanelFromEngine(worldScreen, IEex_PortraitGridPanelID)
+				if gridPanel ~= 0x0 and (IEex_IsPanelActive(gridPanel) or IEex_IsPanelInactiveRender(gridPanel)) then
+					IEex_PanelInvalidate(gridPanel)
+				end
+			end
 		end
 
 		-- Panel 100 (action indicators): icon choice + control-active flags are
@@ -2089,6 +2105,7 @@ IEex_Helper_InitBridgeFromTable("IEex_GUIConstants", {
 	["controlTypeMeta"] = {
 		["ButtonWorldContainerSlot"] = { ["constructor"] = 0x6956F0, ["size"] = 0x666 },
 		["ButtonMageSpellInfoIcon"] =  { ["constructor"] = 0x66E3A0, ["size"] = 0x676 },
+		["PortraitWorld"] =            { ["constructor"] = 0x779F10, ["size"] = 0x66A },
 	},
 
 	["controlOverrides"] = {
@@ -3395,6 +3412,57 @@ IEex_AbsoluteOnce("IEex_CustomControls", function()
 	IEex_DefineCustomControl("IEex_UI_Scrollbar", IEex_ControlStructType.SCROLL_BAR, {})
 end)
 
+-- PROTOTYPE (Phase A of the PoE/BG2EE world-HUD refonte): relocate the 6 party portraits onto a
+-- NEW panel in the bottom-right corner, as a 3x2 grid. This instantiates the real engine
+-- CUIControlPortraitWorld class on a foreign panel via the controlTypeMeta override seam (the same
+-- mechanism ButtonWorldContainerSlot uses for the quickloot slots). Portraits still render at the
+-- stock 42x42 until the DLL RenderPortrait patch lands -- this step validates panel + control
+-- instantiation, rendering, and hit-test (click/select/double-click/drag-reorder) on a foreign
+-- panel FIRST. The stock panel-1 portraits are left in place for side-by-side comparison.
+function IEex_InstallPortraitGrid(chuResref)
+
+	local worldScreen = IEex_GetEngineWorld()
+	local mgr = IEex_GetUIManagerFromEngine(worldScreen)
+	-- Manager double-size factor: the CUIPanel / control ctors double 1x-authored coords when the
+	-- world manager runs the engine 2x tier (HD UI on). IEex_GetResolution() is DEVICE px, so the
+	-- bottom-right anchor is computed in device space and written raw via SetPanelXY.
+	local s = (mgr ~= 0 and IEex_ReadDword(mgr + 0xAA) ~= 0) and 2 or 1
+	local resW, resH = IEex_GetResolution()
+
+	local slotW, slotH, gapX, gapY, cols, rows, inset = 46, 46, 4, 4, 3, 2, 12
+	local gridW = cols * slotW + (cols - 1) * gapX
+	local gridH = rows * slotH + (rows - 1) * gapY
+
+	local panel = IEex_AddPanelToEngine(worldScreen, {
+		["id"]            = IEex_PortraitGridPanelID,
+		["x"]             = 0,
+		["y"]             = 0,
+		["width"]         = gridW,  -- 1x; the CUIPanel ctor doubles under HD
+		["height"]        = gridH,
+		["hasBackground"] = 0,
+	})
+
+	-- Bottom-right corner, DEVICE px (SetPanelXY writes m_ptOrigin raw, no doubling).
+	IEex_SetPanelXY(panel, resW - gridW * s - inset, resH - gridH * s - inset)
+
+	for i = 0, 5 do
+		local col = i % cols
+		local row = math.floor(i / cols)
+		IEex_AddControlOverride(chuResref, IEex_PortraitGridPanelID, i, "PortraitWorld")
+		IEex_AddControlToPanel(panel, {
+			["type"]   = IEex_ControlStructType.BUTTON,
+			["id"]     = i,
+			["x"]      = col * (slotW + gapX),  -- 1x; the control ctor doubles under HD
+			["y"]      = row * (slotH + gapY),
+			["width"]  = slotW,
+			["height"] = slotH,
+			["bam"]    = "",
+		})
+	end
+
+	IEex_SetPanelActive(panel, true)
+end
+
 function IEex_InstallActionIndicators()
 
 	local worldScreen = IEex_GetEngineWorld()
@@ -4140,6 +4208,10 @@ function IEex_OnCHUInitialized(chuResref)
 
 		if not IEex_Vanilla then
 			IEex_InstallQuickloot()
+		end
+
+		if not IEex_Vanilla and IEex_PortraitGridEnabled then
+			IEex_InstallPortraitGrid(chuResref)
 		end
 
 		-----------------------

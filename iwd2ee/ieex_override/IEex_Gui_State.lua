@@ -2648,6 +2648,7 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 	local worldHandler = {
 		[0] = {
 			[15] = IEex_CScreenWorld_OnQuicklootButtonLClick,
+			[16] = IEex_Refonte_CycleLogHeight,
 		},
 --[[
 		[22] = {
@@ -3475,20 +3476,30 @@ function IEex_InstallPortraitGrid(chuResref)
 	end
 
 	-- Combat log: bottom-left box skinned with IEEXLOGB.BMP (composed bezel, uniform
-	-- 12px borders + original corners; the DLL composites it opaque under the blended
-	-- log text, id -2 rect, vertical 3-slice). Width hugs the content: 12 border + 4
-	-- pad + 534 text + 4 + 12 scrollbar + 4 + 12 border = 582.
-	local logW, logH = 582 * s, 107 * s
-	local logX, logY = 8 * s, resH - 8 * s - logH
+	-- 12px caps; the DLL composites it opaque under the blended log text, id -2 rect,
+	-- vertical 3-slice -> ANY box height works). Height = 3 presets cycled by clicking
+	-- the box's TOP BORDER (invisible IEEXNULB button, ctrl 16), persisted in the ini.
+	-- Interior at height h: 12 cap + pads -> text (18,16) 534x(h-36), scrollbar
+	-- (562,15) 12x(h-33), chat overlay (16,h-42) 539x25. Box width 588.
+	local logW = 588 * s
+	local logX = 8 * s
+	IEex_Refonte_Scale = s
+	IEex_Refonte_LogHeights = { 128 * s, 192 * s, 256 * s }
+	IEex_Refonte_LogHeightIdx = math.max(1, math.min(#IEex_Refonte_LogHeights,
+		IEex_GetPrivateProfileInt("IEex Options", "Refonte Log Height", 1, ".\\Icewind2.ini")))
+	local logMaxH = IEex_Refonte_LogHeights[#IEex_Refonte_LogHeights]
 
-	-- Panel 0 reposition: origin = top-left of ALL its content (log box + command row)
-	-- so every control keeps POSITIVE panel-relative coords. (The engine centers the
-	-- 1024-wide band at 4K -- the old origin sat RIGHT of the log target, the negative
-	-- relative coords wrapped 16-bit and the log rendered top-left, smeared.)
+	-- Panel 0 reposition: origin = top-left of ALL its content (log box at its MAX
+	-- height + command row) so every control keeps POSITIVE panel-relative coords.
+	-- (The engine centers the 1024-wide band at 4K -- the old origin sat RIGHT of the
+	-- log target, the negative relative coords wrapped 16-bit and the log rendered
+	-- top-left, smeared.)
 	local panel0 = IEex_GetPanelFromEngine(worldScreen, 0)
 	local o0x = math.min(logX, abLeft - 2 * s)
-	local o0y = math.min(logY, cmdTop - 2 * s)
+	local o0y = math.min(resH - 8 * s - logMaxH, cmdTop - 2 * s)
 	IEex_SetPanelArea(panel0, o0x, o0y, resW - o0x, resH - o0y)
+	IEex_Refonte_P0Origin = { ["x"] = o0x, ["y"] = o0y }
+	IEex_Refonte_LogGeom = { ["x"] = logX, ["w"] = logW }
 
 	-- Command bar: order 4,5,6,7,8,10 | 9,11,12,13,14 + quickloot(15) in slot 12.
 	local cmdOrder = {4, 5, 6, 7, 8, 10, 9, 11, 12, 13, 14}
@@ -3509,16 +3520,18 @@ function IEex_InstallPortraitGrid(chuResref)
 		end
 	end
 
-	-- Log cluster at the art-relative offsets (sizes read live = tier-correct).
-	local logOffsets = { [1] = {16, 7}, [2] = {554, 6}, [3] = {14, 77} }
-	for id, off in pairs(logOffsets) do
-		local c = IEex_GetControlFromPanel(panel0, id)
-		if c ~= 0x0 then
-			local _, _, cw, chh = IEex_GetControlArea(c)
-			IEex_SetControlArea(c, (logX + off[1] * s) - o0x, (logY + off[2] * s) - o0y, cw, chh)
-		end
+	-- Static composite rects (everything but the log, which IEex_Refonte_ApplyLogHeight
+	-- re-registers on every height change).
+	IEex_Refonte_StaticRects = {}
+	for i = 0, 5 do
+		table.insert(IEex_Refonte_StaticRects, {1, rowLeft + i * (slotW + gap), rowTop, slotW, slotH})
 	end
-	IEex_Refonte_LogRect = { ["x"] = logX, ["y"] = logY, ["w"] = logW, ["h"] = logH }
+	table.insert(IEex_Refonte_StaticRects, {1, abLeft - 2 * s, abTop - 2 * s, abW + 4 * s, btnH + 4 * s})
+	table.insert(IEex_Refonte_StaticRects, {0, abLeft - 2 * s, cmdTop - 2 * s, abW + 4 * s, btnH + 4 * s})
+
+	-- Log controls + rects at the saved height (ctrl 16 = the click strip, created
+	-- later alongside the quickloot button -- its placement no-ops until then).
+	IEex_Refonte_ApplyLogHeight(IEex_Refonte_LogHeightIdx)
 
 	-- Widen panel 1's rect so IsOver (portrait hover / targeting) still covers the relocated row.
 	-- Origin unchanged -> viewport floor (panel-1 top) unchanged; only extend down/right.
@@ -3529,23 +3542,57 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- whole rect). No GACTN bezel rect anymore: portraits AND action bar both left the stock band,
 	-- so the band simply is not composited -- the world shows there (PoE-style floating HUD).
 	-- No-op without the HUD layer / on an older DLL that lacks the export.
-	if IEex_Helper_HudClearPanelContentRects then
-		IEex_Helper_HudClearPanelContentRects()
-		-- One rect PER portrait (not the whole row) so the inter-portrait gaps show the world,
-		-- not opaque black -- a single row rect would REPLACE the 4px gaps between frames too.
-		for i = 0, 5 do
-			IEex_Helper_HudAddPanelContentRect(1, rowLeft + i * (slotW + gap), rowTop, slotW, slotH)
-		end
-		-- Action row: ONE bar rect (2px padded) -- the black behind the buttons reads as the
-		-- HUD bar backdrop, PoE/BG2EE-style.
-		IEex_Helper_HudAddPanelContentRect(1, abLeft - 2 * s, abTop - 2 * s, abW + 4 * s, btnH + 4 * s)
-		-- Command row: id 0 rect = panel 0 flips to content-rects mode (GCOMM band no
-		-- longer composited NOR rendered -- the DLL skips its MOS like GACTN's).
-		IEex_Helper_HudAddPanelContentRect(0, abLeft - 2 * s, cmdTop - 2 * s, abW + 4 * s, btnH + 4 * s)
-		-- Combat log: id -2 = bezel composite pass (IEEXLOGB art opaque + blended text).
-		IEex_Helper_HudAddPanelContentRect(-2, IEex_Refonte_LogRect.x, IEex_Refonte_LogRect.y,
-		                                   IEex_Refonte_LogRect.w, IEex_Refonte_LogRect.h)
+end
+
+-- Re-register the full refonte composite-rect set: statics (portrait slots id 1,
+-- action-bar rect id 1, command-row rect id 0) + the log box (id -2, bezel pass).
+function IEex_Refonte_RegisterRects()
+	if not IEex_Helper_HudClearPanelContentRects then return end
+	IEex_Helper_HudClearPanelContentRects()
+	for _, r in ipairs(IEex_Refonte_StaticRects) do
+		IEex_Helper_HudAddPanelContentRect(r[1], r[2], r[3], r[4], r[5])
 	end
+	local lr = IEex_Refonte_LogRect
+	if lr then
+		IEex_Helper_HudAddPanelContentRect(-2, lr.x, lr.y, lr.w, lr.h)
+	end
+end
+
+-- Apply a log-box height preset: bottom-anchored box, controls reflowed inside
+-- (12px caps + pads), rects re-registered, panel invalidated. Ctrl 16 = the
+-- invisible top-border click strip (cycles presets; created with the quickloot
+-- button, placement no-ops before that).
+function IEex_Refonte_ApplyLogHeight(idx)
+	local s = IEex_Refonte_Scale
+	local g = IEex_Refonte_LogGeom
+	local o = IEex_Refonte_P0Origin
+	local worldScreen = IEex_GetEngineWorld()
+	local panel0 = IEex_GetPanelFromEngine(worldScreen, 0)
+	local resW, resH = IEex_GetResolution()
+	local h = IEex_Refonte_LogHeights[idx]
+	IEex_Refonte_LogHeightIdx = idx
+	local logY = resH - 8 * s - h
+	local place = {
+		[1]  = { g.x + 18 * s,  logY + 16 * s,     534 * s, h - 36 * s },
+		[2]  = { g.x + 562 * s, logY + 15 * s,     12 * s,  h - 33 * s },
+		[3]  = { g.x + 16 * s,  logY + h - 42 * s, 539 * s, 25 * s },
+		[16] = { g.x,           logY,              g.w,     12 * s },
+	}
+	for id, r in pairs(place) do
+		local c = IEex_GetControlFromPanel(panel0, id)
+		if c ~= 0x0 then
+			IEex_SetControlArea(c, r[1] - o.x, r[2] - o.y, r[3], r[4])
+		end
+	end
+	IEex_Refonte_LogRect = { ["x"] = g.x, ["y"] = logY, ["w"] = g.w, ["h"] = h }
+	IEex_Refonte_RegisterRects()
+	IEex_PanelInvalidate(panel0)
+end
+
+function IEex_Refonte_CycleLogHeight()
+	local idx = (IEex_Refonte_LogHeightIdx % #IEex_Refonte_LogHeights) + 1
+	IEex_Refonte_ApplyLogHeight(idx)
+	IEex_WritePrivateProfileInt("IEex Options", "Refonte Log Height", idx, ".\\Icewind2.ini")
 end
 
 function IEex_InstallActionIndicators()
@@ -4465,6 +4512,30 @@ function IEex_OnCHUInitialized(chuResref)
 				["tooltipStrref"] = ex_tra_55927,
 				["customHotkeyHintIndex"] = IEex_Hotkeys_CustomBinding.TOGGLE_QUICKLOOT,
 			})
+
+			-- Refonte: invisible click strip on the log box's TOP BORDER (ctrl 16,
+			-- fully-transparent IEEXNULB bam) -- clicking cycles the height presets.
+			if IEex_PortraitGridEnabled and IEex_Refonte_LogRect then
+				local mgrLS = IEex_GetUIManagerFromEngine(worldScreen)
+				local divLS = (mgrLS ~= 0 and IEex_ReadDword(mgrLS + 0xAA) ~= 0) and 2 or 1
+				local lr = IEex_Refonte_LogRect
+				local oR = IEex_Refonte_P0Origin
+				IEex_AddControlOverride(chuResref, 0, 16, "IEex_UI_Button")
+				IEex_AddControlToPanel(commandsPanel, {
+					["type"] = IEex_ControlStructType.BUTTON,
+					["id"] = 16,
+					["x"] = math.floor((lr.x - oR.x) / divLS),
+					["y"] = math.floor((lr.y - oR.y) / divLS),
+					["width"] = math.floor(lr.w / divLS),
+					["height"] = math.floor((12 * IEex_Refonte_Scale) / divLS),
+					["bam"] = "IEEXNULB",
+					["sequence"] = 0,
+					["frameUnpressed"] = 0,
+					["framePressed"] = 0,
+					["frameDisabled"] = 0,
+				})
+				IEex_SetControlButtonPlayLButtonDownSound(IEex_GetControlFromPanel(commandsPanel, 16), false)
+			end
 		end
 
 	elseif chuResref == "GUIREC" then

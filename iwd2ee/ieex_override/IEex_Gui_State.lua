@@ -1725,8 +1725,16 @@ function IEex_Extern_BeforeWorldRender()
 				end
 			end
 		end
-		local _, _, _, panelHeight = IEex_GetPanelArea(quicklootPanel)
-		IEex_SetPanelXY(quicklootPanel, nil, quicklootAnchor - panelHeight)
+		local _, _, qlWidth, panelHeight = IEex_GetPanelArea(quicklootPanel)
+		if IEex_PortraitGridEnabled and IEex_Refonte_BarBlock then
+			-- Refonte: sit the bar just above the bottom-centre bar block. The viewport-
+			-- bottom anchor (below) assumes the stock HUD band and floats it far too high.
+			local blk = IEex_Refonte_BarBlock
+			local rs = IEex_Refonte_Scale or 1
+			IEex_SetPanelXY(quicklootPanel, blk.left + math.floor((blk.w - qlWidth) / 2), blk.top - panelHeight - 4 * rs)
+		else
+			IEex_SetPanelXY(quicklootPanel, nil, quicklootAnchor - panelHeight)
+		end
 	end
 
 	---------------------------------------
@@ -3484,13 +3492,13 @@ function IEex_InstallPortraitGrid(chuResref)
 		IEex_SetControlArea(ctrl, (abLeft - x1) + (i - 6) * (btnW + btnGap), abTop - y1, btnW, btnH)
 	end
 
-	-- Combat log: bottom-left box skinned with IEEXLOGB.BMP (composed bezel, uniform
-	-- 12px caps; the DLL composites it opaque under the blended log text, id -2 rect,
-	-- vertical 3-slice -> ANY box height works). Height = 3 presets cycled by clicking
-	-- the box's TOP BORDER (invisible IEEXNULB button, ctrl 16), persisted in the ini.
-	-- Interior at height h: 12 cap + pads -> text (18,16) 534x(h-36), scrollbar
-	-- (562,15) 12x(h-33), chat overlay (16,h-42) 539x25. Box width 588.
-	local logW = 588 * s
+	-- Combat log: bottom-left box skinned with IEEXLOGB.BMP (user art, 551x107: thin
+	-- ~6px uniform frame, near-flat dark centre, NO baked scrollbar; the DLL composites
+	-- it opaque under the blended log text, id -2 rect, vertical 3-slice -> ANY box
+	-- height works, the flat centre hides the stretch). Height = 3 presets cycled by
+	-- clicking the box's TOP BORDER (invisible IEEXNULB button, ctrl 16), persisted in
+	-- the ini. Box width 551 (matches the art 1:1); interior tuned in ApplyLogHeight.
+	local logW = 551 * s
 	local logX = 8 * s
 	IEex_Refonte_Scale = s
 	IEex_Refonte_LogHeights = { 128 * s, 192 * s, 256 * s }
@@ -3588,10 +3596,13 @@ function IEex_Refonte_ApplyLogHeight(idx)
 	local h = IEex_Refonte_LogHeights[idx]
 	IEex_Refonte_LogHeightIdx = idx
 	local logY = resH - 8 * s - h
+	-- Interior for the 551-wide user bg (thin ~6px frame, NO baked scrollbar): tight 8px
+	-- insets, the live scrollbar (ctrl 2) sits in the right margin, text fills the rest.
+	local textH = h - 30 * s
 	local place = {
-		[1]  = { g.x + 18 * s,  logY + 16 * s,     534 * s, h - 36 * s },
-		[2]  = { g.x + 562 * s, logY + 15 * s,     12 * s,  h - 33 * s },
-		[3]  = { g.x + 16 * s,  logY + h - 42 * s, 539 * s, 25 * s },
+		[1]  = { g.x + 8 * s,   logY + 8 * s,      517 * s, textH },
+		[2]  = { g.x + 533 * s, logY + 8 * s,      12 * s,  textH },
+		[3]  = { g.x + 8 * s,   logY + h - 26 * s, 523 * s, 20 * s },
 		[16] = { g.x,           logY,              g.w,     12 * s },
 	}
 	for id, r in pairs(place) do
@@ -3611,7 +3622,7 @@ function IEex_Refonte_ApplyLogHeight(idx)
 	if textCtrl ~= 0x0 then
 		local fontH = IEex_ReadWord(textCtrl + 0xA60)
 		if fontH > 0 then
-			IEex_WriteWord(textCtrl + 0xA6C, math.floor((h - 36 * s) / fontH))
+			IEex_WriteWord(textCtrl + 0xA6C, math.floor(textH / fontH))
 			IEex_Call(0x4E3D60, {}, textCtrl, 0x0)
 		end
 	end
@@ -3777,7 +3788,7 @@ function IEex_InstallQuickloot()
 		["width"]           = math.floor(quicklootWidth / div),
 		["height"]          = math.floor(quicklootHeight / div),
 		["hasBackground"]   = 1,
-		["backgroundImage"] = "B3QKLOOT"
+		["backgroundImage"] = "B3QKLOOM"   -- no-decoration variant (plain stone strip, no ornate end-caps)
 	})
 
 	for i = 7, 16 do

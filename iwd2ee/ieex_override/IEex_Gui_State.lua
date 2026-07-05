@@ -3457,12 +3457,11 @@ function IEex_InstallPortraitGrid(chuResref)
 	end
 
 	-- Phase B: two stacked centered rows of EQUAL width (489 at 1x) at the screen
-	-- bottom -- action bar on top, flattened command bar below.
-	--   action row: 12 x 38 + 11 x 3 gaps                       = 489
-	--   command row: 5 x 38 + WIDE middle 79 + 5 x 38 + 10 x 3  = 489
-	-- The wide middle slot takes the geosphere button (widest stock art, 64px);
-	-- stock button art is interim -- shapes were authored for the stone cluster
-	-- and will be redone for the flat bar.
+	-- bottom -- action bar on top, flattened command bar below, both 12 x 38 + 11 x 3.
+	-- Command row = panel 0's eleven stock buttons + the IEex quickloot toggle (id 15,
+	-- created later in OnCHUInitialized -- it reads IEex_Refonte_CmdSlots[12] then).
+	-- Stock button art is interim: shapes were authored for the stone cluster and
+	-- will be redone for the flat bar.
 	local btnW, btnH, btnGap = 38 * s, 38 * s, 3 * s
 	local abW = 12 * btnW + 11 * btnGap
 	local abLeft = math.floor((resW - abW) / 2)
@@ -3475,23 +3474,46 @@ function IEex_InstallPortraitGrid(chuResref)
 		IEex_SetControlArea(ctrl, (abLeft - x1) + (i - 6) * (btnW + btnGap), abTop - y1, btnW, btnH)
 	end
 
-	-- Command bar: panel 0's buttons flattened onto one row (in-place within panel 0
-	-- -- its band rect already covers the screen bottom, and its full-rect composite
-	-- keeps the GCOMM art + combat log visible until Phase C empties the band).
-	-- Order: 4,5,6,7,8 | geosphere 10 (wide) | 9,11,12,13,14.
+	-- Command bar: order 4,5,6,7,8,10 | 9,11,12,13,14 + quickloot(15) last.
 	local panel0 = IEex_GetPanelFromEngine(worldScreen, 0)
 	local p0x, p0y = IEex_GetPanelArea(panel0)
-	local wideW = abW - 10 * (btnW + btnGap)                  -- = 79 at 1x
 	local cmdOrder = {4, 5, 6, 7, 8, 10, 9, 11, 12, 13, 14}
-	local cx = abLeft
-	for _, id in ipairs(cmdOrder) do
+	IEex_Refonte_CmdSlots = {}
+	for slot = 1, 12 do
+		IEex_Refonte_CmdSlots[slot] = {
+			["x"] = (abLeft - p0x) + (slot - 1) * (btnW + btnGap),
+			["y"] = cmdTop - p0y,
+			["w"] = btnW,
+			["h"] = btnH,
+		}
+	end
+	for slot, id in ipairs(cmdOrder) do
 		local ctrl = IEex_GetControlFromPanel(panel0, id)
 		if ctrl ~= 0x0 then
-			local w = (id == 10) and wideW or btnW
-			IEex_SetControlArea(ctrl, cx - p0x, cmdTop - p0y, w, btnH)
-			cx = cx + w + btnGap
+			local sl = IEex_Refonte_CmdSlots[slot]
+			IEex_SetControlArea(ctrl, sl.x, sl.y, sl.w, sl.h)
 		end
 	end
+
+	-- Combat log cluster (panel-0 ctrl 1 text / 2 scrollbar / 3 chat) -> bottom-LEFT,
+	-- stock sizes kept (drag-resize = next phase). The cluster is composited as a
+	-- TRANSLUCENT rect (id -2): dark backdrop + blended layer content over the world.
+	local logTextCtrl = IEex_GetControlFromPanel(panel0, 1)
+	local ltx, lty, ltw, lth = IEex_GetControlArea(logTextCtrl)
+	local dx = (8 * s) - (p0x + ltx)
+	local dy = (resH - 8 * s - lth) - (p0y + lty)
+	local lminX, lminY, lmaxX, lmaxY = math.huge, math.huge, -math.huge, -math.huge
+	for _, id in ipairs({1, 2, 3}) do
+		local c = IEex_GetControlFromPanel(panel0, id)
+		if c ~= 0x0 then
+			local cxr, cyr, cw, chh = IEex_GetControlArea(c)
+			IEex_SetControlArea(c, cxr + dx, cyr + dy, cw, chh)
+			lminX = math.min(lminX, p0x + cxr + dx); lmaxX = math.max(lmaxX, p0x + cxr + dx + cw)
+			lminY = math.min(lminY, p0y + cyr + dy); lmaxY = math.max(lmaxY, p0y + cyr + dy + chh)
+		end
+	end
+	IEex_Refonte_LogRect = { ["x"] = lminX - 6 * s, ["y"] = lminY - 6 * s,
+	                         ["w"] = (lmaxX - lminX) + 12 * s, ["h"] = (lmaxY - lminY) + 12 * s }
 
 	-- Widen panel 1's rect so IsOver (portrait hover / targeting) still covers the relocated row.
 	-- Origin unchanged -> viewport floor (panel-1 top) unchanged; only extend down/right.
@@ -3512,9 +3534,12 @@ function IEex_InstallPortraitGrid(chuResref)
 		-- Action row: ONE bar rect (2px padded) -- the black behind the buttons reads as the
 		-- HUD bar backdrop, PoE/BG2EE-style.
 		IEex_Helper_HudAddPanelContentRect(1, abLeft - 2 * s, abTop - 2 * s, abW + 4 * s, btnH + 4 * s)
-		-- Command row: id -1 = pure INPUT BLOCKER (right-click swallow); the row displays
-		-- through panel 0's own full-rect composite, so no panel-1 rect must cover it.
-		IEex_Helper_HudAddPanelContentRect(-1, abLeft - 2 * s, cmdTop - 2 * s, abW + 4 * s, btnH + 4 * s)
+		-- Command row: id 0 rect = panel 0 flips to content-rects mode (GCOMM band no
+		-- longer composited NOR rendered -- the DLL skips its MOS like GACTN's).
+		IEex_Helper_HudAddPanelContentRect(0, abLeft - 2 * s, cmdTop - 2 * s, abW + 4 * s, btnH + 4 * s)
+		-- Combat log: id -2 = translucent composite pass (dark backdrop + blended layer).
+		IEex_Helper_HudAddPanelContentRect(-2, IEex_Refonte_LogRect.x, IEex_Refonte_LogRect.y,
+		                                   IEex_Refonte_LogRect.w, IEex_Refonte_LogRect.h)
 	end
 end
 
@@ -4386,8 +4411,20 @@ function IEex_OnCHUInitialized(chuResref)
 
 			local commandsPanel = IEex_GetPanelFromEngine(worldScreen, 0)
 			local quicklootButtonX = 705
+			local quicklootButtonY = 73
 			if chuResref == "GUIW10" then
 				quicklootButtonX = 817
+			end
+			-- Refonte: the quickloot toggle takes slot 12 of the flattened command row
+			-- (art 29x34, centered in the 38x38 slot). Slots are DEVICE px; this control
+			-- is added through the ctor path which re-doubles 1x-authored coords at the
+			-- 2x tier -- pre-divide like IEex_InstallQuickloot does.
+			if IEex_PortraitGridEnabled and IEex_Refonte_CmdSlots then
+				local sl = IEex_Refonte_CmdSlots[12]
+				local mgrQL = IEex_GetUIManagerFromEngine(worldScreen)
+				local divQL = (mgrQL ~= 0 and IEex_ReadDword(mgrQL + 0xAA) ~= 0) and 2 or 1
+				quicklootButtonX = math.floor((sl.x + (sl.w - 29 * divQL) / 2) / divQL)
+				quicklootButtonY = math.floor((sl.y + (sl.h - 34 * divQL) / 2) / divQL)
 			end
 			local commandsPanelMultiplayer = IEex_GetPanelFromEngine(worldScreen, 22)
 			IEex_AddControlOverride(chuResref, 0, 15, "IEex_UI_Button")
@@ -4395,7 +4432,7 @@ function IEex_OnCHUInitialized(chuResref)
 				["type"] = IEex_ControlStructType.BUTTON,
 				["id"] = 15,
 				["x"] = quicklootButtonX,
-				["y"] = 73,
+				["y"] = quicklootButtonY,
 				["width"] = 29,
 				["height"] = 34,
 				["bam"] = "USGBTNQL",

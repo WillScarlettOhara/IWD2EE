@@ -3474,15 +3474,29 @@ function IEex_InstallPortraitGrid(chuResref)
 		IEex_SetControlArea(ctrl, (abLeft - x1) + (i - 6) * (btnW + btnGap), abTop - y1, btnW, btnH)
 	end
 
-	-- Command bar: order 4,5,6,7,8,10 | 9,11,12,13,14 + quickloot(15) last.
+	-- Combat log: bottom-left box skinned with the ORIGINAL bezel art (IEEXLOGB.BMP =
+	-- GCOMM118 crop (104,0)-(696,107); the DLL composites it opaque under the blended
+	-- log text, id -2 rect). Controls keep stock GUIW10 sizes at the art's stock
+	-- relative offsets: text +16+7, scrollbar +562+4, chat +14+77.
+	local logW, logH = 592 * s, 107 * s
+	local logX, logY = 8 * s, resH - 8 * s - logH
+
+	-- Panel 0 reposition: origin = top-left of ALL its content (log box + command row)
+	-- so every control keeps POSITIVE panel-relative coords. (The engine centers the
+	-- 1024-wide band at 4K -- the old origin sat RIGHT of the log target, the negative
+	-- relative coords wrapped 16-bit and the log rendered top-left, smeared.)
 	local panel0 = IEex_GetPanelFromEngine(worldScreen, 0)
-	local p0x, p0y = IEex_GetPanelArea(panel0)
+	local o0x = math.min(logX, abLeft - 2 * s)
+	local o0y = math.min(logY, cmdTop - 2 * s)
+	IEex_SetPanelArea(panel0, o0x, o0y, resW - o0x, resH - o0y)
+
+	-- Command bar: order 4,5,6,7,8,10 | 9,11,12,13,14 + quickloot(15) in slot 12.
 	local cmdOrder = {4, 5, 6, 7, 8, 10, 9, 11, 12, 13, 14}
-	IEex_Refonte_CmdSlots = {}
+	IEex_Refonte_CmdSlots = {}   -- panel-relative to the NEW origin
 	for slot = 1, 12 do
 		IEex_Refonte_CmdSlots[slot] = {
-			["x"] = (abLeft - p0x) + (slot - 1) * (btnW + btnGap),
-			["y"] = cmdTop - p0y,
+			["x"] = (abLeft - o0x) + (slot - 1) * (btnW + btnGap),
+			["y"] = cmdTop - o0y,
 			["w"] = btnW,
 			["h"] = btnH,
 		}
@@ -3495,25 +3509,16 @@ function IEex_InstallPortraitGrid(chuResref)
 		end
 	end
 
-	-- Combat log cluster (panel-0 ctrl 1 text / 2 scrollbar / 3 chat) -> bottom-LEFT,
-	-- stock sizes kept (drag-resize = next phase). The cluster is composited as a
-	-- TRANSLUCENT rect (id -2): dark backdrop + blended layer content over the world.
-	local logTextCtrl = IEex_GetControlFromPanel(panel0, 1)
-	local ltx, lty, ltw, lth = IEex_GetControlArea(logTextCtrl)
-	local dx = (8 * s) - (p0x + ltx)
-	local dy = (resH - 8 * s - lth) - (p0y + lty)
-	local lminX, lminY, lmaxX, lmaxY = math.huge, math.huge, -math.huge, -math.huge
-	for _, id in ipairs({1, 2, 3}) do
+	-- Log cluster at the art-relative stock offsets (sizes read live = tier-correct).
+	local logOffsets = { [1] = {16, 7}, [2] = {562, 4}, [3] = {14, 77} }
+	for id, off in pairs(logOffsets) do
 		local c = IEex_GetControlFromPanel(panel0, id)
 		if c ~= 0x0 then
-			local cxr, cyr, cw, chh = IEex_GetControlArea(c)
-			IEex_SetControlArea(c, cxr + dx, cyr + dy, cw, chh)
-			lminX = math.min(lminX, p0x + cxr + dx); lmaxX = math.max(lmaxX, p0x + cxr + dx + cw)
-			lminY = math.min(lminY, p0y + cyr + dy); lmaxY = math.max(lmaxY, p0y + cyr + dy + chh)
+			local _, _, cw, chh = IEex_GetControlArea(c)
+			IEex_SetControlArea(c, (logX + off[1] * s) - o0x, (logY + off[2] * s) - o0y, cw, chh)
 		end
 	end
-	IEex_Refonte_LogRect = { ["x"] = lminX - 6 * s, ["y"] = lminY - 6 * s,
-	                         ["w"] = (lmaxX - lminX) + 12 * s, ["h"] = (lmaxY - lminY) + 12 * s }
+	IEex_Refonte_LogRect = { ["x"] = logX, ["y"] = logY, ["w"] = logW, ["h"] = logH }
 
 	-- Widen panel 1's rect so IsOver (portrait hover / targeting) still covers the relocated row.
 	-- Origin unchanged -> viewport floor (panel-1 top) unchanged; only extend down/right.
@@ -3537,7 +3542,7 @@ function IEex_InstallPortraitGrid(chuResref)
 		-- Command row: id 0 rect = panel 0 flips to content-rects mode (GCOMM band no
 		-- longer composited NOR rendered -- the DLL skips its MOS like GACTN's).
 		IEex_Helper_HudAddPanelContentRect(0, abLeft - 2 * s, cmdTop - 2 * s, abW + 4 * s, btnH + 4 * s)
-		-- Combat log: id -2 = translucent composite pass (dark backdrop + blended layer).
+		-- Combat log: id -2 = bezel composite pass (IEEXLOGB art opaque + blended text).
 		IEex_Helper_HudAddPanelContentRect(-2, IEex_Refonte_LogRect.x, IEex_Refonte_LogRect.y,
 		                                   IEex_Refonte_LogRect.w, IEex_Refonte_LogRect.h)
 	end

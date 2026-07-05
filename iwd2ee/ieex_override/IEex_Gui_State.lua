@@ -3463,11 +3463,18 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- created later in OnCHUInitialized -- it reads IEex_Refonte_CmdSlots[12] then).
 	-- Stock button art is interim: shapes were authored for the stone cluster and
 	-- will be redone for the flat bar.
+	-- Geometry derives from the user-authored bar block art (IEEXBARB.BMP, 505x110):
+	-- two 12-slot button fields between three mosaic separator strips. Button rows sit
+	-- at +12 (action) / +60 (command) inside the block; the 12-button grid (38px,
+	-- pitch 41) is centered: left inset 8.
 	local btnW, btnH, btnGap = 38 * s, 38 * s, 3 * s
+	local blockW, blockH = 505 * s, 110 * s
+	local blockLeft = math.floor((resW - blockW) / 2)
+	local blockTop = resH - 4 * s - blockH
 	local abW = 12 * btnW + 11 * btnGap
-	local abLeft = math.floor((resW - abW) / 2)
-	local cmdTop = resH - 4 * s - btnH
-	local abTop = cmdTop - btnGap - btnH
+	local abLeft = blockLeft + 8 * s
+	local abTop = blockTop + 12 * s
+	local cmdTop = blockTop + 60 * s
 
 	-- Action bar (ctrl 6-17, panel 1, in-place like the portraits).
 	for i = 6, 17 do
@@ -3526,8 +3533,11 @@ function IEex_InstallPortraitGrid(chuResref)
 	for i = 0, 5 do
 		table.insert(IEex_Refonte_StaticRects, {1, rowLeft + i * (slotW + gap), rowTop, slotW, slotH})
 	end
-	table.insert(IEex_Refonte_StaticRects, {1, abLeft - 2 * s, abTop - 2 * s, abW + 4 * s, btnH + 4 * s})
-	table.insert(IEex_Refonte_StaticRects, {0, abLeft - 2 * s, cmdTop - 2 * s, abW + 4 * s, btnH + 4 * s})
+	-- Bar block: ONE id -3 rect = IEEXBARB art + blended buttons (both rows). The
+	-- degenerate id 0 rect keeps panel 0 in content-rects mode (composite + MOS skip)
+	-- without drawing anything.
+	table.insert(IEex_Refonte_StaticRects, {-3, blockLeft, blockTop, blockW, blockH})
+	table.insert(IEex_Refonte_StaticRects, {0, 0, 0, 0, 0})
 
 	-- Log controls + rects at the saved height (ctrl 16 = the click strip, created
 	-- later alongside the quickloot button -- its placement no-ops until then).

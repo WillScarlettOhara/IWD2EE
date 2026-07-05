@@ -3436,7 +3436,10 @@ function IEex_InstallPortraitGrid(chuResref)
 	local panel1 = IEex_GetPanelFromEngine(worldScreen, 1)
 	local x1, y1, w1, h1 = IEex_GetPanelArea(panel1)
 
-	local slotW, slotH, gap, inset = 46 * s, 46 * s, 4 * s, 12 * s
+	-- 58x88 slot = 54x84 BG-style bust image (+2px margin each side, engine geometry
+	-- derives from the control: image = slot-4, ring = slot-2). The DLL redirects the
+	-- portrait resref _S -> _B for rectangular slots (Export_RenderPortraitRect).
+	local slotW, slotH, gap, inset = 58 * s, 88 * s, 4 * s, 12 * s
 	local rowW = 6 * slotW + 5 * gap
 
 	-- 6x1 row anchored to the screen bottom-right; control coords are panel-1-relative device px.

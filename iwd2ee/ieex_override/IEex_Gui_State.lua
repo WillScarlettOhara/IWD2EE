@@ -3809,11 +3809,12 @@ function IEex_InstallQuickloot()
 		contentRight = math.max(contentRight, arrowX + arrowW)
 	end
 	local quicklootHeight = math.min(h1, contentBottom + 4)
-	-- Width: the slots + arrows only span the LEFT part of the action bar; the rest of
-	-- the MOS is unused stone. Clip it via the panel rect (the MOS renders clipped, no
-	-- asset edit) -- the shorter bar no longer overlaps the action indicators
-	-- horizontally, so both can share the row directly above the HUD.
-	local quicklootWidth = math.min(w1, contentRight + 4)
+	-- Content base: the stock action bar sits inset in its toolbar, so the left scroll
+	-- arrow (ctrl 6) -- the leftmost control -- starts well right of panel-left. Subtract
+	-- that base X from every placement so the bar's content hugs the panel's left edge
+	-- (no dead gap) and size the panel to the actual content span (not the stock offset).
+	local qlBaseX = IEex_GetControlArea(IEex_GetControlFromPanel(panel1Memory, 6))
+	local quicklootWidth = math.min(w1, contentRight - qlBaseX + 4)
 
 	local quicklootPanel = IEex_AddPanelToEngine(worldScreen, {
 		["id"]              = 23,
@@ -3835,7 +3836,7 @@ function IEex_InstallQuickloot()
 
 		IEex_AddControlToPanel(quicklootPanel, {
 			["id"]     = IEex_GetControlID(copyControl),
-			["x"]      = math.floor((referenceControlX + 1) / div),
+			["x"]      = math.floor((referenceControlX + 1 - qlBaseX) / div),
 			["y"]      = math.floor((referenceControlY + 1) / div),
 			["width"]  = math.floor(copyControlW / div),
 			["height"] = math.floor(copyControlH / div),
@@ -3848,7 +3849,7 @@ function IEex_InstallQuickloot()
 	local leftArrowX, leftArrowY, leftArrowW, leftArrowH = IEex_GetControlArea(leftArrow)
 	IEex_AddControlToPanel(quicklootPanel, {
 		["id"]             = 10,
-		["x"]              = math.floor(leftArrowX / div),
+		["x"]              = math.floor((leftArrowX - qlBaseX) / div),
 		["y"]              = math.floor(leftArrowY / div),
 		["width"]          = math.floor(leftArrowW / div),
 		["height"]         = math.floor(leftArrowH / div),
@@ -3862,7 +3863,7 @@ function IEex_InstallQuickloot()
 	local rightArrowX, rightArrowY, rightArrowW, rightArrowH = IEex_GetControlArea(rightArrow)
 	IEex_AddControlToPanel(quicklootPanel, {
 		["id"]             = 11,
-		["x"]              = math.floor(rightArrowX / div),
+		["x"]              = math.floor((rightArrowX - qlBaseX) / div),
 		["y"]              = math.floor(rightArrowY / div),
 		["width"]          = math.floor(rightArrowW / div),
 		["height"]         = math.floor(rightArrowH / div),

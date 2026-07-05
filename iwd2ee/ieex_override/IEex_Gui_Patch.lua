@@ -1462,6 +1462,28 @@
 		IEex_WriteAssembly(0x4D4492, IEex_FlattenTable({
 			{[[ !jmp_dword ]], {rclickStub, 4, 4}},
 		}))
+
+		-- The MOVEMENT right-click path is PARALLEL to the UI walk: CScreenWorld's
+		-- OnRButtonDown/Up call CGameArea::OnFormationButtonDown/Up unconditionally
+		-- after the UI manager -- consuming the click above does not stop the move
+		-- order. Wrap both callsites; the DLL swallows the pair when the DOWN lands
+		-- on a refonte bar.
+		local formDownStub = IEex_WriteAssemblyAuto({[[
+			51
+			!call >IEex_Helper_FormationRDown
+			!jmp_dword :68C2C5
+		]]})
+		IEex_WriteAssembly(0x68C2C0, IEex_FlattenTable({
+			{[[ !jmp_dword ]], {formDownStub, 4, 4}},
+		}))
+		local formUpStub = IEex_WriteAssemblyAuto({[[
+			51
+			!call >IEex_Helper_FormationRUp
+			!jmp_dword :68C325
+		]]})
+		IEex_WriteAssembly(0x68C320, IEex_FlattenTable({
+			{[[ !jmp_dword ]], {formUpStub, 4, 4}},
+		}))
 	end
 
 	IEex_EnableCodeProtection()

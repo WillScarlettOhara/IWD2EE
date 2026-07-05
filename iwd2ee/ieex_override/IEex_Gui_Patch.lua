@@ -1436,6 +1436,32 @@
 			!call >IEex_Helper_RenderPortraitRect
 			!ret_word 1C 00
 		]]})
+
+		-- Skip panel-1's GACTN band MOS while the refonte is installed: the band is no
+		-- longer composited, but its art still landed in the layer and showed through any
+		-- content-rect overlapping it (the centered action bar sampled old slot texture).
+		-- Wraps the CVidMosaic::Render call inside CUIPanel::Render (ecx = &m_mosaic).
+		local mosStub = IEex_WriteAssemblyAuto({[[
+			51
+			!call >IEex_Helper_PanelMosaicRender
+			!jmp_dword :4D343A
+		]]})
+		IEex_WriteAssembly(0x4D3435, IEex_FlattenTable({
+			{[[ !jmp_dword ]], {mosStub, 4, 4}},
+		}))
+
+		-- Swallow right-clicks landing inside the refonte bars when no control consumed
+		-- them: empty action slots are INACTIVE controls (transparent to input), so the
+		-- click fell through the panel walk to the fullscreen world control = a party
+		-- move order THROUGH the bar. Wraps the panel dispatch in CUIManager::OnRButtonDown.
+		local rclickStub = IEex_WriteAssemblyAuto({[[
+			51
+			!call >IEex_Helper_PanelRClickRefonte
+			!jmp_dword :4D4497
+		]]})
+		IEex_WriteAssembly(0x4D4492, IEex_FlattenTable({
+			{[[ !jmp_dword ]], {rclickStub, 4, 4}},
+		}))
 	end
 
 	IEex_EnableCodeProtection()

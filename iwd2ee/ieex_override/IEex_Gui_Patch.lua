@@ -1411,6 +1411,33 @@
 		}))
 	end
 
+	--------------------------------------------------------------------------------
+	-- World-HUD refonte -- CGameSprite::RenderPortrait (0x704D40) -> DLL
+	-- reimplementation with the hardcoded 42/44 geometry derived from the control
+	-- size (image = szControl-4, ring = szControl-2), so the portrait slot can be
+	-- rectangular (54x84). Stock control sizes (46x46) render pixel-identical, so
+	-- every caller (world / map screen / arena) is safe to route through it.
+	-- __thiscall, 7 stack args, ret 0x1C; marshal to the __stdcall export.
+	-- NOTE: IEex_UIScale_Patch.lua's HD-UI block writes `mov [esp+0x1C],1` over
+	-- these same 7 prologue bytes (force bDoubleSize) -- IEEX_HD_UI and the
+	-- refonte are mutually exclusive until that forcing moves into the DLL.
+	--------------------------------------------------------------------------------
+	if IEex_PortraitGridEnabled then
+		IEex_WriteAssembly(0x704D40, {[[
+			!mark_esp
+			!marked_esp !push([esp+0x1C])
+			!marked_esp !push([esp+0x18])
+			!marked_esp !push([esp+0x14])
+			!marked_esp !push([esp+0x10])
+			!marked_esp !push([esp+0x0C])
+			!marked_esp !push([esp+0x08])
+			!marked_esp !push([esp+0x04])
+			51
+			!call >IEex_Helper_RenderPortraitRect
+			!ret_word 1C 00
+		]]})
+	end
+
 	IEex_EnableCodeProtection()
 
 end)()

@@ -3440,6 +3440,16 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- Widen panel 1's rect so IsOver (portrait hover / targeting) still covers the relocated row.
 	-- Origin unchanged -> viewport floor (panel-1 top) unchanged; only extend down/right.
 	IEex_SetPanelArea(panel1, x1, y1, math.max(w1, resW - inset - x1), math.max(h1, resH - inset - y1))
+
+	-- Register panel 1's REAL content sub-rects for the HUD-layer composite so the widened rect's
+	-- transparent gap shows the world instead of opaque black (the composite REPLACEs a MOS panel's
+	-- whole rect). Rect A = the stock action-bar / GACTN bezel; rect B = the relocated portrait row.
+	-- No-op without the HUD layer / on an older DLL that lacks the export.
+	if IEex_Helper_HudClearPanelContentRects then
+		IEex_Helper_HudClearPanelContentRects()
+		IEex_Helper_HudAddPanelContentRect(1, x1, y1, w1, h1)
+		IEex_Helper_HudAddPanelContentRect(1, rowLeft, rowTop, rowW, slotH)
+	end
 end
 
 function IEex_InstallActionIndicators()

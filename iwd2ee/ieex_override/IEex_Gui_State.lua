@@ -3456,22 +3456,38 @@ function IEex_InstallPortraitGrid(chuResref)
 		if strip ~= 0x0 then IEex_SetControlActive(strip, false) end
 	end
 
+	-- Action bar (ctrl 6-17): one centered row, sitting 2px above the command band
+	-- (panel 0). Phase-B row 1 of 2; the flattened command row replaces panel 0's
+	-- band next. Stock geometry kept (38x38, 3px gaps), positions panel-1-relative.
+	local p0x, p0y = IEex_GetPanelArea(IEex_GetPanelFromEngine(worldScreen, 0))
+	local btnW, btnH, btnGap = 38 * s, 38 * s, 3 * s
+	local abW = 12 * btnW + 11 * btnGap
+	local abLeft = math.floor((resW - abW) / 2)
+	local abTop = p0y - btnH - 2 * s
+	for i = 6, 17 do
+		local ctrl = IEex_GetControlFromPanel(panel1, i)
+		IEex_SetControlArea(ctrl, (abLeft - x1) + (i - 6) * (btnW + btnGap), abTop - y1, btnW, btnH)
+	end
+
 	-- Widen panel 1's rect so IsOver (portrait hover / targeting) still covers the relocated row.
 	-- Origin unchanged -> viewport floor (panel-1 top) unchanged; only extend down/right.
 	IEex_SetPanelArea(panel1, x1, y1, math.max(w1, resW - inset - x1), math.max(h1, resH - inset - y1))
 
 	-- Register panel 1's REAL content sub-rects for the HUD-layer composite so the widened rect's
 	-- transparent gap shows the world instead of opaque black (the composite REPLACEs a MOS panel's
-	-- whole rect). Rect A = the stock action-bar / GACTN bezel; rect B = the relocated portrait row.
+	-- whole rect). No GACTN bezel rect anymore: portraits AND action bar both left the stock band,
+	-- so the band simply is not composited -- the world shows there (PoE-style floating HUD).
 	-- No-op without the HUD layer / on an older DLL that lacks the export.
 	if IEex_Helper_HudClearPanelContentRects then
 		IEex_Helper_HudClearPanelContentRects()
-		IEex_Helper_HudAddPanelContentRect(1, x1, y1, w1, h1)  -- action bar / GACTN bezel
 		-- One rect PER portrait (not the whole row) so the inter-portrait gaps show the world,
 		-- not opaque black -- a single row rect would REPLACE the 4px gaps between frames too.
 		for i = 0, 5 do
 			IEex_Helper_HudAddPanelContentRect(1, rowLeft + i * (slotW + gap), rowTop, slotW, slotH)
 		end
+		-- Action row: ONE bar rect (2px padded) -- the black behind the buttons reads as the
+		-- HUD bar backdrop, PoE/BG2EE-style.
+		IEex_Helper_HudAddPanelContentRect(1, abLeft - 2 * s, abTop - 2 * s, abW + 4 * s, btnH + 4 * s)
 	end
 end
 

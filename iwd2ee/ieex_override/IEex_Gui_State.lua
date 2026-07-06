@@ -3525,11 +3525,24 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- leave the row and sit on the statue instead.
 	local btnW, btnH, btnGap = 38 * s, 38 * s, 3 * s
 	local blockW, blockH = 572 * s, 107 * s
+	-- Bottom row = log (left), bar block (centre), portrait row (right) -- all rigid 2x
+	-- art. At 4K they fit with the block screen-centred; at intermediate 2x widths
+	-- (2048..~3800) the centred block collides with the fixed-width log and/or the
+	-- portraits. Keep it centred where that fits (preserves the validated 4K look),
+	-- else shift it left just clear of the portrait row, then size the log to fill the
+	-- space left of the block (IEEXLOGB squashes cleanly -- thin frame, flat centre).
+	-- rowLeft = portrait row left edge (computed above); minLogW floors the log.
+	local logX, logGap, minLogW = 8 * s, 8 * s, 200 * s
 	local blockLeft = math.floor((resW - blockW) / 2)
+	blockLeft = math.min(blockLeft, rowLeft - blockW - gap)
+	blockLeft = math.max(blockLeft, logX + minLogW + logGap)
+	local logW = math.max(minLogW, math.min(551 * s, blockLeft - logX - logGap))
 	local blockTop = resH - blockH   -- flush to screen bottom (no world strip below)
 	local abW = 12 * btnW + 11 * btnGap
 	local abLeft = blockLeft + 8 * s
-	local abTop = blockTop + 8 * s
+	-- abTop: the buttons sat too high in the plain top band (art band interior ~y9..50 @1x);
+	-- +11*s centres the 38*s button in it instead of hugging the top trim.
+	local abTop = blockTop + 11 * s
 	local cmdTop = blockTop + 61 * s
 	-- Exposed for IEex_Refonte_RepositionQuickloot (panel 23 re-anchors above this block).
 	IEex_Refonte_BarBlock = { ["left"] = blockLeft, ["top"] = blockTop, ["w"] = blockW, ["h"] = blockH }
@@ -3545,9 +3558,8 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- it opaque under the blended log text, id -2 rect, vertical 3-slice -> ANY box
 	-- height works, the flat centre hides the stretch). Height = 3 presets cycled by
 	-- clicking the box's TOP BORDER (invisible IEEXNULB button, ctrl 16), persisted in
-	-- the ini. Box width 551 (matches the art 1:1); interior tuned in ApplyLogHeight.
-	local logW = 551 * s
-	local logX = 8 * s
+	-- the ini. Box width now sized above (logW) to avoid the centred-block overlap;
+	-- interior controls scale to logW in ApplyLogHeight.
 	IEex_Refonte_Scale = s
 	IEex_Refonte_LogHeights = { 128 * s, 192 * s, 256 * s }
 	IEex_Refonte_LogHeightIdx = math.max(1, math.min(#IEex_Refonte_LogHeights,
@@ -3691,14 +3703,17 @@ function IEex_Refonte_ApplyLogHeight(idx)
 	local h = IEex_Refonte_LogHeights[idx]
 	IEex_Refonte_LogHeightIdx = idx
 	local logY = resH - 8 * s - h
-	-- Interior for the 551-wide user bg (thin ~6px frame, NO baked scrollbar): tight 8px
-	-- insets top+bottom, live scrollbar (ctrl 2) in the right margin, text fills the rest.
+	-- Interior for the user bg (thin ~6px frame, NO baked scrollbar): tight 8px insets
+	-- top+bottom, live scrollbar (ctrl 2) in the right margin, text fills the rest. Widths
+	-- derive from g.w (the box width, now variable to dodge the centred-block overlap) so
+	-- the scrollbar stays pinned to the right frame and the text/input wrap to fit -- at
+	-- the full 551*s these reduce to the original 517 / 533 / 523.
 	local textH = h - 16 * s
 	local place = {
-		[1]  = { g.x + 8 * s,   logY + 8 * s,      517 * s, textH },
-		[2]  = { g.x + 533 * s, logY + 8 * s,      12 * s,  textH },
-		[3]  = { g.x + 8 * s,   logY + h - 26 * s, 523 * s, 20 * s },
-		[16] = { g.x,           logY,              g.w,     12 * s },
+		[1]  = { g.x + 8 * s,        logY + 8 * s,      g.w - 34 * s, textH },
+		[2]  = { g.x + g.w - 18 * s, logY + 8 * s,      12 * s,       textH },
+		[3]  = { g.x + 8 * s,        logY + h - 26 * s, g.w - 28 * s, 20 * s },
+		[16] = { g.x,                logY,              g.w,          12 * s },
 	}
 	for id, r in pairs(place) do
 		local c = IEex_GetControlFromPanel(panel0, id)

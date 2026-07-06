@@ -1,0 +1,39 @@
+// =====================================================================================
+// World HUD Refonte  -  PoE/BG2EE-style floating HUD (opt-in, DESIGNATED 103)
+// =====================================================================================
+// Portraits = 54x84 busts in a 6x1 row bottom-right (58x88 slots, _S -> _B resref
+// redirect with _S fallback), action bar + command bar on the user-art block
+// bottom-centre (IEEXBARB: statue holds the pause orb + party AI), combat log
+// bottom-left with click-cyclable height (IEEXLOGB, ini-persisted).
+//
+// EVERYTHING here is a runtime flag flip:
+//   * All refonte assets (IEEXBARB/IEEXLOGB/IEEXNULB.BAM, GCOMMBTN/USGBTNQL.BAM,
+//     B3QKLOOT/B3QKLOOM.MOS, the *_B.BMP busts) ship with the CORE's ieex_override
+//     copy and are INERT while IEex_PortraitGridEnabled is false. NPC Core's portrait
+//     busts ship with that component's own portrait files (bam_new_npcs).
+//   * "Old Portrait Health" (BG-style red HP fill, the look the busts are designed
+//     around) is seeded at RUNTIME by IEex_InstallPortraitGrid: if the ini key is
+//     absent it writes 1 and pokes the loaded option (the engine caches [Game
+//     Options] at boot) -- WritePrivateProfileString handles section insertion
+//     cleanly, so no ini text-munging here. An explicit player 0 is respected.
+//   * GUIW08 (800x600) is refused at runtime by the same installer (the layout is
+//     authored for the 1024-wide GUIW10 CHU, which the engine's 2x tier doubles).
+//   * OPENGL ONLY: the refonte draws through the DLL's GL HUD layer (content-rects
+//     composite, blended buttons, MOS skip). The same runtime gate turns the refonte
+//     off under the software renderer (m_bIs3dAccelerated, chitin+0x91C) -- the
+//     renderer is a launch-time choice, so nothing can be gated at install time.
+//
+// 2x UI (DESIGNATED 99/101): FORBIDDEN from the tp2 until the refonte 2x arc lands
+// (108x168 busts, 2x block/log art, 0x704D40 de-double conflict).
+// =====================================================================================
+
+PRINT ~[World HUD Refonte] Turning the floating HUD on (portrait busts bottom-right, bars bottom-centre, log bottom-left).~
+PRINT ~[World HUD Refonte] Requires the OpenGL renderer and a resolution of 1024x768 or higher; the stock HUD is kept otherwise (runtime check).~
+
+ACTION_IF FILE_EXISTS ~override/IEex_Gui_State.lua~ BEGIN
+  COPY_EXISTING ~override/IEex_Gui_State.lua~ ~override~
+    REPLACE_TEXTUALLY ~IEex_PortraitGridEnabled = false~ ~IEex_PortraitGridEnabled = true~
+  BUT_ONLY_IF_IT_CHANGES
+END ELSE BEGIN
+  WARN ~[World HUD Refonte] override/IEex_Gui_State.lua not found (install the IWD2EE core first) -- refonte NOT enabled.~
+END

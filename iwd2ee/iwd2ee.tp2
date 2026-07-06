@@ -610,3 +610,14 @@ SUBCOMPONENT @102
 // redirect), which strips it at BOTH 1x and 2x with the decorated + minimal art coexisting under distinct
 // resrefs -- no separate, destructive install-time component. DESIGNATED 100/102 are left unused (NOT
 // recycled) so existing WeiDU manifests don't shift; the @103/@56060 tra strings are now orphaned.
+
+// World HUD Refonte (PoE/BG2EE-style floating HUD): portraits as 54x84 busts bottom-right, action +
+// command bars on the user-art block bottom-centre (statue pause orb / party AI), resizable combat log
+// bottom-left. Pure flag flip: every asset already ships with the core (ieex_override) and is inert
+// until IEex_PortraitGridEnabled is true. NOT yet 2x-UI compatible (DESIGNATED 99/101 forbidden) --
+// the interlock is lifted when the refonte 2x arc lands.
+BEGIN @56073 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 103
+FORBID_COMPONENT ~iwd2ee.tp2~ ~99~ @56074
+FORBID_COMPONENT ~iwd2ee.tp2~ ~101~ @56074
+
+      INCLUDE ~%mod_folder%/components/world_hud_refonte.tpa~

@@ -3749,3 +3749,5 @@ Tipo: Uma Mão~
 @56070 = ~O Anseio da Sereia. Quando tocada, os inimigos do bardo devem fazer um teste de Vontade ou ficarão enfeitiçados, incapazes de agir até que dez rodadas se passem ou que sofram dano.~
 @56071 = ~O Canto de Guerra dos Sith. Quando tocada, os aliados do bardo recebem um bônus de +2 de armadura, resistência a dano de 2/- e regeneram 3 pontos de dano por rodada em combate.~
 @56072 = ~A Balada dos Três Heróis. Quando tocada, todos os aliados do bardo recebem +1 de bônus de ataque, +1 de dano e +1 em testes de resistência.~
+@56073 = ~World HUD Refonte (PoE-style floating HUD: portrait busts bottom-right, action/command bars bottom-centre, resizable combat log bottom-left)~
+@56074 = ~The World HUD Refonte is not yet compatible with the "2x UI" component -- install one or the other (2x support for the refonte is in progress).~

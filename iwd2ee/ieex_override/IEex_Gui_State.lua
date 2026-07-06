@@ -774,9 +774,12 @@ end
 
 IEex_WorldScreenSpellInfoPanelID = 50
 IEex_ActionIndicatorsPanelID = 100
--- PROTOTYPE (Phase A of the PoE/BG2EE world-HUD refonte): relocate the party portraits to a
--- bottom-right 6x1 row. Flip to false to disable (portraits stay in their stock position).
-IEex_PortraitGridEnabled = true
+-- World-HUD refonte (PoE/BG2EE-style floating HUD): portrait busts bottom-right, bars
+-- bottom-centre, resizable log bottom-left. WeiDU-MANAGED: the core ships false; the
+-- "World HUD Refonte" component (DESIGNATED 103) flips it true (REPLACE_TEXTUALLY, same
+-- pattern as IEEX_HD_UI). Runtime requirements enforced in IEex_InstallPortraitGrid:
+-- OpenGL renderer + GUIW10 (the installer flips this back off when unmet).
+IEex_PortraitGridEnabled = false
 IEex_AllWorldScreenPanelIDs = {0, 1, 7, 8, 9, 6, 17, 19, 21, 22}
 if not IEex_Vanilla then
 	table.insert(IEex_AllWorldScreenPanelIDs, 23) -- Quickloot
@@ -3455,6 +3458,33 @@ end)
 -- Panel 1 also composites REPLACE in the HUD layer, so the portraits stay opaque (no garbage-alpha
 -- blend that turned the new-panel version transparent).
 function IEex_InstallPortraitGrid(chuResref)
+
+	-- Refonte hard requirements -- unmet: leave the stock HUD and flip the flag so every
+	-- other refonte site (tick handler, dialog hide, ctrl 15/16 creation) sees it off.
+	--   * OpenGL renderer: the refonte draws through the DLL's GL HUD layer (content-rects
+	--     composite, blended buttons, MOS skip) -- none of it exists in software mode.
+	--     m_bIs3dAccelerated = chitin+0x91C, set by the IEex_Render_Patch ctor byte-patch
+	--     (retail hardcodes it FALSE and ignores the "3D Acceleration" ini key).
+	--   * GUIW10: the layout is authored for the 1024-wide world CHU (the engine's 2x tier
+	--     doubles that same CHU); GUIW08 (800x600) has neither the room nor the controls.
+	local chitin = IEex_ReadDword(0x8CF6D8)
+	if chuResref ~= "GUIW10" or chitin == 0x0 or IEex_ReadDword(chitin + 0x91C) == 0x0 then
+		IEex_PortraitGridEnabled = false
+		return
+	end
+
+	-- The bust row is designed around the BG-style red HP fill ("Old Portrait Health").
+	-- Seed the ini default ONCE if the player never set the key, and poke the loaded
+	-- option so it applies this session -- the engine caches [Game Options] at boot
+	-- (CInfGame options load; m_cOptions.m_nOldPortraitHealth = game+0x44C0). An
+	-- explicit player 0 in the ini is respected.
+	if IEex_GetPrivateProfileInt("Game Options", "Old Portrait Health", -1, ".\\Icewind2.ini") == -1 then
+		IEex_WritePrivateProfileInt("Game Options", "Old Portrait Health", 1, ".\\Icewind2.ini")
+		local game = IEex_GetGameData()
+		if game ~= 0x0 then
+			IEex_WriteDword(game + 0x44C0, 1)
+		end
+	end
 
 	local worldScreen = IEex_GetEngineWorld()
 	local mgr = IEex_GetUIManagerFromEngine(worldScreen)

@@ -3561,5 +3561,5 @@ Type:  One-handed~
 @56070 = ~The Siren's Yearning. When played, the bard's enemies must make a Will save or be enthralled, unable to take action until ten rounds pass or they take damage.~
 @56071 = ~The War Chant of Sith. When played, the bard's allies gain a +2 armor bonus, damage resistance of 2/-, and they regenerate 3 points of damage per round in combat.~
 @56072 = ~The Ballad of Three Heroes. When played, all the bard's allies gain a +1 bonus to attack rolls, +1 to damage, and +1 to saving throws.~
-@56073 = ~World HUD Refonte (PoE-style floating HUD: portrait busts bottom-right, action/command bars bottom-centre, resizable combat log bottom-left)~
+@56073 = ~Floating HUD (PoE-style): portrait busts bottom-right, action/command bars bottom-centre, resizable combat log bottom-left~
 @56074 = ~The World HUD Refonte is not yet compatible with the "2x UI" component -- install one or the other (2x support for the refonte is in progress).~

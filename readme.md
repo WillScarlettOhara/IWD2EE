@@ -71,6 +71,7 @@ If you are using any mods other than IWD2EE, you should also install the IWD2EE 
 42. Add more traps
 43. Add key bindings for automating buffing
 44. 2x UI (HD high-resolution interface)
+45. Floating HUD (PoE-style)
 
 ## IWD2EE Core
 
@@ -498,3 +499,9 @@ An optional 2x (high-resolution) version of the whole interface — menus, the i
 Whether the panel frames keep their decorative stone or show transparent margins is now a **runtime** choice rather than an install-time one, controlled by **Decorative UI & HUD Borders** in the IEex Options menu (below) — so the "2x UI" component itself is just a font choice (original vs non-pixelated).
 
 The in-game IEex Options menu has **Decorative UI & HUD Borders** (toggle; needs a restart). When on, the STON stone edge frame around the interface *and* the decorative stone frame around the in-game HUD (command bar, world map, container, death, travel) are drawn; when off, both are removed so the world/scene shows through instead — at both 1x and 2x. This works without the 2x UI component too.
+
+## Floating HUD (PoE-style)
+
+An optional PoE/BG2EE-style floating HUD. The six party portraits become tall busts in the bottom-right corner, the action and command bars sit on a decorative block in the bottom-centre (a statue holds the pause orb and the party-AI toggle), and the combat log becomes a resizable box in the bottom-left (click it to cycle the height). It uses the BG-style red portrait-health fill.
+
+Requires the OpenGL renderer and a resolution of 1024x768 or higher; otherwise the stock HUD is kept. Compatible with the **2x UI** component — with both installed the busts, bars and log use 2x artwork for a crisp high-resolution look.

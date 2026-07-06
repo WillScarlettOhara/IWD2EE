@@ -1463,11 +1463,18 @@
 			{[[ !jmp_dword ]], {rclickStub, 4, 4}},
 		}))
 
-		-- The MOVEMENT right-click path is PARALLEL to the UI walk: CScreenWorld's
-		-- OnRButtonDown/Up call CGameArea::OnFormationButtonDown/Up unconditionally
-		-- after the UI manager -- consuming the click above does not stop the move
-		-- order. Wrap both callsites; the DLL swallows the pair when the DOWN lands
-		-- on a refonte bar.
+	end
+
+	-- The MOVEMENT right-click path is PARALLEL to the UI walk: CScreenWorld's
+	-- OnRButtonDown/Up call CGameArea::OnFormationButtonDown/Up UNCONDITIONALLY after
+	-- the UI manager -- consuming the click in the panel walk does not stop the move
+	-- order. Wrap both callsites; the DLL swallows the pair when the DOWN lands on a
+	-- HUD bar. NOT gated on IEex_PortraitGridEnabled: the swallow must ALSO cover the
+	-- STOCK (core, non-refonte) action bar / portraits / log, else a right-click there
+	-- walks the party. Export_FormationRDown -> StockHudBarsHit uses the engine's own
+	-- panel rects on a core install; refonte installs use RefonteBarsHit. Only requires
+	-- IEex active (the exports exist when not vanilla).
+	if not IEex_Vanilla then
 		local formDownStub = IEex_WriteAssemblyAuto({[[
 			51
 			!call >IEex_Helper_FormationRDown

@@ -27,17 +27,28 @@
 //     off under the software renderer (m_bIs3dAccelerated, chitin+0x91C) -- the
 //     renderer is a launch-time choice, so nothing can be gated at install time.
 //
-// 2x UI (DESIGNATED 99/101): FORBIDDEN from the tp2 until the refonte 2x arc lands
-// (108x168 busts, 2x block/log art, 0x704D40 de-double conflict).
+// 2x UI (DESIGNATED 99/101): SUPPORTED. When a 2x UI is installed this component overlays
+// the 2x set (108x168 busts, 2x IEEXBARB/IEEXLOGB) after the 1x COPY below. The engine 2x
+// tier doubles the slot geometry (IEex_InstallPortraitGrid reads the manager double flag at
+// mgr+0xAA), the DLL de-doubles the 108x168 busts to native 2x (CResBitmap 0x77ECF0/0x77EF70)
+// and forces bDoubleSize under g_hdUI (Export_RenderPortraitRect) -- so the one layout renders
+// crisp at both tiers. Reverse install order handled in 2x_ui_resolution_gate.tpa.
 // =====================================================================================
 
 PRINT ~[World HUD Refonte] Turning the floating HUD on (portrait busts bottom-right, bars bottom-centre, log bottom-left).~
 PRINT ~[World HUD Refonte] Requires the OpenGL renderer and a resolution of 1024x768 or higher; the stock HUD is kept otherwise (runtime check).~
 
-// Refonte-only art (see header). If the 2x UI ever coexists (FORBID lifted after the
-// refonte 2x arc is validated), mind the order: bam_2x_ui/world_hud_refonte (2x) must
-// land AFTER this 1x set.
+// Refonte-only 1x art (see header).
 COPY ~%mod_folder%/bam/world_hud_refonte~ ~override~
+
+// 2x UI installed (forward order: a 2x UI variant already installed before this) -> overlay the 2x
+// set. MUST land AFTER the 1x COPY above (identical resrefs; the 2x busts/bar/log overwrite their 1x
+// counterparts). The reverse order (a 2x UI installed AFTER the refonte) is handled symmetrically in
+// components/2x_ui_resolution_gate.tpa (mirrors its New-GUI 2x overlay).
+ACTION_IF (MOD_IS_INSTALLED ~iwd2ee.tp2~ ~99~) OR (MOD_IS_INSTALLED ~iwd2ee.tp2~ ~101~) BEGIN
+  PRINT ~[Floating HUD] 2x UI detected -- overlaying the 2x bust/bar/log set (108x168 busts, 2x block/log art).~
+  COPY ~%mod_folder%/bam/bam_2x_ui/world_hud_refonte~ ~override~
+END
 
 ACTION_IF FILE_EXISTS ~override/IEex_Gui_State.lua~ BEGIN
   COPY_EXISTING ~override/IEex_Gui_State.lua~ ~override~

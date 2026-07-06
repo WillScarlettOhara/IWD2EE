@@ -100,3 +100,16 @@ ACTION_IF MOD_IS_INSTALLED ~iwd2ee.tp2~ ~37~ BEGIN
     WARN ~[2x UI] DESIGNATED 37 is installed but mos/mos_2x_newgui is missing -- its panels stay 1x.~
   END
 END
+
+// --- if the "Floating HUD" refonte (DESIGNATED 103) is also installed: overlay its 2x bust/bar/log
+//     set. Covers the REVERSE install order -- this 2x UI landed AFTER the refonte, which then copied
+//     only its 1x set. Re-copy 1x first (idempotent) so the 2x overlay lands after it, same resrefs.
+ACTION_IF MOD_IS_INSTALLED ~iwd2ee.tp2~ ~103~ BEGIN
+  ACTION_IF FILE_EXISTS ~%mod_folder%/bam/bam_2x_ui/world_hud_refonte/IEEXBARB.BMP~ BEGIN
+    PRINT ~[2x UI] Floating HUD (DESIGNATED 103) detected -- overlaying its 2x bust/bar/log set (108x168 busts, 2x block/log art).~
+    COPY ~%mod_folder%/bam/world_hud_refonte~ ~override~
+    COPY ~%mod_folder%/bam/bam_2x_ui/world_hud_refonte~ ~override~
+  END ELSE BEGIN
+    WARN ~[2x UI] DESIGNATED 103 is installed but bam/bam_2x_ui/world_hud_refonte is missing -- its busts/bars stay 1x.~
+  END
+END

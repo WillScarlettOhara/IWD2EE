@@ -1740,10 +1740,9 @@ function IEex_Extern_BeforeWorldRender()
 			local c17x, _, c17w = IEex_GetControlArea(abLast)
 			local rowLeft = p1x + c6x
 			local rowW = (p1x + c17x + c17w) - rowLeft
-			-- Sit the bar FLUSH on the block: its bottom == the block top (the action row is
-			-- 12px below the block top; scale that cap by the live button width = 38*s). The
-			-- 505 art centred on the 489 row lands its left edge on the block left (-8).
-			local blockCap = math.floor(c6w * 12 / 38)
+			-- Stick the bar FLUSH to the action bar: its bottom == the action-bar top, no gap
+			-- (user wants it touching; was offset up by the old block's 12px top rim).
+			local blockCap = 0
 			IEex_SetPanelXY(quicklootPanel, rowLeft + math.floor((rowW - qlWidth) / 2), p1y + c6y - panelHeight - blockCap)
 		else
 			IEex_SetPanelXY(quicklootPanel, nil, quicklootAnchor - panelHeight)
@@ -3488,7 +3487,7 @@ function IEex_InstallPortraitGrid(chuResref)
 	local btnW, btnH, btnGap = 38 * s, 38 * s, 3 * s
 	local blockW, blockH = 572 * s, 107 * s
 	local blockLeft = math.floor((resW - blockW) / 2)
-	local blockTop = resH - 4 * s - blockH
+	local blockTop = resH - blockH   -- flush to screen bottom (no world strip below)
 	local abW = 12 * btnW + 11 * btnGap
 	local abLeft = blockLeft + 8 * s
 	local abTop = blockTop + 8 * s
@@ -3556,8 +3555,8 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- head. Coords are art-relative (to the block top-left); rebased to the panel origin.
 	-- Both fall inside the id -3 block rect, so they composite as blended buttons.
 	local statueBtns = {
-		[10] = { ["ax"] = 510 * s, ["ay"] = 48 * s, ["w"] = 52 * s, ["h"] = 51 * s },  -- pause / orb
-		[14] = { ["ax"] = 515 * s, ["ay"] =  4 * s, ["w"] = 42 * s, ["h"] = 40 * s },  -- party AI / head
+		[10] = { ["ax"] = 498 * s, ["ay"] = 36 * s, ["w"] = 52 * s, ["h"] = 51 * s },  -- pause / orb  (up+left)
+		[14] = { ["ax"] = 535 * s, ["ay"] = -8 * s, ["w"] = 42 * s, ["h"] = 40 * s },  -- party AI / head (right+up)
 	}
 	for id, g in pairs(statueBtns) do
 		local ctrl = IEex_GetControlFromPanel(panel0, id)
@@ -4575,16 +4574,17 @@ function IEex_OnCHUInitialized(chuResref)
 			if chuResref == "GUIW10" then
 				quicklootButtonX = 817
 			end
-			-- Refonte: the quickloot toggle takes slot 10 of the command band (art 29x34,
-			-- centered in the 47x40 slot). Slots are DEVICE px; this control is added
-			-- through the ctor path which re-doubles 1x-authored coords at the 2x tier --
-			-- pre-divide like IEex_InstallQuickloot does.
+			-- Refonte: the quickloot toggle takes slot 10 of the command band. Its art is now
+			-- a bare 47x40 cell icon (like the other command buttons) that fills the slot --
+			-- no centering. Slots are DEVICE px; this control is added through the ctor path
+			-- which re-doubles 1x-authored coords at the 2x tier -- pre-divide like
+			-- IEex_InstallQuickloot does.
 			if IEex_PortraitGridEnabled and IEex_Refonte_CmdSlots then
 				local sl = IEex_Refonte_CmdSlots[10]
 				local mgrQL = IEex_GetUIManagerFromEngine(worldScreen)
 				local divQL = (mgrQL ~= 0 and IEex_ReadDword(mgrQL + 0xAA) ~= 0) and 2 or 1
-				quicklootButtonX = math.floor((sl.x + (sl.w - 29 * divQL) / 2) / divQL)
-				quicklootButtonY = math.floor((sl.y + (sl.h - 34 * divQL) / 2) / divQL)
+				quicklootButtonX = math.floor(sl.x / divQL)
+				quicklootButtonY = math.floor(sl.y / divQL)
 			end
 			local commandsPanelMultiplayer = IEex_GetPanelFromEngine(worldScreen, 22)
 			IEex_AddControlOverride(chuResref, 0, 15, "IEex_UI_Button")
@@ -4593,8 +4593,8 @@ function IEex_OnCHUInitialized(chuResref)
 				["id"] = 15,
 				["x"] = quicklootButtonX,
 				["y"] = quicklootButtonY,
-				["width"] = 29,
-				["height"] = 34,
+				["width"] = 47,
+				["height"] = 40,
 				["bam"] = "USGBTNQL",
 				["sequence"] = 0,
 				["frameUnpressed"] = 0,
@@ -4610,8 +4610,8 @@ function IEex_OnCHUInitialized(chuResref)
 				["id"] = 15,
 				["x"] = quicklootButtonX,
 				["y"] = 73,
-				["width"] = 29,
-				["height"] = 34,
+				["width"] = 47,
+				["height"] = 40,
 				["bam"] = "USGBTNQL",
 				["sequence"] = 0,
 				["frameUnpressed"] = 0,

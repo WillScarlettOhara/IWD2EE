@@ -535,6 +535,13 @@ function IEex_SetControlButtonFrameUpForce(CUIControlButton, frame)
 	IEex_SetControlButtonFrame(CUIControlButton, frame)
 end
 
+-- m_cVidCell.m_nCurrentSequence (0x52 + 0xC6). The button's BAM cycle: frame indices
+-- (normal/pressed/disabled) are resolved WITHIN this cycle via the BAM lookup table
+-- (CVidCell::GetFrame), and out-of-range indices clamp to the cycle's last frame.
+function IEex_SetControlButtonSequence(CUIControlButton, sequence)
+	IEex_WriteWord(CUIControlButton + 0x118, sequence)
+end
+
 function IEex_SetControlButtonPendingRenderCount(CUIControlButton, newCount)
 	return IEex_WriteWord(CUIControlButton + 0x132, newCount)
 end
@@ -3553,17 +3560,24 @@ function IEex_InstallPortraitGrid(chuResref)
 		end
 	end
 
-	-- Retarget the command buttons to the APPENDED refonte frames (22-39). GCOMMBTN is
-	-- shared with the sub-screen nav cluster (inventory/record/...); its stock cycles 0-10
-	-- stay intact so those screens keep their look -- only these world buttons point at the
-	-- new art (see cmdbtn_pack_refonte.py). ctrl 14 (party AI) keeps its stock face.
-	local cmdFrames = {[4]={22,23},[5]={24,25},[6]={26,27},[7]={28,29},[8]={30,31},
-	                   [9]={32,33},[11]={34,35},[12]={36,37},[13]={38,39}}
-	for id, fr in pairs(cmdFrames) do
+	-- Retarget the command buttons to the APPENDED refonte cycles (11-19 -> frame pairs
+	-- 22/23..38/39). GCOMMBTN is shared with the sub-screen nav cluster (inventory/
+	-- record/...); its stock cycles 0-10 stay intact so those screens keep their look --
+	-- only these world buttons switch their vidcell SEQUENCE (see cmdbtn_pack_refonte.py).
+	-- Sequence, not frames: button frame indices resolve WITHIN the current cycle and
+	-- clamp to its frame count (CVidCell::GetFrame) -- forcing global frame numbers
+	-- (22-39) into the 2-frame stock cycles just clamped back to the stock art.
+	-- ctrl 14 (party AI) keeps its stock face.
+	local cmdSeqs = {[4]=11,[5]=12,[6]=13,[7]=14,[8]=15,[9]=16,[11]=17,[12]=18,[13]=19}
+	for id, seq in pairs(cmdSeqs) do
 		local ctrl = IEex_GetControlFromPanel(panel0, id)
 		if ctrl ~= 0x0 then
-			IEex_SetControlButtonFrameUpForce(ctrl, fr[1])
-			IEex_SetControlButtonFrameDown(ctrl, fr[2])
+			IEex_SetControlButtonSequence(ctrl, seq)
+			IEex_SetControlButtonFrameUpForce(ctrl, 0)
+			IEex_SetControlButtonFrameDown(ctrl, 1)
+			-- m_nDisabledFrame: the stock CHU value can exceed the new 2-frame cycle;
+			-- clamp-by-hand to the normal frame so SetEnabled(FALSE) shows the up art.
+			IEex_WriteWord(ctrl + 0x130, 0)
 		end
 	end
 

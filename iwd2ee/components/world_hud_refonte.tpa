@@ -6,11 +6,15 @@
 // bottom-centre (IEEXBARB: statue holds the pause orb + party AI), combat log
 // bottom-left with click-cyclable height (IEEXLOGB, ini-persisted).
 //
-// EVERYTHING here is a runtime flag flip:
-//   * All refonte assets (IEEXBARB/IEEXLOGB/IEEXNULB.BAM, GCOMMBTN/USGBTNQL.BAM,
-//     B3QKLOOT/B3QKLOOM.MOS, the *_B.BMP busts) ship with the CORE's ieex_override
-//     copy and are INERT while IEex_PortraitGridEnabled is false. NPC Core's portrait
-//     busts ship with that component's own portrait files (bam_new_npcs).
+// What this component does:
+//   * COPIES the refonte-only 1x assets from bam/world_hud_refonte (the 83 54x84
+//     *_B.BMP busts, IEEXBARB/IEEXLOGB.BMP, IEEXNULB.BAM, GCOMMBTN.BAM with the
+//     appended icon cycles, the bare-icon USGBTNQL.BAM), mirroring the 2x layout
+//     (bam/bam_2x_ui/world_hud_refonte). Without this component the stock quickloot
+//     toggle art comes from initial/USGBTNQL.BAM as always and GCOMMBTN stays the
+//     biffed stock. B3QKLOOT/B3QKLOOM.MOS remain core (the quickloot bar + the
+//     "UI Borders" toggle exist without the refonte). NPC Core's portrait busts ship
+//     with that component's own portrait files (bam_new_npcs).
 //   * "Old Portrait Health" (BG-style red HP fill, the look the busts are designed
 //     around) is seeded at RUNTIME by IEex_InstallPortraitGrid: if the ini key is
 //     absent it writes 1 and pokes the loaded option (the engine caches [Game
@@ -29,6 +33,11 @@
 
 PRINT ~[World HUD Refonte] Turning the floating HUD on (portrait busts bottom-right, bars bottom-centre, log bottom-left).~
 PRINT ~[World HUD Refonte] Requires the OpenGL renderer and a resolution of 1024x768 or higher; the stock HUD is kept otherwise (runtime check).~
+
+// Refonte-only art (see header). If the 2x UI ever coexists (FORBID lifted after the
+// refonte 2x arc is validated), mind the order: bam_2x_ui/world_hud_refonte (2x) must
+// land AFTER this 1x set.
+COPY ~%mod_folder%/bam/world_hud_refonte~ ~override~
 
 ACTION_IF FILE_EXISTS ~override/IEex_Gui_State.lua~ BEGIN
   COPY_EXISTING ~override/IEex_Gui_State.lua~ ~override~

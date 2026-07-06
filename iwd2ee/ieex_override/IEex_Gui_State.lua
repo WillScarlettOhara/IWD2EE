@@ -3538,11 +3538,11 @@ function IEex_InstallPortraitGrid(chuResref)
 
 	-- Command band: the dark recessed strip (art x4..~500, ~497 wide) holds the 9 stock
 	-- screen buttons + the quickloot toggle (slot 10) in a 10-slot grid. Box 47x40 (matches
-	-- the GCOMMBTN cell), pitch 49.7, left inset 7 (band x4 + 3px in-band nudge; the row
+	-- the GCOMMBTN cell), pitch 49.7, left inset 10 (band x4 + 6px in-band nudge; the row
 	-- also sits 1px below the band top -- cmdTop 61 -- both user-tuned in-game). Pause (10)
 	-- and party AI (14) are NOT in the row -- they sit on the statue (below).
 	local cmdOrder = {4, 5, 6, 7, 8, 9, 11, 12, 13}   -- 9 stock; quickloot(15) = slot 10
-	local cmdBoxW, cmdBoxH, cmdPitch, cmdInset = 47 * s, 40 * s, 49.7 * s, 7 * s
+	local cmdBoxW, cmdBoxH, cmdPitch, cmdInset = 47 * s, 40 * s, 49.7 * s, 10 * s
 	IEex_Refonte_CmdSlots = {}   -- panel-relative to the NEW origin
 	for slot = 1, 10 do
 		IEex_Refonte_CmdSlots[slot] = {

@@ -52,7 +52,11 @@ END
 
 ACTION_IF FILE_EXISTS ~override/IEex_Gui_State.lua~ BEGIN
   COPY_EXISTING ~override/IEex_Gui_State.lua~ ~override~
-    REPLACE_TEXTUALLY ~IEex_PortraitGridEnabled = false~ ~IEex_PortraitGridEnabled = true~
+    // Flip ONLY the column-0 declaration (^ = line start). The same text appears
+    // tab-indented in IEex_InstallPortraitGrid's runtime guard (disable-when-unmet);
+    // an unanchored replace flipped that too, so the guard would ENABLE instead of
+    // disable under the software renderer / a non-GUIW10 CHU.
+    REPLACE_TEXTUALLY ~^IEex_PortraitGridEnabled = false~ ~IEex_PortraitGridEnabled = true~
   BUT_ONLY_IF_IT_CHANGES
 END ELSE BEGIN
   WARN ~[World HUD Refonte] override/IEex_Gui_State.lua not found (install the IWD2EE core first) -- refonte NOT enabled.~

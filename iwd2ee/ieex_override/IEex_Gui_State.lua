@@ -3550,6 +3550,20 @@ function IEex_InstallPortraitGrid(chuResref)
 		end
 	end
 
+	-- Retarget the command buttons to the APPENDED refonte frames (22-39). GCOMMBTN is
+	-- shared with the sub-screen nav cluster (inventory/record/...); its stock cycles 0-10
+	-- stay intact so those screens keep their look -- only these world buttons point at the
+	-- new art (see cmdbtn_pack_refonte.py). ctrl 14 (party AI) keeps its stock face.
+	local cmdFrames = {[4]={22,23},[5]={24,25},[6]={26,27},[7]={28,29},[8]={30,31},
+	                   [9]={32,33},[11]={34,35},[12]={36,37},[13]={38,39}}
+	for id, fr in pairs(cmdFrames) do
+		local ctrl = IEex_GetControlFromPanel(panel0, id)
+		if ctrl ~= 0x0 then
+			IEex_SetControlButtonFrameUpForce(ctrl, fr[1])
+			IEex_SetControlButtonFrameDown(ctrl, fr[2])
+		end
+	end
+
 	-- Statue buttons (block right, art x~500..572): Pause = ctrl 10 (CGEAR, the 52x51 orb
 	-- the statue holds) pinned over the baked orb; Party AI = ctrl 14 over the statue's
 	-- head. Coords are art-relative (to the block top-left); rebased to the panel origin.

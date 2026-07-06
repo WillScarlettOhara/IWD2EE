@@ -1614,6 +1614,34 @@ end
 -- Thread: Sync --
 ------------------
 
+-- HUD layer perf: cheap content hash of the party portraits' DYNAMIC RenderPortrait inputs
+-- (CGameSprite::RenderPortrait draws: HP bar height, dead/low-HP tint, blood-flash + talking
+-- pulse animations, health colour). Computed ONLY on AI-tick frames (see BeforeWorldRender),
+-- so the 6x GetActorShare resolves run at tick rate (~30 Hz), never per render frame. When the
+-- hash is unchanged the portraits are pixel-identical, so the ~5ms full panel-1 repaint (measured
+-- 93% portraits) is pure waste and gets skipped. Selection/hover rings are engine-invalidated
+-- natively and are NOT hashed. Offsets are CGameSprite-relative (RE'd struct, pristine .text).
+function IEex_HudLayer_PortraitContentHash()
+	local h = 0
+	for c = 0, 5 do
+		local actorID = IEex_GetActorIDCharacter(c)
+		if actorID and actorID >= 0 and IEex_IsSprite(actorID, true) then
+			local spr = IEex_GetActorShare(actorID)
+			if spr and spr ~= 0 then
+				local hp    = IEex_ReadSignedWord(spr + 0x5C0, 0x0)   -- m_baseStats.m_hitPoints
+				local maxHP = IEex_ReadSignedWord(spr + 0x924, 0x0)   -- m_derivedStats.m_nMaxHitPoints
+				local flAmt = IEex_ReadSignedWord(spr + 0x53DA, 0x0)  -- m_nBloodFlashAmount (animates)
+				local flOn  = IEex_ReadDword(spr + 0x53E2)            -- m_bBloodFlashOn
+				local hcol  = IEex_ReadDword(spr + 0x53E6)            -- health-colour tint state
+				local talk  = IEex_ReadDword(spr + 0x712A)            -- m_talkingCounter (animates)
+				h = (h * 131 + c * 1000003 + hp + 100000) % 2147483647
+				h = (h * 131 + maxHP + flAmt * 7 + flOn * 13 + hcol * 17 + talk * 19) % 2147483647
+			end
+		end
+	end
+	return h
+end
+
 function IEex_Extern_BeforeWorldRender()
 
 	IEex_AssertThread(IEex_Thread.Sync, true)
@@ -1812,8 +1840,19 @@ function IEex_Extern_BeforeWorldRender()
 		local game = IEex_GetGameData()
 		if game ~= 0x0 and IEex_ReadByte(game + 0x1B7C) ~= 0 then -- m_worldTime.m_active
 			local gameTime = IEex_ReadDword(game + 0x1B78)        -- m_worldTime.m_gameTime
-			invalidatePortraits = gameTime ~= IEex_HudLayer_LastGameTime
-			IEex_HudLayer_LastGameTime = gameTime
+			if gameTime ~= IEex_HudLayer_LastGameTime then
+				IEex_HudLayer_LastGameTime = gameTime
+				-- AI tick advanced: repaint portraits ONLY if their content actually changed
+				-- this tick (HP / blood-flash / talking / health-colour). Idle/walking leaves
+				-- them identical -> skip the ~5ms full panel-1 repaint (93% portraits, measured).
+				-- Flash/talk animate the hashed fields each tick so they still play; a missed
+				-- state self-heals on the next HP change.
+				local hash = IEex_HudLayer_PortraitContentHash()
+				invalidatePortraits = hash ~= IEex_HudLayer_LastPortraitHash
+				IEex_HudLayer_LastPortraitHash = hash
+			else
+				invalidatePortraits = false
+			end
 		end
 		if invalidatePortraits then
 			local panel = IEex_GetPanelFromEngine(worldScreen, 1)

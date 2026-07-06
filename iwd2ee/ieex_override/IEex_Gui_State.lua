@@ -1755,7 +1755,11 @@ function IEex_Extern_BeforeWorldRender()
 			-- the frame ("bar too low"). No refonte globals in this lua state -- derive
 			-- the art scale from the button width (38 * s).
 			local blockCap = math.floor(c6w * 8 / 38 + 0.5)
-			IEex_SetPanelXY(quicklootPanel, rowLeft + math.floor((rowW - qlWidth) / 2), p1y + c6y - panelHeight - blockCap)
+			-- Small gap so the bar art CLEARS the block frame instead of touching it (user: it
+			-- read as overlapping the action bar; a full blockCap gap was too high). ~3 art px,
+			-- scaled from the button width like blockCap (no refonte globals in this lua state). Tunable.
+			local qGap = math.floor(c6w * 3 / 38 + 0.5)
+			IEex_SetPanelXY(quicklootPanel, rowLeft + math.floor((rowW - qlWidth) / 2), p1y + c6y - panelHeight - blockCap - qGap)
 		else
 			IEex_SetPanelXY(quicklootPanel, nil, quicklootAnchor - panelHeight)
 		end
@@ -3799,9 +3803,12 @@ function IEex_Refonte_RepositionQuickloot()
 	local s = IEex_Refonte_Scale or 1
 	local _, _, qw, qh = IEex_GetPanelArea(panel23)
 	local qx = blk.left + math.floor((blk.w - qw) / 2)
-	-- Flush to the BLOCK ART top (frames touching), not to the action-bar buttons
-	-- (those sit 8px inside the block frame -- anchoring there overlapped the art).
-	local qy = blk.top - qh
+	-- Sit just ABOVE the block art with a small gap: flush (qy = blk.top - qh) made the
+	-- quickloot bar art bottom edge touch the block frame top edge, which read as overlapping
+	-- the action bar. qGap lifts it clear (scaled; tunable). NB the LIVE placement is the
+	-- per-tick handler (~line 1758); this CHU-setup value only sets the pre-show position.
+	local qGap = 3 * s
+	local qy = blk.top - qh - qGap
 	IEex_SetPanelArea(panel23, qx, qy, qw, qh, true)
 end
 

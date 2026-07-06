@@ -3493,6 +3493,21 @@ function IEex_InstallPortraitGrid(chuResref)
 	local s = (mgr ~= 0 and IEex_ReadDword(mgr + 0xAA) ~= 0) and 2 or 1
 	local resW, resH = IEex_GetResolution()
 
+	-- Virtual layout WIDTH (horizontal anchoring only). At 2x, lay the HUD out on a reference-width
+	-- canvas (default 4K) -- the width where the full spread fits (log bottom-left FULL, bars centre,
+	-- portraits bottom-right) -- and the DLL (Export_UIScale*, bottom-LEFT pivot) scales it to the
+	-- real screen. So a narrower 2x screen shows the 4K layout SIZED DOWN: big correct-shape log,
+	-- no compaction. At/above the reference, or without the 2x UI (s==1), layoutW == resW (native).
+	-- Must match the DLL's "Floating HUD Ref Width" (same key + default). Vertical stays resH-based
+	-- (the DLL scale pivots on the bottom edge, so bottom-anchoring is preserved automatically).
+	local layoutW = resW
+	if s == 2 then
+		local refW = IEex_GetPrivateProfileInt("IEex Options", "Floating HUD Ref Width", 3840, ".\\Icewind2.ini")
+		if refW < 2560 then refW = 2560 end
+		if refW > 7680 then refW = 7680 end
+		layoutW = math.max(resW, refW)
+	end
+
 	local panel1 = IEex_GetPanelFromEngine(worldScreen, 1)
 	local x1, y1, w1, h1 = IEex_GetPanelArea(panel1)
 
@@ -3502,8 +3517,8 @@ function IEex_InstallPortraitGrid(chuResref)
 	local slotW, slotH, gap, inset = 58 * s, 88 * s, 4 * s, 12 * s
 	local rowW = 6 * slotW + 5 * gap
 
-	-- 6x1 row anchored to the screen bottom-right; control coords are panel-1-relative device px.
-	local rowLeft = resW - rowW - inset
+	-- 6x1 row anchored to the (virtual) bottom-right; control coords are panel-1-relative device px.
+	local rowLeft = layoutW - rowW - inset
 	local rowTop  = resH - slotH - inset
 	for i = 0, 5 do
 		local ctrl = IEex_GetControlFromPanel(panel1, i)
@@ -3525,18 +3540,16 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- leave the row and sit on the statue instead.
 	local btnW, btnH, btnGap = 38 * s, 38 * s, 3 * s
 	local blockW, blockH = 572 * s, 107 * s
-	-- Bottom row = log (left), bar block (centre), portrait row (right) -- all rigid 2x
-	-- art. At 4K they fit with the block screen-centred; at intermediate 2x widths
-	-- (2048..~3800) the centred block collides with the fixed-width log and/or the
-	-- portraits. Keep it centred where that fits (preserves the validated 4K look),
-	-- else shift it left just clear of the portrait row, then size the log to fill the
-	-- space left of the block (IEEXLOGB squashes cleanly -- thin frame, flat centre).
-	-- rowLeft = portrait row left edge (computed above); minLogW floors the log.
-	local logX, logGap, minLogW = 8 * s, 8 * s, 200 * s
-	local blockLeft = math.floor((resW - blockW) / 2)
+	-- Bottom row on the VIRTUAL canvas (layoutW): log bottom-left, bar block centred, portrait row
+	-- bottom-right. On the reference-width canvas everything fits at full 2x -> FULL-width log, no
+	-- compaction; the DLL then scales the whole HUD to the real screen (bottom-left pivot). The
+	-- clamps are safety only (keep the block clear of the portraits / leave the log a minimum) --
+	-- at the default 4K ref width they never bite. rowLeft = portrait row left edge (above).
+	local logX, logGap = 8 * s, 8 * s
+	local blockLeft = math.floor((layoutW - blockW) / 2)
 	blockLeft = math.min(blockLeft, rowLeft - blockW - gap)
-	blockLeft = math.max(blockLeft, logX + minLogW + logGap)
-	local logW = math.max(minLogW, math.min(551 * s, blockLeft - logX - logGap))
+	blockLeft = math.max(blockLeft, logX + 200 * s + logGap)
+	local logW = math.max(200 * s, math.min(551 * s, blockLeft - logX - logGap))
 	local blockTop = resH - blockH   -- flush to screen bottom (no world strip below)
 	local abW = 12 * btnW + 11 * btnGap
 	local abLeft = blockLeft + 8 * s
@@ -3574,7 +3587,7 @@ function IEex_InstallPortraitGrid(chuResref)
 	local panel0 = IEex_GetPanelFromEngine(worldScreen, 0)
 	local o0x = math.min(logX, abLeft - 2 * s)
 	local o0y = math.min(resH - 8 * s - logMaxH, cmdTop - 2 * s)
-	IEex_SetPanelArea(panel0, o0x, o0y, resW - o0x, resH - o0y)
+	IEex_SetPanelArea(panel0, o0x, o0y, layoutW - o0x, resH - o0y)
 	IEex_Refonte_P0Origin = { ["x"] = o0x, ["y"] = o0y }
 	IEex_Refonte_LogGeom = { ["x"] = logX, ["w"] = logW }
 
@@ -3662,7 +3675,7 @@ function IEex_InstallPortraitGrid(chuResref)
 
 	-- Widen panel 1's rect so IsOver (portrait hover / targeting) still covers the relocated row.
 	-- Origin unchanged -> viewport floor (panel-1 top) unchanged; only extend down/right.
-	IEex_SetPanelArea(panel1, x1, y1, math.max(w1, resW - inset - x1), math.max(h1, resH - inset - y1))
+	IEex_SetPanelArea(panel1, x1, y1, math.max(w1, layoutW - inset - x1), math.max(h1, resH - inset - y1))
 
 	-- Register panel 1's REAL content sub-rects for the HUD-layer composite so the widened rect's
 	-- transparent gap shows the world instead of opaque black (the composite REPLACEs a MOS panel's

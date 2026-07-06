@@ -3478,23 +3478,20 @@ function IEex_InstallPortraitGrid(chuResref)
 		if strip ~= 0x0 then IEex_SetControlActive(strip, false) end
 	end
 
-	-- Phase B: two stacked centered rows of EQUAL width (489 at 1x) at the screen
-	-- bottom -- action bar on top, flattened command bar below, both 12 x 38 + 11 x 3.
-	-- Command row = panel 0's eleven stock buttons + the IEex quickloot toggle (id 15,
-	-- created later in OnCHUInitialized -- it reads IEex_Refonte_CmdSlots[12] then).
-	-- Stock button art is interim: shapes were authored for the stone cluster and
-	-- will be redone for the flat bar.
-	-- Geometry derives from the user-authored bar block art (IEEXBARB.BMP, 505x110):
-	-- two 12-slot button fields between three mosaic separator strips. Button rows sit
-	-- at +12 (action) / +60 (command) inside the block; the 12-button grid (38px,
-	-- pitch 41) is centered: left inset 8.
+	-- Bottom-centre bar block = user art IEEXBARB.BMP (572x107): a plain top band (the
+	-- action bar), a dark recessed command band below it, and a STATUE at the right that
+	-- holds the pause orb. Action bar = 12 stock buttons (38px, pitch 41) on the top band;
+	-- command band = 9 stock screen buttons + quickloot(id 15, created later in
+	-- OnCHUInitialized -- reads IEex_Refonte_CmdSlots[10] then) in a 10-slot grid (47x40,
+	-- pitch 49.7) on the dark band; pause (ctrl 10 = CGEAR orb) + party AI (ctrl 14)
+	-- leave the row and sit on the statue instead.
 	local btnW, btnH, btnGap = 38 * s, 38 * s, 3 * s
-	local blockW, blockH = 505 * s, 110 * s
+	local blockW, blockH = 572 * s, 107 * s
 	local blockLeft = math.floor((resW - blockW) / 2)
 	local blockTop = resH - 4 * s - blockH
 	local abW = 12 * btnW + 11 * btnGap
 	local abLeft = blockLeft + 8 * s
-	local abTop = blockTop + 12 * s
+	local abTop = blockTop + 8 * s
 	local cmdTop = blockTop + 60 * s
 	-- Exposed for IEex_Refonte_RepositionQuickloot (panel 23 re-anchors above this block).
 	IEex_Refonte_BarBlock = { ["left"] = blockLeft, ["top"] = blockTop, ["w"] = blockW, ["h"] = blockH }
@@ -3531,15 +3528,19 @@ function IEex_InstallPortraitGrid(chuResref)
 	IEex_Refonte_P0Origin = { ["x"] = o0x, ["y"] = o0y }
 	IEex_Refonte_LogGeom = { ["x"] = logX, ["w"] = logW }
 
-	-- Command bar: order 4,5,6,7,8,10 | 9,11,12,13,14 + quickloot(15) in slot 12.
-	local cmdOrder = {4, 5, 6, 7, 8, 10, 9, 11, 12, 13, 14}
+	-- Command band: the dark recessed strip (art x4..~500, ~497 wide) holds the 9 stock
+	-- screen buttons + the quickloot toggle (slot 10) in a 10-slot grid. Box 47x40 (matches
+	-- the GCOMMBTN cell), pitch 49.7, left inset 4. Pause (10) and party AI (14) are NOT in
+	-- the row -- they sit on the statue (below).
+	local cmdOrder = {4, 5, 6, 7, 8, 9, 11, 12, 13}   -- 9 stock; quickloot(15) = slot 10
+	local cmdBoxW, cmdBoxH, cmdPitch, cmdInset = 47 * s, 40 * s, 49.7 * s, 4 * s
 	IEex_Refonte_CmdSlots = {}   -- panel-relative to the NEW origin
-	for slot = 1, 12 do
+	for slot = 1, 10 do
 		IEex_Refonte_CmdSlots[slot] = {
-			["x"] = (abLeft - o0x) + (slot - 1) * (btnW + btnGap),
+			["x"] = (blockLeft - o0x) + cmdInset + math.floor((slot - 1) * cmdPitch),
 			["y"] = cmdTop - o0y,
-			["w"] = btnW,
-			["h"] = btnH,
+			["w"] = cmdBoxW,
+			["h"] = cmdBoxH,
 		}
 	end
 	for slot, id in ipairs(cmdOrder) do
@@ -3547,6 +3548,21 @@ function IEex_InstallPortraitGrid(chuResref)
 		if ctrl ~= 0x0 then
 			local sl = IEex_Refonte_CmdSlots[slot]
 			IEex_SetControlArea(ctrl, sl.x, sl.y, sl.w, sl.h)
+		end
+	end
+
+	-- Statue buttons (block right, art x~500..572): Pause = ctrl 10 (CGEAR, the 52x51 orb
+	-- the statue holds) pinned over the baked orb; Party AI = ctrl 14 over the statue's
+	-- head. Coords are art-relative (to the block top-left); rebased to the panel origin.
+	-- Both fall inside the id -3 block rect, so they composite as blended buttons.
+	local statueBtns = {
+		[10] = { ["ax"] = 510 * s, ["ay"] = 48 * s, ["w"] = 52 * s, ["h"] = 51 * s },  -- pause / orb
+		[14] = { ["ax"] = 515 * s, ["ay"] =  4 * s, ["w"] = 42 * s, ["h"] = 40 * s },  -- party AI / head
+	}
+	for id, g in pairs(statueBtns) do
+		local ctrl = IEex_GetControlFromPanel(panel0, id)
+		if ctrl ~= 0x0 then
+			IEex_SetControlArea(ctrl, (blockLeft - o0x) + g.ax, (blockTop - o0y) + g.ay, g.w, g.h)
 		end
 	end
 
@@ -4559,12 +4575,12 @@ function IEex_OnCHUInitialized(chuResref)
 			if chuResref == "GUIW10" then
 				quicklootButtonX = 817
 			end
-			-- Refonte: the quickloot toggle takes slot 12 of the flattened command row
-			-- (art 29x34, centered in the 38x38 slot). Slots are DEVICE px; this control
-			-- is added through the ctor path which re-doubles 1x-authored coords at the
-			-- 2x tier -- pre-divide like IEex_InstallQuickloot does.
+			-- Refonte: the quickloot toggle takes slot 10 of the command band (art 29x34,
+			-- centered in the 47x40 slot). Slots are DEVICE px; this control is added
+			-- through the ctor path which re-doubles 1x-authored coords at the 2x tier --
+			-- pre-divide like IEex_InstallQuickloot does.
 			if IEex_PortraitGridEnabled and IEex_Refonte_CmdSlots then
-				local sl = IEex_Refonte_CmdSlots[12]
+				local sl = IEex_Refonte_CmdSlots[10]
 				local mgrQL = IEex_GetUIManagerFromEngine(worldScreen)
 				local divQL = (mgrQL ~= 0 and IEex_ReadDword(mgrQL + 0xAA) ~= 0) and 2 or 1
 				quicklootButtonX = math.floor((sl.x + (sl.w - 29 * divQL) / 2) / divQL)

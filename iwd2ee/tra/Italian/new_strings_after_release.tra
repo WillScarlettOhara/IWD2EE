@@ -3548,13 +3548,11 @@ Type:  One-handed~
 @55821=~You cannot change armor during combat.~
 @55931=~Prevent Equipping Armor During Combat~
 @55932=~Prevents party members from putting on armor during combat.~
-// 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/100)
+// 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/101)
 @101 = ~2x UI (interfaccia ad alta risoluzione) - font originali~
 @102 = ~2x UI (interfaccia ad alta risoluzione)~
-@103 = ~2x UI (interfaccia ad alta risoluzione) - Pannelli minimali (margini trasparenti) - font originali~
 
 @56059 = ~2x UI (interfaccia ad alta risoluzione) - font non pixelati~
-@56060 = ~2x UI (interfaccia ad alta risoluzione) - Pannelli minimali (margini trasparenti) - font non pixelati~
 
 // #126 bard song descriptions (per-song text from the @527 bard writeup, which matches the actual USSTBS song data; @570 was stale). EN placeholder where untranslated.
 @56061 = ~La storia di Curran Cuoresaldo. Quando viene suonata, tutti gli alleati del bardo ottengono +1 ai tiri per colpire, +1 ai danni e l'immunità a paura e disperazione. I bonus di attacco e danno aumentano di 1 al livello 5 e ogni 5 livelli successivi.~

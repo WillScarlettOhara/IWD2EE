@@ -3726,13 +3726,11 @@ Tipo: Uma Mão~
 @55931=~Impede o Uso de Armadura Durante o Combate~
 @55932=~Impede que os membros do grupo vistam armadura durante o combate.~
 
-// 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/100)
+// 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/101)
 @101 = ~2x UI (interface de alta resolução) - fontes originais~
 @102 = ~2x UI (interface de alta resolução)~
-@103 = ~2x UI (interface de alta resolução) - Painéis minimalistas (margens transparentes) - fontes originais~
 
 @56059 = ~2x UI (interface de alta resolução) - fontes não pixelizadas~
-@56060 = ~2x UI (interface de alta resolução) - Painéis minimalistas (margens transparentes) - fontes não pixelizadas~
 
 // #126 bard song descriptions (per-song text from the @527 bard writeup, which matches the actual USSTBS song data; @570 was stale). EN placeholder where untranslated.
 @56061 = ~O Conto de Curran Coração Forte (The Tale of Curran Strongheart): Quando jogada, todos os aliados do bardo recebem +1 de bônus de ataque, +1 de dano e imunidade a medo e desespero. Os bônus de ataque e dano aumentam em 1 no 5º nível e a cada 5 níveis subsequentes.~

@@ -3540,13 +3540,11 @@ Type:  One-handed~
 @55821=~You cannot change armor during combat.~
 @55931=~Prevent Equipping Armor During Combat~
 @55932=~Prevents party members from putting on armor during combat.~
-// 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/100)
+// 2x UI (HD high-resolution interface) component names (tp2 DESIGNATED 99/101)
 @101 = ~2x UI (HD high-resolution interface) - original fonts~
 @102 = ~2x UI (HD high-resolution interface)~
-@103 = ~2x UI (HD high-resolution interface) - Minimal panels (transparent margins) - original fonts~
 
 @56059 = ~2x UI (HD high-resolution interface) - non-pixelated fonts~
-@56060 = ~2x UI (HD high-resolution interface) - Minimal panels (transparent margins) - non-pixelated fonts~
 
 // #126 bard song descriptions (per-song text from the @527 bard writeup, which matches the actual USSTBS song data; @570 was stale). EN placeholder where untranslated.
 @56061 = ~The Tale of Curran Strongheart. When played, all the bard's allies gain +1 attack bonus, +1 damage, and immunity to fear and hopelessness. The attack and damage bonuses increase by 1 at level 5 and every 5 levels thereafter.~

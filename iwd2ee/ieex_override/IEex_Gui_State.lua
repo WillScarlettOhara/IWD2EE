@@ -1740,9 +1740,11 @@ function IEex_Extern_BeforeWorldRender()
 			local c17x, _, c17w = IEex_GetControlArea(abLast)
 			local rowLeft = p1x + c6x
 			local rowW = (p1x + c17x + c17w) - rowLeft
-			-- Stick the bar FLUSH to the action bar: its bottom == the action-bar top, no gap
-			-- (user wants it touching; was offset up by the old block's 12px top rim).
-			local blockCap = 0
+			-- Stick the bar FLUSH to the BLOCK ART top: the action-bar buttons sit 8px
+			-- (art px) inside the block frame, so anchoring at the button top overlapped
+			-- the frame ("bar too low"). No refonte globals in this lua state -- derive
+			-- the art scale from the button width (38 * s).
+			local blockCap = math.floor(c6w * 8 / 38 + 0.5)
 			IEex_SetPanelXY(quicklootPanel, rowLeft + math.floor((rowW - qlWidth) / 2), p1y + c6y - panelHeight - blockCap)
 		else
 			IEex_SetPanelXY(quicklootPanel, nil, quicklootAnchor - panelHeight)
@@ -3491,7 +3493,7 @@ function IEex_InstallPortraitGrid(chuResref)
 	local abW = 12 * btnW + 11 * btnGap
 	local abLeft = blockLeft + 8 * s
 	local abTop = blockTop + 8 * s
-	local cmdTop = blockTop + 60 * s
+	local cmdTop = blockTop + 61 * s
 	-- Exposed for IEex_Refonte_RepositionQuickloot (panel 23 re-anchors above this block).
 	IEex_Refonte_BarBlock = { ["left"] = blockLeft, ["top"] = blockTop, ["w"] = blockW, ["h"] = blockH }
 
@@ -3529,10 +3531,11 @@ function IEex_InstallPortraitGrid(chuResref)
 
 	-- Command band: the dark recessed strip (art x4..~500, ~497 wide) holds the 9 stock
 	-- screen buttons + the quickloot toggle (slot 10) in a 10-slot grid. Box 47x40 (matches
-	-- the GCOMMBTN cell), pitch 49.7, left inset 4. Pause (10) and party AI (14) are NOT in
-	-- the row -- they sit on the statue (below).
+	-- the GCOMMBTN cell), pitch 49.7, left inset 7 (band x4 + 3px in-band nudge; the row
+	-- also sits 1px below the band top -- cmdTop 61 -- both user-tuned in-game). Pause (10)
+	-- and party AI (14) are NOT in the row -- they sit on the statue (below).
 	local cmdOrder = {4, 5, 6, 7, 8, 9, 11, 12, 13}   -- 9 stock; quickloot(15) = slot 10
-	local cmdBoxW, cmdBoxH, cmdPitch, cmdInset = 47 * s, 40 * s, 49.7 * s, 4 * s
+	local cmdBoxW, cmdBoxH, cmdPitch, cmdInset = 47 * s, 40 * s, 49.7 * s, 7 * s
 	IEex_Refonte_CmdSlots = {}   -- panel-relative to the NEW origin
 	for slot = 1, 10 do
 		IEex_Refonte_CmdSlots[slot] = {
@@ -3564,13 +3567,19 @@ function IEex_InstallPortraitGrid(chuResref)
 		end
 	end
 
-	-- Statue buttons (block right, art x~500..572): Pause = ctrl 10 (CGEAR, the 52x51 orb
-	-- the statue holds) pinned over the baked orb; Party AI = ctrl 14 over the statue's
-	-- head. Coords are art-relative (to the block top-left); rebased to the panel origin.
+	-- Statue buttons (block right, art x~500..572): Pause = ctrl 10 (CGEAR orb) pinned
+	-- over the baked orb; Party AI = ctrl 14 over the statue's baked head. The art was
+	-- composed with the ORIGINAL button frames pasted in (orb frame at art 512,47; face
+	-- frame 18 at art 524,1 -- template-matched), so the live frames overlay them exactly.
+	-- CVidCell renders at (ctrl - frame.center) and CLIPS to the control rect
+	-- (CVidCell.cpp Render3d): CGEAR center = (-9,-4) -> frame lands at ax+9/ay+4, so
+	-- ax/ay = paste - (9,4) and w/h = frame + (9,4) or the right/bottom edges clip.
+	-- The face frame (26x45) has center (0,0) -> control = the paste rect verbatim.
+	-- Coords are art-relative (to the block top-left); rebased to the panel origin.
 	-- Both fall inside the id -3 block rect, so they composite as blended buttons.
 	local statueBtns = {
-		[10] = { ["ax"] = 498 * s, ["ay"] = 36 * s, ["w"] = 52 * s, ["h"] = 51 * s },  -- pause / orb  (up+left)
-		[14] = { ["ax"] = 535 * s, ["ay"] = -8 * s, ["w"] = 42 * s, ["h"] = 40 * s },  -- party AI / head (right+up)
+		[10] = { ["ax"] = 503 * s, ["ay"] = 43 * s, ["w"] = 61 * s, ["h"] = 55 * s },  -- pause / orb 52x51 @512,47
+		[14] = { ["ax"] = 524 * s, ["ay"] = 1 * s, ["w"] = 26 * s, ["h"] = 45 * s },   -- party AI / face 26x45 @524,1
 	}
 	for id, g in pairs(statueBtns) do
 		local ctrl = IEex_GetControlFromPanel(panel0, id)
@@ -3718,7 +3727,9 @@ function IEex_Refonte_RepositionQuickloot()
 	local s = IEex_Refonte_Scale or 1
 	local _, _, qw, qh = IEex_GetPanelArea(panel23)
 	local qx = blk.left + math.floor((blk.w - qw) / 2)
-	local qy = blk.top - qh - 4 * s
+	-- Flush to the BLOCK ART top (frames touching), not to the action-bar buttons
+	-- (those sit 8px inside the block frame -- anchoring there overlapped the art).
+	local qy = blk.top - qh
 	IEex_SetPanelArea(panel23, qx, qy, qw, qh, true)
 end
 

@@ -677,8 +677,10 @@
 			.. "!mov(eax,[ecx+0x64]) !test_eax_eax !jz_dword >skip "                  -- null BITMAPINFOHEADER guard
 			.. "!mov(eax,[eax+0x4]) !cmp_eax_dword #000001A4 !jne_dword >c84 "        -- biWidth==420?
 			.. "!mov(eax,[ecx+0x64]) !mov(eax,[eax+0x8]) !cmp_eax_dword #00000294 !jz_dword >hit " -- biHeight==660 -> HD _L
-			.. "@c84 !mov(eax,[ecx+0x64]) !mov(eax,[eax+0x4]) !cmp_eax_dword #00000054 !jne_dword >c42 " -- biWidth==84?
+			.. "@c84 !mov(eax,[ecx+0x64]) !mov(eax,[eax+0x4]) !cmp_eax_dword #00000054 !jne_dword >cB2 " -- biWidth==84?
 			.. "!mov(eax,[ecx+0x64]) !mov(eax,[eax+0x8]) !cmp_eax_dword #00000054 !jz_dword >hit "        -- biHeight==84 -> HD _S
+			.. "@cB2 !mov(eax,[ecx+0x64]) !mov(eax,[eax+0x4]) !cmp_eax_dword #0000006C !jne_dword >c42 " -- biWidth==108?
+			.. "!mov(eax,[ecx+0x64]) !mov(eax,[eax+0x8]) !cmp_eax_dword #000000A8 !jz_dword >hit "        -- biHeight==168 -> HD _B bust (refonte 2x, 54x84*2)
 			.. "@c42 !mov(eax,[ecx+0x10]) !test_eax_eax !jne_dword >skip "                          -- m_pDimmKeyTableEntry != NULL: a NAMED 42x42 resource = an in-game/custom _S portrait (stock small portraits are 42x42 too). Leave it doubled. ONLY the save-screen copy de-doubles -- it is loaded by CDimm::ServiceFromFile (CResRef(""), no key-table entry -> +0x10 == NULL), so this guard separates it from real portraits sharing the size.
 			.. "!mov(eax,[ecx+0x64]) !mov(eax,[eax+0x4]) !cmp_eax_dword #0000002A !jne_dword >skip " -- biWidth==42?
 			.. "!mov(eax,[ecx+0x64]) !mov(eax,[eax+0x8]) !cmp_eax_dword #0000002A !jne_dword >skip "       -- biHeight==42 -> the 2x portrait copy a 2x-UI save writes into MPSave/<slot>/PORTRTn.BMP. De-double so the Load/Save list shows it native (not 4x/garbled). Display-only: the saved BMP is untouched, so the save stays vanilla-compatible. Old 1x (21x21) saves don't match here -> still doubled -> still correct.
@@ -693,7 +695,12 @@
 		-- ?2:1). The menus pass bDoubleSize=FALSE (nScale=1) -> 1x portrait + tiny HP bar in a 2x slot
 		-- (cropped/small). Force bDoubleSize=TRUE -> nScale=2 everywhere: 2x image rect (filled by the now-
 		-- native 2x BMP) + 2x HP bar. Works in BOTH the world HUD and the pre-scaled-CHU menus (2x slots).
-		IEex_HookRestore(0x704D40, 0, 7, {[[ C7 44 24 1C 01 00 00 00 ]]})   -- RenderPortrait bDoubleSize@[esp+0x1C]=1
+		-- REFONTE: its jmp (IEex_Gui_Patch.lua) owns the 0x704D40 prologue; the DLL reimplementation
+		-- applies this same forcing itself (g_hdUI in Export_RenderPortraitRect) -- writing here too
+		-- would corrupt the jmp. Only patch the STOCK prologue.
+		if not IEex_PortraitGridEnabled then
+			IEex_HookRestore(0x704D40, 0, 7, {[[ C7 44 24 1C 01 00 00 00 ]]})   -- RenderPortrait bDoubleSize@[esp+0x1C]=1
+		end
 		IEex_EnableCodeProtection()
 	end
 

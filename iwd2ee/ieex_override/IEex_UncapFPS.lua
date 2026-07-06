@@ -115,6 +115,19 @@ function IEex_Scroll_AdjustViewPositionFromScrollState(scrollState, delta)
 	end
 end
 
+-- Middle-drag pan cursor: the fill-remapped PHYSICAL cursor, NOT the capture-mapped m_ptPointer.
+-- m_ptPointer is HUD-logical-ised over the scaled world-HUD (the inflated bottom band), so its
+-- frame-to-frame delta spikes the moment the cursor crosses that band -> camera teleport at
+-- sub-4K (the refonte reference-width layout, s<1). The DLL helper hands back a consistent
+-- physical position (and keeps the sub-native fill remap). Falls back to the raw capture-mapped
+-- cursor on an older DLL that lacks the export.
+function IEex_Scroll_GetPanCursor()
+	if IEex_Helper_GetCursorPhysicalXY then
+		return IEex_Helper_GetCursorPhysicalXY()
+	end
+	return IEex_GetCursorXY()
+end
+
 ---------------
 -- Listeners --
 ---------------
@@ -124,7 +137,7 @@ function IEex_Scroll_KeyPressedListener(key)
 	if key == IEex_KeyIDS.MIDDLE_MOUSE_CLICK then
 		IEex_Helper_SynchronizedBridgeOperation("IEex_Scroll_MiddleMouseState", function()
 			IEex_Helper_SetBridgeNL("IEex_Scroll_MiddleMouseState", "isDown", true)
-			local oldX, oldY = IEex_GetCursorXY()
+			local oldX, oldY = IEex_Scroll_GetPanCursor()
 			IEex_Helper_SetBridgeNL("IEex_Scroll_MiddleMouseState", "oldX", oldX)
 			IEex_Helper_SetBridgeNL("IEex_Scroll_MiddleMouseState", "oldY", oldY)
 		end)
@@ -195,7 +208,7 @@ function IEex_Extern_CheckScroll()
 			-- Raw ScreenToClient(GetCursorPos()) is desktop-px -- at sub-native res with the
 			-- fill blit (e.g. 1080p on a 4K desktop) the first delta was anchor(game-res) vs
 			-- cursor(desktop-px) = a huge jump (camera teleport on middle-click).
-			local cursorX, cursorY = IEex_GetCursorXY()
+			local cursorX, cursorY = IEex_Scroll_GetPanCursor()
 			local deltaX = IEex_Helper_GetBridgeNL("IEex_Scroll_MiddleMouseState", "oldX") - cursorX
 			local deltaY = IEex_Helper_GetBridgeNL("IEex_Scroll_MiddleMouseState", "oldY") - cursorY
 

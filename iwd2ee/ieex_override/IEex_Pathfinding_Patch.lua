@@ -246,6 +246,50 @@
 	end
 
 	--------------------------------------------------------------------------
+	-- Phase 6 — combat slide ("IP Combat Slide", default 1). Seam @0x6FAFF5 --
+	-- in ClearBumpPath's shove-destination loop replaces the candidate      --
+	-- validation "cmp al,[COST_IMPASSABLE] / jne place" (al = GetCost of a   --
+	-- neighbor cell; policy consulted only for vanilla-rejected candidates). --
+	-- A same-side ally mid melee attack may slide onto a cell rejected only  --
+	-- for personal-space ring overlap — the cells around its own target —    --
+	-- so corridor fights stop jamming single-file. The policy re-validates   --
+	-- statics (GetLOSCost: terrain+doors, no actor bits) and refuses any     --
+	-- cell that is the CENTER cell of a nearby live sprite.                  --
+	-- Cave regs: ebx = bumper(this); [esp+0x48/0x4C] = candidate cell;       --
+	-- [esp+0x14] = pObstacle; esi/edi = jump destination (preserved).        --
+	-- Routes: accept -> 0x6FB014 (AddObject + JumpToPoint), reject ->        --
+	-- 0x6FAFFD (next candidate); both targets re-establish their own flags.  --
+	--------------------------------------------------------------------------
+
+	if IEex_LabelDefault("IEex_Helper_PF_BumpSlidePolicy", nil) then
+
+		if IEex_PF_VerifyBytes(0x6FAFF5, {0x3A, 0x05, 0xA3, 0xD6, 0x84, 0x00, 0x75, 0x17}) then
+			local slideCave = IEex_WriteAssemblyAuto({[[
+				3A 05 A3 D6 84 00
+				!jne_dword :6FB014
+				51 52 53 55 56 57
+				8B 44 24 64
+				50
+				8B 44 24 64
+				50
+				8B 44 24 34
+				50
+				53
+				!call >IEex_Helper_PF_BumpSlidePolicy
+				5F 5E 5D 5B 5A 59
+				85 C0
+				!jne_dword :6FB014
+				!jmp_dword :6FAFFD
+			]]})
+			IEex_WriteAssembly(0x6FAFF5, IEex_FlattenTable({
+				{"!jmp_dword", {slideCave, 4, 4}},
+				{"!repeat(3,!nop)"},
+			}))
+		end
+
+	end
+
+	--------------------------------------------------------------------------
 	-- Phase 4b (optional, default OFF) — search-side soft-block: keep       --
 	-- m_bBump for EA>30 search requests too (enemy searches then soft-cost  --
 	-- through bumpable allies instead of hard-blocking). @0x54961E jbe->jmp --

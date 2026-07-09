@@ -198,4 +198,28 @@
 	]]})
 	IEex_WriteAssembly(0x6437A0, {[[ !jmp_dword ]], {centerStub, 4, 4}})
 
+	-- (4) Grab hit-zone follows the visible rect. OnLButtonDown (0x642DA0) decides drag-grab vs
+	--     click-to-recentre with PtInRect against the UNZOOMED viewport rect r=[esp+0x20], so at
+	--     zoom you could grab in the empty margin around the small visible rect. Redirect just the
+	--     hit-test (@0x642EFA, the `lea &r; push y,x,&r; call PtInRect; test; je outside` block) to
+	--     Export_MapGrabHitTest, which tests the VISIBLE (zoomed) rect. The grab OFFSET that
+	--     follows (field_722 = ptWorld - r.left at 0x642F0D) still reads the unzoomed r, so the
+	--     drag stays 1:1. edi=ptWorld.x, ebp=ptWorld.y and [esp+0x20]=r must survive (they do:
+	--     C++ preserves edi/ebp/ebx/esi; the __stdcall helper cleans its args -> esp restored).
+	--       Resume 0x642F0D (inside/grab) or 0x642F2E (outside).
+	local grabStub = IEex_WriteAssemblyAuto({[[
+		8B E8
+		8D 44 24 20
+		55
+		57
+		50
+		!call >IEex_Helper_MapGrabHitTest
+		85 C0
+		!jnz_dword >inside
+		!jmp_dword :642F2E
+		@inside
+		!jmp_dword :642F0D
+	]]})
+	IEex_WriteAssembly(0x642EFA, {[[ !jmp_dword ]], {grabStub, 4, 4}})
+
 end)()

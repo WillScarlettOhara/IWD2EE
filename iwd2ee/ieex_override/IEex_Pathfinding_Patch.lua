@@ -337,6 +337,13 @@
 				IEex_WriteAssembly(0x6FB22B, {"!call >IEex_Helper_PF_SlideJump"})
 			end
 
+			-- Bump-return in CGameSprite::AIUpdate (source: the m_bBumped block
+			-- that jumps the sprite back to m_ptBumpedFrom once the cell frees
+			-- up) — the last combat teleport left. Same shim, same glide.
+			if IEex_PF_VerifyBytes(0x6F7207, {0xE8, 0x44, 0xE7, 0x04, 0x00}) then
+				IEex_WriteAssembly(0x6F7207, {"!call >IEex_Helper_PF_SlideJump"})
+			end
+
 			if IEex_PF_VerifyBytes(0x4237A0, {0x56, 0x8B, 0xF1, 0x8A, 0x86, 0xE0, 0x00, 0x00, 0x00}) then
 				local glideCave = IEex_WriteAssemblyAuto({[[
 					50 51 52

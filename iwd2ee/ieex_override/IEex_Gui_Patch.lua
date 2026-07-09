@@ -647,6 +647,24 @@
 		!call >IEex_Helper_HudLayerRender ; wraps CUIManager::Render @0x4D4540 ;
 	]]})
 
+	--------------------------------------------------------------------------
+	-- Dialog idle present (GPU saver): while a dialog is active, frames    --
+	-- the engine didn't dirty skip the whole render block (UI + world +    --
+	-- Flip) and IEexHelper re-presents the retained FBO with a present-    --
+	-- time cursor overlay instead. 0x68DF53 = render-block entry in        --
+	-- CScreenWorld::TimerSynchronousUpdate (after CInfGame::               --
+	-- SynchronousUpdate); 0x68DFC3 = the function epilogue, i.e. the       --
+	-- engine's own "don't render this frame" path.                         --
+	--------------------------------------------------------------------------
+
+	IEex_HookRestore(0x68DF53, 0, 7, {[[
+		!call >IEex_Helper_DialogIdlePresent ; eax=1: presented here, skip the render block ;
+		!test_eax_eax
+		!jz_dword >no_skip
+		!jmp_dword :68DFC3
+		@no_skip
+	]]})
+
 	---------------------------------------
 	-- IEex_Extern_MouseInAreaViewport() --
 	---------------------------------------

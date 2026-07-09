@@ -147,4 +147,55 @@
 		{[[ 90 ]]},
 	}))
 
+	--------------------------------------------------------------------------------
+	-- Area Map screen: make the green "you are here" rect follow the world zoom, and
+	-- let the wheel change the zoom (hence the rect size) from the map itself.
+	--
+	-- (1) Draw-time inset. CUIControlButtonMapAreaMap::RenderViewRect (0x644B00,
+	--     __thiscall(CVidInf*, const CRect& a2, const CRect& a3)) draws the rect from
+	--     a3 = field_72A = the UNZOOMED viewport ((nNewX,nNewY)+rViewPort). Under the GL
+	--     zoom that is far too big (fills the map at 4K). Export_MapViewRectZoom insets
+	--     the DRAWN rect to rViewPort/zoom around its centre by repointing the on-stack
+	--     &a3 slot at a static copy; field_72A itself is untouched so the click-to-
+	--     recentre / clamp / SetViewPosition math on this screen stays vanilla.
+	--       At entry esp: [esp+0xC] = &a3. lea eax,[esp+0xC] BEFORE the push_all so eax
+	--       is the absolute slot address (push_all preserves it); pass it to the helper.
+	--       Displaced 5 bytes @0x644B00: 83 EC 24 (sub esp,0x24) 53 (push ebx) 55 (push
+	--       ebp) -> continue 0x644B05.
+	IEex_HookRestore(0x644B00, 0, 5, {[[
+		8D 44 24 0C
+		!push_all_registers_iwd2
+		!push(eax)
+		!call >IEex_Helper_MapViewRectZoom
+		!pop_all_registers_iwd2
+	]]})
+
+	-- (2) Wheel pump. window_proc already records wheel ticks on this screen (the
+	--     Export_WheelShouldZoom gate now passes the map engine). Drain them per async
+	--     tick into g_fZoomTarget and repaint. Hook the control's TimerAsynchronousUpdate
+	--     (0x645100, __thiscall(BOOLEAN)); ecx = the control (this).
+	--       Displaced 5 bytes @0x645100: 83 EC 0C (sub esp,0xC) 53 (push ebx) 56 (push
+	--       esi) -> continue 0x645105.
+	IEex_HookRestore(0x645100, 0, 5, {[[
+		!push_all_registers_iwd2
+		!push_ecx
+		!call >IEex_Helper_MapWheelPump
+		!pop_all_registers_iwd2
+	]]})
+
+	-- (3) Movable rect. CUIControlButtonMapAreaMap::CenterViewPort (0x6437A0) PRE-clamps the new
+	--     scroll to the UNZOOMED viewport range [0, nArea - rViewPort] before SetViewPosition, so
+	--     a zoomed-in view can only pan the unzoomed range -- the small rect "moves as if not
+	--     zoomed" and never reaches the map edges. Replace it with Export_MapCenterViewPort, which
+	--     passes the raw point to SetViewPosition (0x5D11F0 = the zoom-aware overscroll override,
+	--     installed above) and reloads the clamped nNewX/nNewY into field_72A. __thiscall(const
+	--     CPoint& pt), ret 4; marshal to __stdcall(this, &pt): at entry [esp+4] = &pt.
+	local centerStub = IEex_WriteAssemblyAuto({[[
+		FF 74 24 04
+		!push_ecx
+		!call >IEex_Helper_MapCenterViewPort
+		!ret_word 04 00
+	]]})
+	IEex_WriteAssembly(0x6437A0, {[[ !jmp_dword ]], {centerStub, 4, 4}})
+
 end)()

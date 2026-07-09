@@ -408,30 +408,55 @@
 	end
 
 	--------------------------------------------------------------------------
-	-- "IP Personal Space Reduce" (default OFF, EXPERIMENTAL, restart-bound). --
-	-- CGameAnimationType::GetPersonalSpace (0x55D120: mov al,[ecx+0x3E4];    --
-	-- ret) is the single source of every creature footprint: search-map      --
-	-- stamps, cost rings, shove ranges. Humanoid personal space 3 stamps a   --
-	-- 3x3-cell block, which is what jams corridors; reducing it to 2 stamps  --
-	-- a single cell. Boot-only patch: the value must never change while      --
-	-- sprites are stamped (an Add/Remove pair with different sizes corrupts  --
-	-- the counters), so toggling requires a restart by construction.         --
+	-- "IP Personal Space Reduce" (default OFF, EXPERIMENTAL, restart-bound).--
+	-- Consumer-side clamp: every search-map primitive taking a personal-    --
+	-- Space argument maps 3 -> 2 at entry (GetCost 0x547B10, GetMobileCost  --
+	-- 0x547D30, AddObject 0x547E60, RemoveObject 0x548020, SnapshotInit     --
+	-- 0x5484C0, SnapshotRemoveObject 0x5488C0, SnapshotAddObjectDiagonals   --
+	-- 0x5489E0). Humanoid footprint stamps and clearance shrink from 3x3    --
+	-- cells to 1 for the SEARCH MAP only, and stamp/unstamp sizes stay      --
+	-- symmetric across the live map and the worker snapshot.                --
+	--                                                                       --
+	-- Patching the single source (CGameAnimationType::GetPersonalSpace      --
+	-- 0x55D120) instead reached every OTHER ps consumer: MoveToObject       --
+	-- (0x73EDD0) derives its approach range as                              --
+	-- BYTE((tPS-1)/2 + (sPS-1)/2 - 1), which underflows to 255 cells at     --
+	-- ps 2/2 -- melee attacks (and StartDialog, same formula) accepted      --
+	-- targets from anywhere. Spell-use range, selection ellipses and        --
+	-- formation spacing read ps too; all of those keep vanilla values now.  --
+	-- Boot-only: stamp sizes must never change while sprites are stamped    --
+	-- (Add/Remove pairs would mismatch), so toggling requires a restart.    --
 	--------------------------------------------------------------------------
 
 	if IEex_PF_MasterEnabled
 	and IEex_GetPrivateProfileInt("IEex Options", "IP Personal Space Reduce", 0, ".\\Icewind2.ini") ~= 0 then
-		if IEex_PF_VerifyBytes(0x55D120, {0x8A, 0x81, 0xE4, 0x03, 0x00, 0x00, 0xC3}) then
-			local psCave = IEex_WriteAssemblyAuto({[[
-				8A 81 E4 03 00 00
-				3C 03
-				75 02
-				B0 02
-				C3
-			]]})
-			IEex_WriteAssembly(0x55D120, IEex_FlattenTable({
-				{"!jmp_dword", {psCave, 4, 4}},
-				{"!repeat(2,!nop)"},
-			}))
+		local psClampSites = {
+			-- { va, resume, [esp+off] of personalSpace at entry, verify bytes, replayed prologue }
+			{ 0x547B10, 0x547B15, 0x0C, {0x83, 0xEC, 0x18, 0x53, 0x55, 0x8B, 0x6C, 0x24, 0x28}, "83 EC 18 53 55" },
+			{ 0x547D30, 0x547D35, 0x0C, {0x51, 0x8B, 0x44, 0x24, 0x0C, 0x85, 0xC0}, "51 8B 44 24 0C" },
+			{ 0x547E60, 0x547E66, 0x0C, {0x64, 0xA1, 0x00, 0x00, 0x00, 0x00, 0x6A, 0xFF, 0x68, 0x28, 0xDF, 0x81, 0x00}, "64 A1 00 00 00 00" },
+			{ 0x548020, 0x548026, 0x0C, {0x64, 0xA1, 0x00, 0x00, 0x00, 0x00, 0x6A, 0xFF, 0x68, 0x58, 0xDF, 0x81, 0x00}, "64 A1 00 00 00 00" },
+			{ 0x5484C0, 0x5484C6, 0x10, {0x64, 0xA1, 0x00, 0x00, 0x00, 0x00, 0x6A, 0xFF, 0x68, 0x98, 0xDF, 0x81, 0x00}, "64 A1 00 00 00 00" },
+			{ 0x5488C0, 0x5488C7, 0x08, {0x8B, 0x44, 0x24, 0x0C, 0x83, 0xEC, 0x10, 0x84, 0xC0}, "8B 44 24 0C 83 EC 10" },
+			{ 0x5489E0, 0x5489E5, 0x08, {0x53, 0x8B, 0x5C, 0x24, 0x08, 0x85, 0xDB}, "53 8B 5C 24 08" },
+		}
+		for _, site in ipairs(psClampSites) do
+			if IEex_PF_VerifyBytes(site[1], site[4]) then
+				local argOff = string.format("%02X", site[3])
+				local psCave = IEex_WriteAssemblyAuto({string.format([[
+					80 7C 24 %s 03
+					75 05
+					C6 44 24 %s 02
+					%s
+					!jmp_dword :%X
+				]], argOff, argOff, site[5], site[2])})
+				local replayLen = math.floor((#site[5] + 1) / 3)
+				local write = { {"!jmp_dword", {psCave, 4, 4}} }
+				if replayLen > 5 then
+					table.insert(write, {"!repeat(" .. (replayLen - 5) .. ",!nop)"})
+				end
+				IEex_WriteAssembly(site[1], IEex_FlattenTable(write))
+			end
 		end
 	end
 

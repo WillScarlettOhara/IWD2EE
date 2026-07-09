@@ -5259,6 +5259,8 @@ function IEex_InjectOptionIniComments()
 		["AutoLoadSlot"]                          = "Dev/testing: auto-load this save slot on startup (>=0 auto-clicks Load Game); -1 or absent = off (default).",
 		["Improved Pathfinding"]                  = "Master toggle for the GemRB-inspired pathfinding improvements (retry/backoff, unstucking, ally soft-block). 1 = on.",
 		["IP Enemy Soft Block"]                   = "Improved Pathfinding sub-option: enemy searches soft-cost through bumpable allies instead of hard-blocking. Default off (enemies may path into the party line and grind).",
+		["IP Combat Slide"]                       = "Improved Pathfinding EXPERIMENTAL: melee allies may slide around their target to make room for more attackers instead of jamming corridors single-file. Party-only (enemies keep vanilla rules, so door/tunnel body-blocking gets STRONGER for the player); slides are short interpolated glides, ~2 cells max per burst. Default off.",
+		["IP Personal Space Reduce"]              = "Improved Pathfinding EXPERIMENTAL: shrink every creature's collision footprint one step (humanoids: 3x3 cells -> 1) so tight corridors jam less - BOTH sides, so door body-blocking weakens. Boot-time patch - changing it requires a full restart. Default off.",
 		["Tile Atlas"]                            = "OpenGL: batch map tiles into an atlas texture for faster tile rendering. 1 = on. OpenGL only.",
 		["UI Canvas Scale x10"]                   = "HD UI canvas scale x10: 10 = native 1.0x; >=11 enables the HD UI upscale (e.g. 20 = 2x). Written by the HD/2x UI component.",
 		["Windowed"]                              = "1 = run in a window; 0 = fullscreen (default). No-op under Wine.",

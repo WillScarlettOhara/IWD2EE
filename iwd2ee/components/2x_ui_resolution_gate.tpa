@@ -16,8 +16,11 @@
 // override renders oversized/broken at canvas 1.0. It is purely an INSTALL choice (this component).
 //
 // RESOLUTION: chosen by the player AT LAUNCH (IEex asks each run), so nothing reliable to gate on
-// at install time -- purely OPT-IN. The 2x UI looks correct at ~1080p and above; at 720p it is
-// oversized -> 720p players should NOT install this (they keep the stock 1x UI).
+// at install time -- purely OPT-IN. The 2x tier engages at >= 2048x1200 only; BELOW that there is
+// NO clean fallback (this component replaces the stock 1x assets on disk, so the engine's 1x tier
+// draws 2x art oversized). The launch resolution dialog (IEexHelperGUI) is 2x-UI aware: red
+// requirement line, "Recommended" retag to >= 2048x1200 rows, and a Yes/No confirm when the
+// player SELECTs a smaller resolution.
 //
 // DESIGNATED 37 (gui.tpa, "New GUI") interaction: it ships custom 1x GUI panel MOS
 // (mos/mos_new_gui = START, STARTN, GUICHP0B-6B). If BOTH are installed we drop in 2x-authored
@@ -26,7 +29,7 @@
 // =====================================================================================
 
 PRINT ~[2x UI] Installing the 2x high-resolution UI (engine-native 2x tier + 2x assets, GL canvas).~
-PRINT ~[2x UI] Correct at ~~2048x1200 and above; below that the engine keeps the stock 1x UI.~
+PRINT ~[2x UI] Requires 2048x1200 and above; below that the UI misrenders (the launch resolution dialog warns you).~
 
 // --- floating world text (CGameText) keeps a 1x font: the engine sizes it 1x by design
 //     (SetResRef bDoubleSize=FALSE), but the resref-keyed de-double + the 2x INFOFONT below would

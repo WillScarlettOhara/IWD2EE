@@ -1910,10 +1910,23 @@ function IEex_Extern_InitResolution()
 
 	IEex_AssertThread(IEex_Thread.Sync, true)
 
-	local nWidth, nHeight = IEex_Helper_AskResolution()
+	-- Pass the 2x UI install state so the dialog can warn below the component's 2048x1200
+	-- minimum (red status line, "Recommended" retag, SELECT confirm) -- see MFCLibrary1.cpp.
+	local nWidth, nHeight = IEex_Helper_AskResolution(IEEX_HD_UI and 1 or 0)
 	IEex_WriteWord(0x8BA31C, nWidth)  -- g_resolution.width
 	IEex_WriteWord(0x8BA31E, nHeight) -- g_resolution.height
 	IEex_WritePrivateProfileInt("Program Options", "BitsPerPixel", 32, ".\\Icewind2.ini")
+
+	-- 2x UI below its 2048x1200 minimum (player confirmed through the dialog warning): the 2x
+	-- tier gate (IEex_Extern_InitGUIConstants) keeps m_bUseNewGui off, but the helper's HD-UI
+	-- canvas (GetUICanvasScale = 2.0 in engine-1x mode) would still declare a phantom 1600x1200
+	-- base -> clipped/mis-fit UI. Force it off so the GL canvas is honest 1x. The 2x assets in
+	-- override still render oversized on the 1x tier -- that is unfixable at runtime (the
+	-- component replaces the stock 1x files), which is exactly what the dialog warned about.
+	-- Runs AFTER IEex_UIScale_Patch.lua's load-time SetHDUI, so this override sticks.
+	if IEEX_HD_UI and (nWidth < 2048 or nHeight < 1200) then
+		IEex_Helper_SetHDUI(0)
+	end
 	-- NOTE: the engine's OpenGL renderer is enabled by the ctor byte-patch in IEex_Render_Patch.lua
 	-- (m_cVideo.m_bIs3dAccelerated). The retail engine hardcodes that flag FALSE (mov [esi+0x91c],ebx,
 	-- ebx=0) and ignores the "3D Acceleration" ini key entirely, so there is nothing to set here.

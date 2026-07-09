@@ -586,8 +586,9 @@ BEGIN @90 REQUIRE_COMPONENT ~iwd2ee.tp2~ ~1000~ @98 DESIGNATED 92
       INCLUDE ~%mod_folder%/components/key_bindings_for_autobuffing.tpa~ //~Add key bindings for automating buffing~
 
 // 2x UI (HD high-resolution interface): the whole UI at the engine's native 2x tier + 2x-authored
-// assets, rendered through the IEex OpenGL renderer. Opt-in; correct at ~2048x1200 and above (below
-// that the engine keeps the stock 1x UI). Decorated vs Minimal is a sub-choice of how the panel
+// assets, rendered through the IEex OpenGL renderer. Opt-in; requires >= 2048x1200 (below that the
+// UI misrenders -- the 2x assets replace the stock 1x files, so there is no clean fallback; the
+// launch resolution dialog warns the player). Decorated vs Minimal is a sub-choice of how the panel
 // backgrounds fill the letterbox void: Decorated keeps the stone frame extending into the void, Minimal
 // makes those margins transparent (the world/scene shows through).
 // Russian IS supported: 2x_ui_resolution_gate.tpa ships cyrillic-merged hybrid fonts (bam_2x_ui_ru,

@@ -506,7 +506,7 @@ This system doesn't cheat in any way; the spells aren't cast instantly nor can y
 
 --2x UI (HD high-resolution interface)--
 
-An optional 2x (high-resolution) version of the whole interface -- menus, the in-game HUD, inventory, character record and so on -- using 2x-authored artwork (icons, buttons, fonts, panels, portraits, mouse cursors, the menu torch) rendered at the engine's native 2x tier. It is opt-in and looks correct at roughly 2048x1200 and above; below that the stock 1x UI is kept.
+An optional 2x (high-resolution) version of the whole interface -- menus, the in-game HUD, inventory, character record and so on -- using 2x-authored artwork (icons, buttons, fonts, panels, portraits, mouse cursors, the menu torch) rendered at the engine's native 2x tier. It is opt-in and requires a resolution of 2048x1200 or higher: below that the interface misrenders, so do not install it if you play at a smaller resolution (the resolution-select window at launch will warn you).
 
 You choose how the panel frames fill the letterbox void on wide screens: "Decorated panels" keep the stone frame extending into the void, while "Minimal panels (transparent margins)" make those margins transparent so the world/scene shows through.
 

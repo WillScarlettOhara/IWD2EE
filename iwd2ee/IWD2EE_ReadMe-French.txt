@@ -507,7 +507,7 @@ Ce système ne triche en aucune façon ; les sorts ne sont pas lancés instantan
 
 --2x UI (interface haute résolution HD)--
 
-Une version 2x (haute résolution) optionnelle de toute l’interface -- menus, ATH en jeu, inventaire, fiche de personnage, etc. -- utilisant des graphismes conçus en 2x (icônes, boutons, polices, panneaux, portraits, curseurs, torche du menu) rendus au palier 2x natif du moteur. Optionnel ; correct à environ 2048x1200 et au-delà ; en dessous, l’interface 1x d’origine est conservée.
+Une version 2x (haute résolution) optionnelle de toute l’interface -- menus, ATH en jeu, inventaire, fiche de personnage, etc. -- utilisant des graphismes conçus en 2x (icônes, boutons, polices, panneaux, portraits, curseurs, torche du menu) rendus au palier 2x natif du moteur. Optionnel ; nécessite une résolution de 2048x1200 ou plus : en dessous, l’interface s’affiche mal -- ne l’installez pas si vous jouez à une résolution inférieure (la fenêtre de sélection de résolution au lancement vous avertira).
 
 Vous choisissez comment les cadres des panneaux remplissent le vide letterbox sur les écrans larges : « Panneaux décorés » garde le cadre de pierre qui s’étend dans le vide, tandis que « Panneaux minimalistes (marges transparentes) » rend ces marges transparentes pour laisser voir la scène derrière.
 

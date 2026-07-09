@@ -4577,7 +4577,14 @@ function IEex_OnCHUInitialized(chuResref)
 
 		IEex_SetPanelXY(panel0Memory, (resW - w0) / 2, toolbarBottom)
 		IEex_SetPanelXY(panel1Memory, (resW - w1) / 2, toolbarBottom - h1, true)
-		IEex_SetPanelArea(panel6Memory, (resW - 800) / 2, resH - h6, 800)
+		-- Debug console (cheat bar, panel 6): every other panel here re-centres with its
+		-- OWN width read back from the panel -- already doubled by fInit under the 2x UI
+		-- (m_bUseNewGui) -- but this one hardcodes the CHU design width 800. Under 2x the
+		-- art/font render 1600px wide into an 800px panel: the bar showed only its left
+		-- half (~47 chars of a paste), mosaic cut mid-pattern. Scale the literal by the
+		-- UI multiplier; identity at 1x / software, so vanilla placement is unchanged.
+		local consoleW = 800 * (IEex_ReadByte(IEex_ReadDword(0x8CF6DC) + 0x4A28, 0) == 1 and 2 or 1)
+		IEex_SetPanelArea(panel6Memory, (resW - consoleW) / 2, resH - h6, consoleW)
 		IEex_SetPanelXY(panel7Memory, (resW - w7) / 2, resH - h7)
 		IEex_SetPanelXY(panel8Memory, (resW - w8) / 2, resH - h8)
 		IEex_SetPanelArea(panel9Memory, (resW - w_9_0) / 2, resH - h_9_0 - 4, w_9_0, h_9_0)

@@ -596,38 +596,9 @@
 	-- the cheap state calls -- consistent with the failed geometry-batching attempts.
 	-- Reverted (no win, slight blur risk). Only a tile texture atlas could cut the binds.
 
-	------------------------------------------------------------------------------
-	-- Console test helpers (weather / lightning QA) ---------------------------- --
-	------------------------------------------------------------------------------
-	-- The debug-console edit box truncates long pastes, so the raw memory-poking
-	-- one-liners can't be entered reliably; these wrap them. Globals, callable from
-	-- the console under BOTH renderers (deliberately not is3D-gated -- they exist
-	-- to A/B the renderers against each other).
-	--   IEex_TestStorm()       -> force this area's lightning to max frequency and
-	--                             start a rain storm (first thunder immediate)
-	--   IEex_TestStorm(2)      -> snow storm;  IEex_TestStorm(0) -> stop weather
-	--   IEex_TestBolt()        -> draw one Call-Lightning bolt near screen centre
-	--   IEex_TestWeatherInfo() -> show the area's type + rain/lightning odds
-
-	function IEex_TestStorm(kind)
-		local area = IEex_GetVisibleArea()
-		if kind ~= 0 then IEex_WriteWord(area + 0x48, 100) end   -- m_lightningProbability -> freq 192 (1.5-8s)
-		-- CWeather::SetCurrentWeather(pArea, nCurrentTime, nWeatherType); CWeather = CScreenWorld+0xF46
-		IEex_Call(0x556230, {kind or 1, IEex_GetGameTick(), area}, IEex_GetEngineWorld() + 0xF46, 0x0)
-	end
-
-	function IEex_TestBolt()
-		local inf = IEex_GetVisibleArea() + 0x4CC   -- m_cInfinity
-		-- CInfinity::CallLightning(xWorld, yWorld); nNewX/nNewY @+0x40/+0x44 = view origin
-		IEex_Call(0x5D1340, {IEex_ReadDword(inf + 0x44) + 300, IEex_ReadDword(inf + 0x40) + 500}, inf, 0x0)
-	end
-
-	function IEex_TestWeatherInfo()
-		local area = IEex_GetVisibleArea()
-		IEex_DisplayString("areaType=" .. IEex_ReadWord(area + 0x40, 0)
-			.. " rain%=" .. IEex_ReadWord(area + 0x42, 0)
-			.. " lightning%=" .. IEex_ReadWord(area + 0x48, 0))
-	end
+	-- (The IEex_Test* console helpers live in IEex_IWD2_State.lua: _Patch files run
+	-- in the startup patching pass, not in the runtime Lua state the console
+	-- evaluates in -- functions defined here are nil by the time the console runs.)
 
 	IEex_EnableCodeProtection()
 

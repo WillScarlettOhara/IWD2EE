@@ -78,6 +78,7 @@ if not IEex_Vanilla then
 		{"IP Enemy Bumping", 1},
 		{"IP Directed Adjust", 1},
 		{"IP Combat Slide", 0},
+		{"IP Personal Space Reduce", 0},
 		{"Windowed", 0},
 		{"Vsync", 1},
 		{"Max FPS", 0},

@@ -408,6 +408,34 @@
 	end
 
 	--------------------------------------------------------------------------
+	-- "IP Personal Space Reduce" (default OFF, EXPERIMENTAL, restart-bound). --
+	-- CGameAnimationType::GetPersonalSpace (0x55D120: mov al,[ecx+0x3E4];    --
+	-- ret) is the single source of every creature footprint: search-map      --
+	-- stamps, cost rings, shove ranges. Humanoid personal space 3 stamps a   --
+	-- 3x3-cell block, which is what jams corridors; reducing it to 2 stamps  --
+	-- a single cell. Boot-only patch: the value must never change while      --
+	-- sprites are stamped (an Add/Remove pair with different sizes corrupts  --
+	-- the counters), so toggling requires a restart by construction.         --
+	--------------------------------------------------------------------------
+
+	if IEex_PF_MasterEnabled
+	and IEex_GetPrivateProfileInt("IEex Options", "IP Personal Space Reduce", 0, ".\\Icewind2.ini") ~= 0 then
+		if IEex_PF_VerifyBytes(0x55D120, {0x8A, 0x81, 0xE4, 0x03, 0x00, 0x00, 0xC3}) then
+			local psCave = IEex_WriteAssemblyAuto({[[
+				8A 81 E4 03 00 00
+				3C 03
+				75 02
+				B0 02
+				C3
+			]]})
+			IEex_WriteAssembly(0x55D120, IEex_FlattenTable({
+				{"!jmp_dword", {psCave, 4, 4}},
+				{"!repeat(2,!nop)"},
+			}))
+		end
+	end
+
+	--------------------------------------------------------------------------
 	-- Phase 5 — directed destination adjust. Whole-replace of               --
 	-- CGameArea::SnapshotAdjustTarget @0x46A630 (worker thread, ret 0x14).  --
 	-- Vanilla line-probe first (exact port); on failure, expanding ring     --

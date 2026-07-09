@@ -287,6 +287,38 @@
 			}))
 		end
 
+		-- CanAnimate @0x6FB5D7: the weapon ability-type branch keeps only
+		-- RANGED attackers (type 2/4) bumpable during ATTACK actions; melee
+		-- falls to the WAIT/FACE-only list and turns non-bumpable the moment
+		-- it swings -- the front fighter is ungatherable, so combat shoves
+		-- never happen. Route the melee fallthrough through the policy: party
+		-- melee uses the attack whitelist too (combat slide gated). esi = the
+		-- sprite (this), bx = weapon ability type; both loop targets set
+		-- their own registers/flags.
+		if IEex_PF_VerifyBytes(0x6FB5D7, {
+			0x66, 0x83, 0xFB, 0x04, 0x74, 0x2B, 0x66, 0x83, 0xFB, 0x02, 0x74, 0x25,
+		}) then
+			local canAnimCave = IEex_WriteAssemblyAuto({[[
+				66 83 FB 04
+				!je_dword :6FB608
+				66 83 FB 02
+				!je_dword :6FB608
+				51 52 53 55 56 57
+				0F B7 C3
+				50
+				56
+				!call >IEex_Helper_PF_CanAnimatePolicy
+				5F 5E 5D 5B 5A 59
+				85 C0
+				!jne_dword :6FB608
+				!jmp_dword :6FB5E3
+			]]})
+			IEex_WriteAssembly(0x6FB5D7, IEex_FlattenTable({
+				{"!jmp_dword", {canAnimCave, 4, 4}},
+				{"!repeat(7,!nop)"},
+			}))
+		end
+
 		-- Crowd gate @0x6FAB7B: "count = dynByte>>1; if (count > 7) return FALSE"
 		-- on the goal cell. Any adjacent NON-bumpable stamp (the enemy being
 		-- fought!) adds 8, so melee shoves aborted here before ever reaching

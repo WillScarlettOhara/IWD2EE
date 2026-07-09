@@ -77,7 +77,7 @@ if not IEex_Vanilla then
 		{"IP Behavior Flags", 15},
 		{"IP Enemy Bumping", 1},
 		{"IP Directed Adjust", 1},
-		{"IP Combat Slide", 1},
+		{"IP Combat Slide", 0},
 		{"Windowed", 0},
 		{"Vsync", 1},
 		{"Max FPS", 0},

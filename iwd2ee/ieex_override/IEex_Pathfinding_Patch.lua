@@ -246,7 +246,9 @@
 	end
 
 	--------------------------------------------------------------------------
-	-- Phase 6 — combat slide ("IP Combat Slide", default 1). Seam @0x6FAFF5 --
+	-- Phase 6 — combat slide ("IP Combat Slide", default 0, EXPERIMENTAL:  --
+	-- the slide is an instant engine teleport-step, which can make fights  --
+	-- harder to read). Seam @0x6FAFF5                                       --
 	-- in ClearBumpPath's shove-destination loop replaces the candidate      --
 	-- validation "cmp al,[COST_IMPASSABLE] / jne place" (al = GetCost of a   --
 	-- neighbor cell; policy consulted only for vanilla-rejected candidates). --

@@ -2,6 +2,8 @@
 -- IEex_Pathfinding_Patch.lua — GemRB-inspired pathfinding behavior improvements.
 --
 -- Master gate: [IEex Options] "Improved Pathfinding" (Icewind2.ini), default 1.
+-- Boot-gates the raw byte patches only; the DLL policy seams install always
+-- and self-gate at runtime (vanilla-exact when 0).
 --
 -- Phase 1 — constants pack (this file, lua-only). Byte-verified in-place patches;
 -- any site whose original bytes mismatch is skipped (logged), never blind-poked.
@@ -30,9 +32,15 @@
 		return
 	end
 
-	if IEex_GetPrivateProfileInt("IEex Options", "Improved Pathfinding", 1, ".\\Icewind2.ini") == 0 then
-		return
-	end
+	-- Master toggle. The DLL policies re-read this key at runtime and return
+	-- exact vanilla decisions when 0, so the detour seams (phases 2-5) are
+	-- installed UNCONDITIONALLY — that keeps the "Path Log" walk-timing
+	-- instrumentation available in vanilla mode for A/B travel-time runs, and
+	-- makes the in-game toggle live in both directions. Only the raw byte
+	-- patches below (phase-1 constants, phase-4b), which have no runtime gate,
+	-- honor the toggle at boot.
+	local IEex_PF_MasterEnabled =
+		IEex_GetPrivateProfileInt("IEex Options", "Improved Pathfinding", 1, ".\\Icewind2.ini") ~= 0
 
 	-- Verify original bytes at address before patching; skip + log on mismatch
 	-- (exe drift / foreign mod protection).
@@ -55,48 +63,52 @@
 
 	IEex_DisableCodeProtection()
 
-	---------------------------------------------------------------
-	-- MoveToPoint give-up retries 4 -> 8                        --
-	--   (m_curAction.m_specificID2 > N -> ACTION_ERROR;         --
-	--    GemRB uses MAX_PATH_TRIES = 8)                         --
-	---------------------------------------------------------------
+	if IEex_PF_MasterEnabled then
 
-	if IEex_PF_VerifyBytes(0x73F706, {0x0F, 0xBF, 0x0D, 0xA6, 0xBB, 0x85, 0x00}) then
-		IEex_WriteAssembly(0x73F706, {"B9 08 00 00 00 90 90"})
-	end
+		---------------------------------------------------------------
+		-- MoveToPoint give-up retries 4 -> 8                        --
+		--   (m_curAction.m_specificID2 > N -> ACTION_ERROR;         --
+		--    GemRB uses MAX_PATH_TRIES = 8)                         --
+		---------------------------------------------------------------
 
-	---------------------------------------------------------------
-	-- MoveToObject pursuit re-path throttle 8 -> 4 ticks        --
-	--   (tighter chase of moving targets)                       --
-	---------------------------------------------------------------
+		if IEex_PF_VerifyBytes(0x73F706, {0x0F, 0xBF, 0x0D, 0xA6, 0xBB, 0x85, 0x00}) then
+			IEex_WriteAssembly(0x73F706, {"B9 08 00 00 00 90 90"})
+		end
 
-	if IEex_PF_VerifyBytes(0x73F321, {0x0F, 0xBF, 0x0D, 0xA4, 0xBB, 0x85, 0x00}) then
-		IEex_WriteAssembly(0x73F321, {"B9 04 00 00 00 90 90"})
-	end
+		---------------------------------------------------------------
+		-- MoveToObject pursuit re-path throttle 8 -> 4 ticks        --
+		--   (tighter chase of moving targets)                       --
+		---------------------------------------------------------------
 
-	---------------------------------------------------------------
-	-- Keep path smoothing on collision re-searches              --
-	--   (vanilla forces m_pathSmooth=FALSE for them -> jagged   --
-	--    panic paths after every bump)                          --
-	---------------------------------------------------------------
+		if IEex_PF_VerifyBytes(0x73F321, {0x0F, 0xBF, 0x0D, 0xA4, 0xBB, 0x85, 0x00}) then
+			IEex_WriteAssembly(0x73F321, {"B9 04 00 00 00 90 90"})
+		end
 
-	if IEex_PF_VerifyBytes(0x549480, {0x75, 0x19}) then
-		IEex_WriteAssembly(0x549480, {"90 90"})
-	end
+		---------------------------------------------------------------
+		-- Keep path smoothing on collision re-searches              --
+		--   (vanilla forces m_pathSmooth=FALSE for them -> jagged   --
+		--    panic paths after every bump)                          --
+		---------------------------------------------------------------
 
-	---------------------------------------------------------------
-	-- Collision stand-still delay rand()%15 -> rand()%8         --
-	--   (both SetTarget variants; GemRB backoff is RAND(8,16)   --
-	--    ticks but its tick is denser - %8 keeps the jitter     --
-	--    de-sync purpose with half the dead time)               --
-	---------------------------------------------------------------
+		if IEex_PF_VerifyBytes(0x549480, {0x75, 0x19}) then
+			IEex_WriteAssembly(0x549480, {"90 90"})
+		end
 
-	if IEex_PF_VerifyBytes(0x707B04, {0xB9, 0x0F, 0x00, 0x00, 0x00}) then
-		IEex_WriteAssembly(0x707B05, {"08"})
-	end
+		---------------------------------------------------------------
+		-- Collision stand-still delay rand()%15 -> rand()%8         --
+		--   (both SetTarget variants; GemRB backoff is RAND(8,16)   --
+		--    ticks but its tick is denser - %8 keeps the jitter     --
+		--    de-sync purpose with half the dead time)               --
+		---------------------------------------------------------------
 
-	if IEex_PF_VerifyBytes(0x707E29, {0xB9, 0x0F, 0x00, 0x00, 0x00}) then
-		IEex_WriteAssembly(0x707E2A, {"08"})
+		if IEex_PF_VerifyBytes(0x707B04, {0xB9, 0x0F, 0x00, 0x00, 0x00}) then
+			IEex_WriteAssembly(0x707B05, {"08"})
+		end
+
+		if IEex_PF_VerifyBytes(0x707E29, {0xB9, 0x0F, 0x00, 0x00, 0x00}) then
+			IEex_WriteAssembly(0x707E2A, {"08"})
+		end
+
 	end
 
 	--------------------------------------------------------------------------
@@ -241,7 +253,8 @@
 	-- through the party line then grind (4a refuses to shove PCs).          --
 	--------------------------------------------------------------------------
 
-	if IEex_GetPrivateProfileInt("IEex Options", "IP Enemy Soft Block", 0, ".\\Icewind2.ini") ~= 0 then
+	if IEex_PF_MasterEnabled
+	and IEex_GetPrivateProfileInt("IEex Options", "IP Enemy Soft Block", 0, ".\\Icewind2.ini") ~= 0 then
 		if IEex_PF_VerifyBytes(0x54961E, {0x76, 0x0F}) then
 			IEex_WriteAssembly(0x54961E, {"EB"})
 		end

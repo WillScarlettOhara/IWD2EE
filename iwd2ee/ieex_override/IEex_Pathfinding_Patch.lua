@@ -287,6 +287,36 @@
 			}))
 		end
 
+		-- Crowd gate @0x6FAB7B: "count = dynByte>>1; if (count > 7) return FALSE"
+		-- on the goal cell. Any adjacent NON-bumpable stamp (the enemy being
+		-- fought!) adds 8, so melee shoves aborted here before ever reaching
+		-- the destination loop above. The cave keeps the vanilla store to
+		-- [esp+0x13] (the raw count still feeds the end-of-function checks)
+		-- and only overrides the abort decision. ebx = bumper (stable).
+		if IEex_PF_VerifyBytes(0x6FAB7B, {
+			0xD0, 0xE8, 0x3C, 0x07, 0x88, 0x44, 0x24, 0x13, 0x0F, 0x87, 0xEB, 0xFE, 0xFF, 0xFF,
+		}) then
+			local crowdCave = IEex_WriteAssemblyAuto({[[
+				D0 E8
+				88 44 24 13
+				3C 07
+				!jbe_dword :6FAB89
+				51 52 53 55 56 57
+				0F B6 C0
+				50
+				53
+				!call >IEex_Helper_PF_BumpCrowdPolicy
+				5F 5E 5D 5B 5A 59
+				85 C0
+				!jne_dword :6FAB89
+				!jmp_dword :6FAA74
+			]]})
+			IEex_WriteAssembly(0x6FAB7B, IEex_FlattenTable({
+				{"!jmp_dword", {crowdCave, 4, 4}},
+				{"!repeat(9,!nop)"},
+			}))
+		end
+
 	end
 
 	--------------------------------------------------------------------------

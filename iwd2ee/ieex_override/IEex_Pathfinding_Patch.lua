@@ -321,6 +321,38 @@
 			}))
 		end
 
+		-- Glide instead of teleport: ClearBumpPath's two JumpToPoint call
+		-- sites (loop 1 @0x6FB0A8, recursive shove @0x6FB22B; E8 rel32 to
+		-- 0x745950) are retargeted to PF_SlideJump, which glides eligible
+		-- short party hops over a few AI ticks and falls through to the real
+		-- JumpToPoint otherwise. The glides advance from a seam at the top of
+		-- CBaldurChitin::AsynchronousUpdate (0x4237A0, once per async tick).
+		if IEex_LabelDefault("IEex_Helper_PF_SlideJump", nil) then
+
+			if IEex_PF_VerifyBytes(0x6FB0A8, {0xE8, 0xA3, 0xA8, 0x04, 0x00}) then
+				IEex_WriteAssembly(0x6FB0A8, {"!call >IEex_Helper_PF_SlideJump"})
+			end
+
+			if IEex_PF_VerifyBytes(0x6FB22B, {0xE8, 0x20, 0xA7, 0x04, 0x00}) then
+				IEex_WriteAssembly(0x6FB22B, {"!call >IEex_Helper_PF_SlideJump"})
+			end
+
+			if IEex_PF_VerifyBytes(0x4237A0, {0x56, 0x8B, 0xF1, 0x8A, 0x86, 0xE0, 0x00, 0x00, 0x00}) then
+				local glideCave = IEex_WriteAssemblyAuto({[[
+					50 51 52
+					!call >IEex_Helper_PF_GlideTick
+					5A 59 58
+					56 8B F1 8A 86 E0 00 00 00
+					!jmp_dword :4237A9
+				]]})
+				IEex_WriteAssembly(0x4237A0, IEex_FlattenTable({
+					{"!jmp_dword", {glideCave, 4, 4}},
+					{"!repeat(4,!nop)"},
+				}))
+			end
+
+		end
+
 		-- Crowd gate @0x6FAB7B: "count = dynByte>>1; if (count > 7) return FALSE"
 		-- on the goal cell. Any adjacent NON-bumpable stamp (the enemy being
 		-- fought!) adds 8, so melee shoves aborted here before ever reaching

@@ -537,6 +537,32 @@
 			]]}
 			IEex_HookBeforeCall(0x4CC0AF, backdropBlock) -- CGameText::Render - floating-text readability panel (+ engine FXBltFrom)
 		end
+
+		-- GL-native lightning bolt. CInfinity::RenderLightning (@0x5CFB40) draws the
+		-- Call-Lightning / storm-strike bolt as 12 CVidMode::PolyLine passes (4 jagged
+		-- segments x outer/middle/center thickness), but PolyLine (@0x79A080) is
+		-- software-only (LockSurface + DrawLine32, no 3d branch) -> under GL the bolt
+		-- never shows: thunder + global flash only. RenderLightning is PolyLine's ONLY
+		-- caller (all 12 callsites, binary-verified), so on 3D installs replace the
+		-- function entry outright with the GL quad-based draw; software installs keep
+		-- the stock path untouched. __thiscall(nSurface, CRect&, LPPOINT, nCount,
+		-- COLORREF, nThickness) ret 0x18 -> forward the last 4 args to the __stdcall
+		-- export (ret 0x10): after the 0x1C push_all, thickness sits at [esp+0x34] and
+		-- each push shifts esp so re-reading [esp+0x34] walks rgb, nCount, lpPoints --
+		-- pushed right-to-left as the export expects. eax=1 = the BOOL success return.
+		if is3D then
+			IEex_WriteAssembly(0x79A080, {"!jmp_dword", {IEex_WriteAssemblyAuto({[[
+				!push_all_registers_iwd2
+				!push([esp+0x34])
+				!push([esp+0x34])
+				!push([esp+0x34])
+				!push([esp+0x34])
+				!call >IEex_Helper_LightningPolyLine3d
+				!pop_all_registers_iwd2
+				!mov_eax #01
+				!ret_word 18 00
+			]]}), 4, 4}})
+		end
 	end
 
 	------------------------------------------------------------------------------

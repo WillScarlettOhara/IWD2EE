@@ -30,6 +30,10 @@ if IEex_GetPrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewin
 	return
 end
 
+-- the hook writes below land in .text -- protection must be off (crash at the first
+-- IEex_WriteAssembly otherwise; every patch file brackets its writes like this)
+IEex_DisableCodeProtection()
+
 IEex_HookReplaceFunctionMaintainOriginal(0x7C5330, 6, "CVidCell::FXRender3dOriginal", {[[
 	!jmp_dword >IEex_Helper_CVidCell_FXRender3dHD
 ]]})
@@ -44,6 +48,8 @@ IEex_HookReplaceFunctionMaintainOriginal(0x7C4240, 6, "CVidCell::RenderTextureOr
 	!jmp_dword >IEex_Helper_CVidCell_RenderTextureHD
 ]]})
 IEex_Helper_DefineAddress("CVidCell::RenderTextureOriginal", IEex_Label("CVidCell::RenderTextureOriginal"))
+
+IEex_EnableCodeProtection()
 
 -- Registered HD set: every resref here must have a native-2x BAM in override/.
 -- POC: FULL anim sets of the two test creatures -- goblin MGO2 (incl. E mirrors) and

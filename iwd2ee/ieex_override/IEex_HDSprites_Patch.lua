@@ -46,6 +46,18 @@ IEex_HookReplaceFunctionMaintainOriginal(0x7C4240, 6, "CVidCell::RenderTextureOr
 IEex_Helper_DefineAddress("CVidCell::RenderTextureOriginal", IEex_Label("CVidCell::RenderTextureOriginal"))
 
 -- Registered HD set: every resref here must have a native-2x BAM in override/.
+-- POC: FULL anim sets of the two test creatures -- goblin MGO2 (incl. E mirrors) and
+-- unarmed dwarf CDMB1 (walk/stand G1x, attacks A1-9, cast CA, SA/SS/SX) -- a single
+-- action anim alone (the first attempt) is invisible on an idle/walking creature.
 -- (Phase E replaces this hand list with the generated IEex_HDSprites_List.lua.)
-IEex_Helper_RegisterHDSprite("MGO2A1")
-IEex_Helper_RegisterHDSprite("CDMB1A1")
+for _, resref in ipairs({
+	"MGO2A1", "MGO2A1E", "MGO2A4", "MGO2A4E", "MGO2DE", "MGO2DEE", "MGO2GH", "MGO2GHE",
+	"MGO2GU", "MGO2GUE", "MGO2SC", "MGO2SCE", "MGO2SD", "MGO2SDE", "MGO2SL", "MGO2SLE",
+	"MGO2TW", "MGO2TWE", "MGO2WK", "MGO2WKE",
+	"CDMB1A1", "CDMB1A2", "CDMB1A3", "CDMB1A4", "CDMB1A5", "CDMB1A6", "CDMB1A7",
+	"CDMB1A8", "CDMB1A9", "CDMB1CA", "CDMB1G1", "CDMB1G11", "CDMB1G12", "CDMB1G13",
+	"CDMB1G14", "CDMB1G15", "CDMB1G16", "CDMB1G17", "CDMB1G18", "CDMB1G19",
+	"CDMB1SA", "CDMB1SS", "CDMB1SX",
+}) do
+	IEex_Helper_RegisterHDSprite(resref)
+end

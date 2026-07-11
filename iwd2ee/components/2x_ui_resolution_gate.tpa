@@ -50,12 +50,12 @@ COPY ~%mod_folder%/mos/mos_2x_ui~ ~override~
 // they are also in the IEex_UIScale_Patch.lua de-double mos_list so they render native-crisp, not 4x.
 COPY ~%mod_folder%/mos/mos_min_2x~ ~override~
 
-// --- World-HUD-refonte 2x assets: 108x168 _B busts (cut from the 420x660 _L above with the
-//     validated 1x framing; bmp_match de-double covers the dims) plus the refonte bar/button art
-//     at 2x (GCOMMBTN/USGBTNQL/IEEXBARB/IEEXLOGB/B3QKLOO*) as they land. Subdir needs its OWN
-//     copy: WeiDU directory COPY is non-recursive. Inert without the refonte component
-//     (DESIGNATED 103). ---
-COPY ~%mod_folder%/bam/bam_2x_ui/world_hud_refonte~ ~override~
+// --- World-HUD-refonte 2x assets (bam/bam_2x_ui/world_hud_refonte) are NOT copied here
+//     unconditionally: USGBTNQL (quickloot toggle) and B3QKLOO* (quickloot panel bg) are shared
+//     resrefs used by the BASE quickloot UI too, and the refonte versions carry refonte-only art
+//     and control dims -- copying them without DESIGNATED 103 breaks the stock quickloot button.
+//     Both install orders are covered elsewhere: refonte-after-2x by world_hud_refonte.tpa's own
+//     2x overlay, 2x-after-refonte by the MOD_IS_INSTALLED 103 block at the bottom of this file. ---
 
 // --- NPC Core (DESIGNATED 36) portraits at 2x: 420x660 _L + 84x84 _S (+ 108x168 _B busts), the
 //     2x equivalents of bam_new_npcs. Only when NPC Core is already installed -- install NPC Core

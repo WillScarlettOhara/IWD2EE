@@ -1912,7 +1912,9 @@ function IEex_Extern_InitResolution()
 
 	-- Pass the 2x UI install state so the dialog can warn below the component's 2048x1200
 	-- minimum (red status line, "Recommended" retag, SELECT confirm) -- see MFCLibrary1.cpp.
-	local nWidth, nHeight = IEex_Helper_AskResolution(IEEX_HD_UI and 1 or 0)
+	-- Plain boolean, NOT "and 1 or 0": the helper reads lua_toboolean, and the NUMBER 0 is
+	-- truthy in lua -- passing 0 reported the component installed on clean installs.
+	local nWidth, nHeight = IEex_Helper_AskResolution(IEEX_HD_UI)
 	IEex_WriteWord(0x8BA31C, nWidth)  -- g_resolution.width
 	IEex_WriteWord(0x8BA31E, nHeight) -- g_resolution.height
 	IEex_WritePrivateProfileInt("Program Options", "BitsPerPixel", 32, ".\\Icewind2.ini")

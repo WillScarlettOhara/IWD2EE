@@ -379,11 +379,10 @@
 		-- HD item icons: PREFIX gate -- one branch covers all I* item icons (and eax,0xFF (char0); cmp 'I').
 		-- I* via CResCell = item icons + INITIALS/INVBUT (HD/de-doubled). SP* scroll item icons are caught
 		-- by the SP* branch above; FIST/TEMP/USPLAT15 by resref. INFOFONT (also starts with 'I') ships NO
-		-- 2x BAM in the BASE component (the engine NN-doubles the stock 1x = correct), so it must NOT be
-		-- de-doubled: route it to >skip BEFORE the I* prefix gate would catch it. The "non-pixelated
-		-- fonts" option DOES ship a 2x AA INFOFONT and flips this branch >skip -> >hit at install
-		-- (2x_ui_aa_fonts.tpa REPLACE_TEXTUALLY on the @notinfo line). DEPLOY FOOTGUN: on an install
-		-- with that option, copying this file from the repo resets the flip -- re-apply >hit after cp.
+		-- 2x BAM at all -- the player's stock 1x font is kept in EVERY install (the "non-pixelated fonts"
+		-- option no longer swaps it: an AA face muddies the engine's 1-bit text -- see 2x_ui_aa_fonts.tpa)
+		-- and the engine NN-doubles it at the 2x tier = correct. So it must NOT be de-doubled: route it
+		-- to >skip BEFORE the I* prefix gate would catch it, and keep it >skip.
 		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) !cmp_eax_dword #4F464E49 !jne_dword >notinfo !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #544E4F46 !jz_dword >skip @notinfo "
 		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) 25 FF 00 00 00 !cmp_eax_dword #00000049 !jz_dword >hit "
 		hd_match = hd_match .. "!jmp_dword >skip @hit "
@@ -456,7 +455,10 @@
 		-- @0x4CB3C7) to IEEXFLT = the player's stock 1x INFOFONT, captured by the
 		-- 2x component (COPY_EXISTING before the 2x fonts land in override, so it
 		-- is language-correct). Loading-screen parchment + worldmap labels keep
-		-- the 2x INFOFONT. If IEEXFLT.BAM is missing (lua deployed without the
+		-- the 2x INFOFONT. World text therefore stays the VANILLA 1-bit font in
+		-- every install: the "non-pixelated fonts" option deliberately ships no AA
+		-- IEEXFLT (an AA face only muddies 1x 1-bit glyphs over the world -- see
+		-- 2x_ui_aa_fonts.tpa). If IEEXFLT.BAM is missing (lua deployed without the
 		-- component recopy) the font demand fails and floating text just doesn't
 		-- draw -- pair this file with the asset.
 		IEex_WriteDword(0x4CB3C7, IEex_WriteStringAuto("IEEXFLT"))

@@ -1,58 +1,29 @@
 // =====================================================================================
 // 2x UI - Non-pixelated (AA) fonts   (sub-choice of the 2x UI component; runs AFTER the gate)
 // =====================================================================================
-// Swaps the portrait HP digits (NUMFONT) and the floating world identify text (INFOFONT) for
-// anti-aliased, TTF-rendered BAMs, built by scripts/build_aa_font_bam.py into bam/bam_2x_ui/aa_fonts
-// (Western) and bam/bam_2x_ui_ru/aa_fonts (Russian Cyrillic). Each glyph keeps the SAME per-glyph cell
-// geometry (w/h/cx/cy) as the stock 2x font -> identical layout/footprint.
+// Swaps the portrait HP digits (NUMFONT) for an anti-aliased, TTF-rendered BAM (Roboto Condensed
+// Bold), built by scripts/build_aa_font_bam.py into bam/bam_2x_ui/aa_fonts. Every glyph keeps the SAME
+// per-glyph cell geometry (w/h/cx/cy) as the stock 2x NUMFONT -> identical layout/footprint. Digits are
+// language-neutral, so it ships for every language.
 //
 // COLOUR MODEL (iwd2-re CVidFont::RealizePalette + CGameText SetColor(white,black)): the BAM palette
 // is rebuilt by the engine as index1~=background .. index255~=foreground, index0=transparent. So the
 // glyphs are encoded by INDEX (ink/body -> high index = foreground; AA edge + drop bevel -> low index).
+// NUMFONT already de-doubles via its hd_match resref (IEex_UIScale_Patch.lua), so the AA BAM renders
+// native-crisp at the 2x tier instead of being NN-doubled.
 //
-// NUMFONT (digits, language-neutral) already de-doubles via its hd_match resref, so the AA BAM is crisp.
-// INFOFONT does NOT ship a stock 2x BAM, so the lua EXCLUDES it from de-double; when we ship a 2x AA
-// INFOFONT we flip its de-double branch >skip -> >hit (else it renders NN-doubled = soft).
-//
-// RUSSIAN: the Western INFOFONT (Rajdhani) has NO Cyrillic, so it must NOT be used for a Russian
-// install. If a Cyrillic AA INFOFONT exists (bam_2x_ui_ru/aa_fonts), use it; otherwise leave the stock
-// 1-bit INFOFONT (engine NN-doubles it = sharp Cyrillic, per the base 2x UI design). NUMFONT (digits)
-// is shipped for every language.
+// TEXT FONTS STAY STOCK, ON PURPOSE. AA'd INFOFONT (parchment + worldmap labels) and AA'd floating
+// world text (CGameText -> IEEXFLT) were both built, shipped and then DROPPED: the engine's text model
+// is 1-bit ink over a colour-keyed background, so an AA face muddies the glyphs instead of smoothing
+// them -- worst of all on the 1x world text. So:
+//   · INFOFONT ships NO BAM here -> the engine loads the player's stock 1x font and NN-doubles it at
+//     the 2x tier (sharp, and language-correct for free). Its de-double branch in
+//     IEex_UIScale_Patch.lua MUST therefore stay >skip -- do NOT flip it to >hit.
+//   · IEEXFLT (floating world text) stays the base component's COPY_EXISTING capture of that same
+//     stock INFOFONT.
+// Do not re-add an AA INFOFONT/IEEXFLT (any language) without reopening that call.
 // =====================================================================================
 PRINT ~[2x UI] Non-pixelated fonts: AA NUMFONT (portrait HP digits)~
 
 // NUMFONT: always (language-neutral digits). Overwrites the stock silly_pixel NUMFONT.
 COPY ~%mod_folder%/bam/bam_2x_ui/aa_fonts/NUMFONT.BAM~ ~override/NUMFONT.BAM~
-
-// INFOFONT: pick the right glyph set per language, then enable its de-double.
-OUTER_SET infofont_shipped = 0
-ACTION_IF ~%LANGUAGE%~ STRING_EQUAL ~Russian~ BEGIN
-  ACTION_IF FILE_EXISTS ~%mod_folder%/bam/bam_2x_ui_ru/aa_fonts/INFOFONT.BAM~ BEGIN
-    PRINT ~[2x UI] Non-pixelated fonts: AA INFOFONT (Russian Cyrillic floating text)~
-    COPY ~%mod_folder%/bam/bam_2x_ui_ru/aa_fonts/INFOFONT.BAM~ ~override/INFOFONT.BAM~
-    OUTER_SET infofont_shipped = 1
-  END ELSE BEGIN
-    PRINT ~[2x UI] No Cyrillic AA INFOFONT shipped -- Russian keeps the stock 1-bit INFOFONT (NN-doubled, sharp Cyrillic).~
-  END
-  // Floating world text (CGameText -> IEEXFLT, 1x): AA it too, else it stays the stock
-  // 1-bit capture made by the base component.
-  ACTION_IF FILE_EXISTS ~%mod_folder%/bam/bam_2x_ui_ru/aa_fonts/IEEXFLT.BAM~ BEGIN
-    COPY ~%mod_folder%/bam/bam_2x_ui_ru/aa_fonts/IEEXFLT.BAM~ ~override/IEEXFLT.BAM~
-  END
-END ELSE BEGIN
-  PRINT ~[2x UI] Non-pixelated fonts: AA INFOFONT (floating identify text)~
-  COPY ~%mod_folder%/bam/bam_2x_ui/aa_fonts/INFOFONT.BAM~ ~override/INFOFONT.BAM~
-  COPY ~%mod_folder%/bam/bam_2x_ui/aa_fonts/IEEXFLT.BAM~ ~override/IEEXFLT.BAM~
-  OUTER_SET infofont_shipped = 1
-END
-
-// enable INFOFONT de-double only when we actually shipped a 2x AA INFOFONT: flip >skip -> >hit
-ACTION_IF infofont_shipped = 1 BEGIN
-  ACTION_IF FILE_EXISTS ~override/IEex_UIScale_Patch.lua~ BEGIN
-    COPY_EXISTING ~override/IEex_UIScale_Patch.lua~ ~override~
-      REPLACE_TEXTUALLY ~#544E4F46 !jz_dword >skip @notinfo~ ~#544E4F46 !jz_dword >hit @notinfo~
-    BUT_ONLY_IF_IT_CHANGES
-  END ELSE BEGIN
-    WARN ~[2x UI] override/IEex_UIScale_Patch.lua not found -- AA INFOFONT will render NN-doubled (soft).~
-  END
-END

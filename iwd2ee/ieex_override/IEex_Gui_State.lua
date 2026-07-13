@@ -1713,6 +1713,10 @@ end
 -- hash is unchanged the portraits are pixel-identical, so the ~5ms full panel-1 repaint (measured
 -- 93% portraits) is pure waste and gets skipped. Selection/hover rings are engine-invalidated
 -- natively and are NOT hashed. Offsets are CGameSprite-relative (RE'd struct, pristine .text).
+-- The slot's actorID is hashed too: a party REORDER (CUIControlPortraitWorld::OnLButtonUp 0x77B160
+-- -> CInfGame::SwapCharacters) rewrites the slot->actor mapping while touching none of the stat
+-- fields below, and it invalidates the two portrait CONTROLS but never panel 1 -- so without the
+-- id in the hash, swapping two same-stat PCs leaves the layer showing the old order.
 function IEex_HudLayer_PortraitContentHash()
 	local h = 0
 	for c = 0, 5 do
@@ -1726,7 +1730,7 @@ function IEex_HudLayer_PortraitContentHash()
 				local flOn  = IEex_ReadDword(spr + 0x53E2)            -- m_bBloodFlashOn
 				local hcol  = IEex_ReadDword(spr + 0x53E6)            -- health-colour tint state
 				local talk  = IEex_ReadDword(spr + 0x712A)            -- m_talkingCounter (animates)
-				h = (h * 131 + c * 1000003 + hp + 100000) % 2147483647
+				h = (h * 131 + c * 1000003 + actorID * 31 + hp + 100000) % 2147483647
 				h = (h * 131 + maxHP + flAmt * 7 + flOn * 13 + hcol * 17 + talk * 19) % 2147483647
 			end
 		end

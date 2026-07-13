@@ -486,6 +486,10 @@ function IEex_SetControlHotkeyHintIndex(CUIControl, hotkeyIndex)
 	IEex_WriteWord(CUIControl + 0x4A, hotkeyIndex)
 end
 
+function IEex_SetControlInactiveRender(CUIControl, inactiveRender)
+	IEex_WriteDword(CUIControl + 0x32, inactiveRender and 1 or 0)
+end
+
 function IEex_SetControlXY(CUIControl, x, y)
 	-- HD UI (2x): every caller passes 1x-authored coords -- these nudge VANILLA controls aside to make
 	-- room for IEex additions (e.g. moving the "Return"/"Level Up" buttons). SetControlXY writes m_ptOrigin
@@ -3621,10 +3625,24 @@ function IEex_InstallPortraitGrid(chuResref)
 		IEex_SetControlArea(ctrl, (rowLeft - x1) + i * (slotW + gap), rowTop - y1, slotW, slotH)
 	end
 
-	-- Hide the stock HP-bar strips (ctrl 50-55) so they don't orphan at the old portrait location.
+	-- Hide the stock HP-bar strips (ctrl 50-55 = CUIControlButtonPortraitHealthBar, the 45x4 bars
+	-- the CHU parks under the stock portraits) so they don't orphan over the new bar block.
+	--
+	-- Clearing m_active alone did NOT hold -- the bars came back. Their Render gate is
+	-- `if (!m_active && !m_bInactiveRender) return` (0x77DE10), an OR, so kill BOTH flags. And
+	-- because something outside the decompiled source evidently flips one back on, ALSO zero the
+	-- size: CUIPanel::Render intersects the dirty rect with the control rect and only calls
+	-- Render() on a non-empty result, so a 0x0 control can never draw whatever the flags say.
+	-- Geometry is safe to own -- the bars' async update only writes their fill width (+0x666)
+	-- and BAM sequence, never m_size. Leave m_position alone (negative panel-relative coords
+	-- wrap 16-bit -- see the panel-0 origin note below).
 	for i = 50, 55 do
 		local strip = IEex_GetControlFromPanel(panel1, i)
-		if strip ~= 0x0 then IEex_SetControlActive(strip, false) end
+		if strip ~= 0x0 then
+			IEex_SetControlActive(strip, false)
+			IEex_SetControlInactiveRender(strip, false)
+			IEex_SetControlArea(strip, nil, nil, 0, 0)
+		end
 	end
 
 	-- Bottom-centre bar block = user art IEEXBARB.BMP (572x107): a plain top band (the

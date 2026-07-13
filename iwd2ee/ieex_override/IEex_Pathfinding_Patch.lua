@@ -1,7 +1,9 @@
 
 -- IEex_Pathfinding_Patch.lua — GemRB-inspired pathfinding behavior improvements.
 --
--- Master gate: [IEex Options] "Improved Pathfinding" (Icewind2.ini), default 1.
+-- Master gate: [IEex Options] "Improved Pathfinding" (Icewind2.ini), default 0.
+-- EXPERIMENTAL / off by default: closing to melee in combat still stutters
+-- (party + NPCs run in fits and starts). Re-enable by default only once that is fixed.
 -- Boot-gates the raw byte patches only; the DLL policy seams install always
 -- and self-gate at runtime (vanilla-exact when 0).
 --
@@ -40,7 +42,7 @@
 	-- patches below (phase-1 constants, phase-4b), which have no runtime gate,
 	-- honor the toggle at boot.
 	local IEex_PF_MasterEnabled =
-		IEex_GetPrivateProfileInt("IEex Options", "Improved Pathfinding", 1, ".\\Icewind2.ini") ~= 0
+		IEex_GetPrivateProfileInt("IEex Options", "Improved Pathfinding", 0, ".\\Icewind2.ini") ~= 0
 
 	-- Verify original bytes at address before patching; skip + log on mismatch
 	-- (exe drift / foreign mod protection).

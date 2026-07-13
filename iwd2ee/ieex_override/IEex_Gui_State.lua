@@ -89,7 +89,7 @@ if not IEex_Vanilla then
 		{"Transparent Fog of War", 0},
 		{"Action Indicators", 1},
 		{"Highlight Empty Containers in Gray", 1},
-		{"Improved Pathfinding", 1},
+		{"Improved Pathfinding", 0},
 		{"IP Enemy Soft Block", 0},
 		{"Prevent Equipping Armor During Combat", 0},
 	}
@@ -3239,7 +3239,7 @@ function IEex_SetOptionDescription(labelId)
 		[15] = "Displays an on-screen counter showing the render framerate, the AI (game-logic) update rate, and the VRAM pool usage.",
 		[17] = "Synchronizes frame presentation with your monitor's refresh rate to eliminate screen tearing.",
 		[19] = "Adds decorative stone borders around the interface: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty margins at the screen edges (for example on widescreen displays). When off, the world shows through those margins. Requires a restart to take effect.",
-		[21] = "GemRB-inspired pathfinding improvements: characters wait for walkers instead of shuffling, stop cleanly next to occupied destinations, no longer stop short of their goal, and enemies unclog doorways by shoving their own allies (never party members). Fine-tuning keys (IP *) live in icewind2.ini under [IEex Options]. Requires a restart to fully take effect.",
+		[21] = "EXPERIMENTAL, off by default. GemRB-inspired pathfinding improvements: characters wait for walkers instead of shuffling, stop cleanly next to occupied destinations, no longer stop short of their goal, and enemies unclog doorways by shoving their own allies (never party members). KNOWN ISSUE: movement stutters -- party members and NPCs run in fits and starts when closing to melee in combat. Fine-tuning keys (IP *) live in icewind2.ini under [IEex Options]. Requires a restart to fully take effect.",
 		[23] = "Samples the mouse position at the rendering framerate instead of the game's logic tick rate, for smoother cursor movement. Requires a restart to take effect.",
 		[25] = "Limits the framerate to your display's refresh rate to reduce GPU and CPU load. Requires a restart to take effect.",
 		[27] = "Batches world-tile rendering through a single texture atlas for a large framerate gain at high resolutions. Requires a restart to take effect.",
@@ -4430,7 +4430,7 @@ function IEex_InstallIEexOptions()
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
 	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 21), "Improved Pathfinding (restart required)")
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 21), "Improved Pathfinding (experimental)")
 
 	-- "Improved Pathfinding" Toggle - ID 22
 	IEex_AddControlOverride("GUIOPT", 14, 22, "IEex_UI_Button")
@@ -5132,7 +5132,7 @@ function IEex_LoadOptions()
 		IEex_GetPrivateProfileInt("IEex Options", "UI Borders", 1, ".\\Icewind2.ini") ~= 0 and true or false)
 
 	IEex_Helper_SetBridge(options, "improvedPathfinding",
-		IEex_GetPrivateProfileInt("IEex Options", "Improved Pathfinding", 1, ".\\Icewind2.ini") ~= 0 and true or false)
+		IEex_GetPrivateProfileInt("IEex Options", "Improved Pathfinding", 0, ".\\Icewind2.ini") ~= 0 and true or false)
 
 	IEex_Helper_SetBridge(options, "smoothCursor",
 		IEex_GetPrivateProfileInt("IEex Options", "Smooth Cursor", 1, ".\\Icewind2.ini") ~= 0 and true or false)
@@ -5278,7 +5278,7 @@ function IEex_InjectOptionIniComments()
 		["IP Enemy Bumping"]                      = "Improved Pathfinding: let moving enemies bump/shove each other, not just allies. 1 = on.",
 		["IP Directed Adjust"]                    = "Improved Pathfinding: nudge a blocked step toward the intended target instead of stalling. 1 = on.",
 		["AutoLoadSlot"]                          = "Dev/testing: auto-load this save slot on startup (>=0 auto-clicks Load Game); -1 or absent = off (default).",
-		["Improved Pathfinding"]                  = "Master toggle for the GemRB-inspired pathfinding improvements (retry/backoff, unstucking, ally soft-block). 1 = on.",
+		["Improved Pathfinding"]                  = "EXPERIMENTAL, default off (0). Master toggle for the GemRB-inspired pathfinding improvements (retry/backoff, unstucking, ally soft-block). KNOWN ISSUE: movement stutters -- party members and NPCs run in fits and starts when closing to melee in combat. 1 = on.",
 		["IP Enemy Soft Block"]                   = "Improved Pathfinding sub-option: enemy searches soft-cost through bumpable allies instead of hard-blocking. Default off (enemies may path into the party line and grind).",
 		["IP Combat Slide"]                       = "Improved Pathfinding EXPERIMENTAL: melee allies may slide around their target to make room for more attackers instead of jamming corridors single-file. Party-only (enemies keep vanilla rules, so door/tunnel body-blocking gets STRONGER for the player); slides are short interpolated glides, ~2 cells max per burst. Default off.",		["Tile Atlas"]                            = "OpenGL: batch map tiles into an atlas texture for faster tile rendering. 1 = on. OpenGL only.",
 		["UI Canvas Scale x10"]                   = "HD UI canvas scale x10: 10 = native 1.0x; >=11 enables the HD UI upscale (e.g. 20 = 2x). Written by the HD/2x UI component.",

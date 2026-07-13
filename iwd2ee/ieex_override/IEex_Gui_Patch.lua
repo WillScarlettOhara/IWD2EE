@@ -402,6 +402,37 @@
 		]]})
 	end
 
+	-------------------------------------------------------------------
+	-- IEex_Extern_CUIControlButtonWorldContainerSlot_OnRButtonClick --
+	-------------------------------------------------------------------
+
+	if not IEex_Vanilla then
+
+		-- CUIControlButtonWorldContainerSlot is constructed with LBUTTON alone, so the engine
+		-- drops right-clicks on a loot slot before they reach a handler (CUIControlButton::
+		-- OnRButtonDown() bails on the m_nMouseButtons mask). The constructor loads the mask
+		-- from the CUIControlButton::LBUTTON global -- overwrite that load with an immediate
+		-- LBUTTON|RBUTTON, which keeps the mask change local to this control class.
+		IEex_WriteAssembly(0x6956F6, {"B0 03 90 90 90"}) -- mov al, 3 (was: mov al, ds:0x84C920)
+
+		-- Vtable slot 0x70 (OnRButtonClick) is the shared do-nothing stub -- point the class at
+		-- lua. Covers both loot UIs: the stock container window and the quickloot bar are built
+		-- out of this same control class.
+		IEex_WriteDword(0x85A3E8, IEex_WriteAssemblyAuto(IEex_FlattenTable({
+			{"!push_all_registers_iwd2"},
+			IEex_GenLuaCall("IEex_Extern_CUIControlButtonWorldContainerSlot_OnRButtonClick", {
+				["args"] = {
+					{"!push(ecx)"}, -- control
+				},
+			}),
+			{[[
+				@call_error
+				!pop_all_registers_iwd2
+				!ret_word 08 00
+			]]},
+		})))
+	end
+
 	-------------------------------------------------
 	-- IEex_Extern_CScreenWorld_AsynchronousUpdate --
 	-------------------------------------------------
@@ -749,6 +780,37 @@
 	}))
 
 	IEex_HookJump(0x475465, 0, IEex_FlattenTable({
+		{[[
+			!push_all_registers_iwd2
+		]]},
+		IEex_GenLuaCall("IEex_Extern_RejectGetWorldCoordinates", {
+			["args"] = {
+				{"!lea(eax,[esi+4CC]) !push_eax"},
+				{"!push([edi])"},
+				{"!push([edi+4])"},
+			},
+			["returnType"] = IEex_LuaCallReturnType.Boolean,
+		}),
+		{[[
+			!jmp_dword >no_error
+
+			@call_error
+			!xor_eax_eax
+
+			@no_error
+			!test_eax_eax
+			!pop_all_registers_iwd2
+			!jnz_dword >jmp_success
+			!cmp(eax,[esi+514])
+		]]},
+	}))
+
+	-- Right-click (formation move) path. CGameArea::OnFormationButtonDown() repeats the same
+	-- viewport-rect test as OnActionButtonDown() above, but nothing extended it -- and the IEex
+	-- bars (quickloot, action indicators, the world-screen info panel) float INSIDE the viewport
+	-- rect, unlike the stock HUD, which sits below it. So a right-click on one passed the stock
+	-- test and ordered the party to walk to the world point underneath. Same guard, same shape.
+	IEex_HookJump(0x4766BA, 0, IEex_FlattenTable({
 		{[[
 			!push_all_registers_iwd2
 		]]},

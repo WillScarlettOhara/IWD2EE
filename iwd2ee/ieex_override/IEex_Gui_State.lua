@@ -653,6 +653,16 @@ function IEex_GetContainerIDType(containerID)
 	return toReturn
 end
 
+-- Returns the CItem in the container's slot, 0x0 when the slot is empty or the id is stale.
+function IEex_GetContainerIDItem(containerID, slotIndex)
+	local share = IEex_GetActorShare(containerID)
+	if share == 0x0 then return 0x0 end
+	-- CGameContainer::GetItem()
+	local toReturn = IEex_Call(0x4802B0, {slotIndex}, share, 0x0)
+	IEex_UndoActorShare(containerID)
+	return toReturn
+end
+
 function IEex_GetContainerNumItems(CGameContainer)
 	return IEex_ReadDword(CGameContainer + 0x5AE + 0xC)
 end
@@ -1456,6 +1466,46 @@ function IEex_LaunchWorldScreenSpellInfo(spellResref)
 
 	local descTextDisplay = IEex_GetControlFromPanel(newSpellInfoPanel, 3)
 	IEex_SetControlTextDisplay(descTextDisplay, spellDesc)
+end
+
+-- Shows the info panel for a CItem instead of a spell (right-click in the loot window /
+-- quickloot bar). Reads the CItem, not the .ITM file, so the unidentified item shows its
+-- unidentified name and text.
+function IEex_LaunchWorldScreenItemInfo(CItem)
+
+	if CItem == 0x0 then return end
+
+	local itemWrapper = IEex_DemandRes(IEex_ReadLString(CItem + 0xC, 8), "ITM") -- CItem.cResRef
+	if not itemWrapper:isValid() then
+		return
+	end
+	local iconResref = IEex_ReadLString(itemWrapper:getData() + 0x3A, 8) -- ITEM_HEADER.itemIcon
+	itemWrapper:free()
+
+	local worldScreen = IEex_GetEngineWorld()
+	local newSpellInfoPanel = IEex_GetPanelFromEngine(worldScreen, IEex_WorldScreenSpellInfoPanelID)
+
+	-- CItem::GetGenericName() - the identified name only once the item has been identified.
+	local nameLabel = IEex_GetControlFromPanel(newSpellInfoPanel, 1)
+	IEex_SetControlLabelText(nameLabel, IEex_FetchString(IEex_Call(0x4E9B10, {}, CItem, 0x0)))
+
+	-- The icon control is a CUIControlButtonSpellbookSpellInfoIcon: its SetSpell() only knows
+	-- how to derive a BAM from an .SPL, but its Render() just draws m_iconResRef (centered when
+	-- the BAM is smaller than the cell) -> hand it the item's icon BAM directly.
+	local iconControl = IEex_GetControlFromPanel(newSpellInfoPanel, 2)
+	IEex_WriteDword(iconControl + 0x666, 0x0) -- m_spellResRef
+	IEex_WriteDword(iconControl + 0x66A, 0x0)
+	IEex_WriteDword(iconControl + 0x66E, 0x0) -- m_iconResRef
+	IEex_WriteDword(iconControl + 0x672, 0x0)
+	IEex_WriteLString(iconControl + 0x66E, iconResref, 8)
+
+	IEex_SetPanelActive(newSpellInfoPanel, true)
+
+	-- CItem::FormatItemDescription() appends the same description + stats block the inventory
+	-- popup shows, so RemoveAll() the previous entry's text first.
+	local descTextDisplay = IEex_GetControlFromPanel(newSpellInfoPanel, 3)
+	IEex_Call(0x4E2B50, {}, descTextDisplay, 0x0)                    -- CUIControlTextDisplay::RemoveAll()
+	IEex_Call(0x4EA580, {0xC8C8, descTextDisplay}, CItem, 0x0)       -- RGB(200, 200, 0)
 end
 
 function IEex_StopWorldScreenSpellInfo()
@@ -3423,6 +3473,43 @@ function IEex_Extern_CUIControlButtonWorldContainerSlot_GetContainerItemIndex(co
 	else
 		return -1
 	end
+end
+
+-- Right-click a loot slot -> show the item's description instead of picking it up. The stock
+-- container window and the quickloot bar are both built out of this control class, so the slot
+-- -> item mapping branches the same way the engine's own render / left-click path does.
+function IEex_Extern_CUIControlButtonWorldContainerSlot_OnRButtonClick(control)
+
+	IEex_AssertThread(IEex_Thread.Async, true)
+
+	local controlID = IEex_GetControlID(control)
+	local CItem = 0x0
+
+	if IEex_Quickloot_IsControlOnPanel(control) then
+
+		local slotData = IEex_Quickloot_GetSlotData(controlID)
+		if slotData.isFallback then return end -- the trailing "drop here" slot
+		CItem = IEex_GetContainerIDItem(slotData.containerID, slotData.slotIndex)
+
+	elseif controlID <= 9 then
+
+		-- Ground side of the loot window: 5 columns, scrolled by m_nTopContainerRow.
+		local containerID = IEex_ReadDword(IEex_GetGameData() + 0x1BA2) -- CInfGame.m_iContainer
+		local topRow = IEex_ReadDword(IEex_GetEngineWorld() + 0xF3C)    -- CScreenWorld.m_nTopContainerRow
+		CItem = IEex_GetContainerIDItem(containerID, topRow * 5 + controlID)
+
+	elseif controlID <= 13 then
+
+		-- Personal side: the looter's own backpack, 2 columns starting at equipment slot 18.
+		local spriteID = IEex_ReadDword(IEex_GetGameData() + 0x1BA6) -- CInfGame.m_iContainerSprite
+		local share = IEex_GetActorShare(spriteID)
+		if share == 0x0 then return end
+		local topRow = IEex_ReadDword(IEex_GetEngineWorld() + 0xF40) -- CScreenWorld.m_nTopGroupRow
+		CItem = IEex_ReadDword(share + 0x4AD8 + (topRow * 2 + controlID + 8) * 0x4)
+		IEex_UndoActorShare(spriteID)
+	end
+
+	IEex_LaunchWorldScreenItemInfo(CItem)
 end
 
 ----------------------------

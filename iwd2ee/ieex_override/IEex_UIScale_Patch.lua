@@ -412,6 +412,29 @@
 			{hd_match .. "!mov([esp+0C],0) @skip !pop(eax)"},
 			{"83 EC 10 53 8B D9 !jmp_dword :77F5F6"}, {0x83, 0xEC, 0x10, 0x53, 0x8B, 0xD9})
 
+		-- === Character-creation paperdoll: 2x, like the inventory one (vanilla bug) ===
+		-- The colour-choice screen previews the character with a live animation, not a BAM. That animation
+		-- has its own double-size flag: CGameAnimationTypeCharacter::field_1444 (+0x1444), which is handed
+		-- to CVidCell::SetResRef as the bDoubleSize arg of EVERY cell the animation issues (body, armor,
+		-- weapon, shield, helmet). It therefore has to be set BEFORE the re-equip pass that (re)issues them.
+		-- CScreenInventory::UpdateAppearance does exactly that, right after CGameAnimationType::SetAnimationType
+		-- hands back the fresh animation in eax:
+		--     0x62EF95  mov ecx, [0x8CF6DC]     ; g_pBaldurChitin
+		--     0x62EF9B  mov ecx, [ecx+0x4A28]   ; m_bUseNewGui
+		--     0x62EFA1  mov [eax+0x1444], ecx   ; anim->field_1444 = m_bUseNewGui
+		-- CScreenCreateChar::UpdateCharacterAppearance (0x612800) builds its animation the SAME way -- same
+		-- SetAnimationType call, same swap of the sprite's animation around UnequipAll/EquipAll (0x612898
+		-- stores, 0x6128B8 restores) -- but simply OMITS those three instructions. So its cells keep
+		-- bDoubleSize = FALSE: the destination rect is doubled (128x160 -> 256x320) while a 1x sprite is
+		-- drawn into it, which is the "tiny character in a big disc" look. Splice the three instructions
+		-- back in at 0x612885, where eax still holds the new animation, byte-for-byte as the inventory has
+		-- them. Every colour click re-enters 0x612800, so the flag is re-applied on each rebuild -- and
+		-- because it reads m_bUseNewGui it is a no-op at the 1x tier.
+		IEex_AttemptHook(0x612885,  -- CScreenCreateChar::UpdateCharacterAppearance, just after the new anim lands in eax
+			{"8B 0D DC F6 8C 00 8B 89 28 4A 00 00 89 88 44 14 00 00"},
+			{"8B 44 24 1C 8B 8E 9A 01 00 00 !jmp_dword :61288F"},
+			{0x8B, 0x44, 0x24, 0x1C, 0x8B, 0x8E, 0x9A, 0x01, 0x00, 0x00})
+
 		-- === HD fonts x glyph atlas: don't re-double the atlas quads ===
 		-- IEex_Gui_Patch.lua (0x7A12C6 NOP) routes m_bDoubleSize fonts through the
 		-- glyph-atlas fast path (CVidFont::RenderCharacters) instead of the

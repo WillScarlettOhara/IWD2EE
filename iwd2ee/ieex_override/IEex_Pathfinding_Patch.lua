@@ -125,6 +125,45 @@
 		end
 
 		---------------------------------------------------------------
+		-- Idle non-hostile NPCs are shovable ("IP Bump Idle NPCs")  --
+		--                                                           --
+		-- m_bBumpable = CanAnimate() (0x6FB440), refreshed each AI  --
+		-- tick, and it decides BOTH which counter the sprite stamps --
+		-- on the search map (bumpable 0x0E vs non-bumpable 0x70)    --
+		-- and whether ClearBumpPath may shove it. CanAnimate:       --
+		--                                                           --
+		--   6fb4bc  mov cl,[esi+0x24]      ; EA                     --
+		--   6fb4bf  cmp cl,[0x847c3b]      ; EA_GOODCUTOFF          --
+		--   6fb4c5  ja  0x6fb4e0           ; EA > cutoff -> whitelist--
+		--   6fb4c7  mov dx,[esi+0x476]     ; m_curAction.m_actionID --
+		--   6fb4ce  cmp dx,[0x847784]      ; NO_ACTION              --
+		--   6fb4d5  jne 0x6fb4e0                                    --
+		--   6fb4d7  ...                    ; -> return TRUE          --
+		--                                                           --
+		-- The whitelist is {RANDOMWALK, RANDOMWALKCONTINUOUS, WAIT, --
+		-- FACE} (plus ATTACK* with a ranged weapon) and NO_ACTION   --
+		-- is NOT in it -- so an IDLE neutral (a cat asleep in a     --
+		-- house, a villager standing in a doorway) is non-bumpable: --
+		-- it stamps 0x70, which is a hard wall for the A* AND makes --
+		-- ClearBumpPath's crowd gate (dynByte>>1 > 7; a 0x70 stamp  --
+		-- folds to +8) abort every shove. The party then cannot get --
+		-- past it at all until its script happens to start a        --
+		-- RandomWalk -- the "the cat blocks the corridor until it   --
+		-- feels like moving" bug. An idle PC, by contrast, IS       --
+		-- bumpable: EA <= cutoff means it skips the whitelist.      --
+		--                                                           --
+		-- Killing the `ja` gives idle non-hostiles the same deal as --
+		-- idle PCs. Enemies (EA_ENEMY, rejected above at 0x6FB4A1)  --
+		-- and immobile creatures (GetMoveScale 0) stay non-bumpable.--
+		---------------------------------------------------------------
+
+		if IEex_GetPrivateProfileInt("IEex Options", "IP Bump Idle NPCs", 1, ".\\Icewind2.ini") ~= 0
+			and IEex_PF_VerifyBytes(0x6FB4C5, {0x77, 0x19})
+		then
+			IEex_WriteAssembly(0x6FB4C5, {"90 90"})
+		end
+
+		---------------------------------------------------------------
 		-- Collision stand-still delay rand()%15 -> rand()%8         --
 		--   (both SetTarget variants; GemRB backoff is RAND(8,16)   --
 		--    ticks but its tick is denser - %8 keeps the jitter     --

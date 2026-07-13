@@ -89,7 +89,7 @@ if not IEex_Vanilla then
 		{"Transparent Fog of War", 0},
 		{"Action Indicators", 1},
 		{"Highlight Empty Containers in Gray", 1},
-		{"Improved Pathfinding", 0},
+		{"Improved Pathfinding", 1},
 		{"IP Pursuit Repath", 8},
 		{"IP Pursuit Keep Path", 1},
 		{"IP Bump Idle NPCs", 1},
@@ -3243,7 +3243,7 @@ function IEex_SetOptionDescription(labelId)
 		[15] = "Displays an on-screen counter showing the render framerate, the AI (game-logic) update rate, and the VRAM pool usage.",
 		[17] = "Synchronizes frame presentation with your monitor's refresh rate to eliminate screen tearing.",
 		[19] = "Adds decorative stone borders around the interface: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty margins at the screen edges (for example on widescreen displays). When off, the world shows through those margins. Requires a restart to take effect.",
-		[21] = "EXPERIMENTAL, off by default. GemRB-inspired pathfinding improvements: characters wait for walkers instead of shuffling, stop cleanly next to occupied destinations, no longer stop short of their goal, and enemies unclog doorways by shoving their own allies (never party members). KNOWN ISSUE: movement stutters -- party members and NPCs run in fits and starts when closing to melee in combat. Fine-tuning keys (IP *) live in icewind2.ini under [IEex Options]. Requires a restart to fully take effect.",
+		[21] = "GemRB-inspired pathfinding improvements: characters wait for walkers instead of shuffling, stop cleanly next to occupied destinations, no longer stop short of their goal, and enemies unclog doorways by shoving their own allies (never party members). Chasing a moving target keeps its path while the new one is computed, instead of standing still for the whole search -- that is what made a run to melee stop and start. Idle non-hostile NPCs can be shoved aside instead of walling off a corridor. Fine-tuning keys (IP *) live in icewind2.ini under [IEex Options]. Requires a restart to fully take effect.",
 		[23] = "Samples the mouse position at the rendering framerate instead of the game's logic tick rate, for smoother cursor movement. Requires a restart to take effect.",
 		[25] = "Limits the framerate to your display's refresh rate to reduce GPU and CPU load. Requires a restart to take effect.",
 		[27] = "Batches world-tile rendering through a single texture atlas for a large framerate gain at high resolutions. Requires a restart to take effect.",
@@ -4434,7 +4434,7 @@ function IEex_InstallIEexOptions()
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
 	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 21), "Improved Pathfinding (experimental)")
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 21), "Improved Pathfinding (restart required)")
 
 	-- "Improved Pathfinding" Toggle - ID 22
 	IEex_AddControlOverride("GUIOPT", 14, 22, "IEex_UI_Button")
@@ -5136,7 +5136,7 @@ function IEex_LoadOptions()
 		IEex_GetPrivateProfileInt("IEex Options", "UI Borders", 1, ".\\Icewind2.ini") ~= 0 and true or false)
 
 	IEex_Helper_SetBridge(options, "improvedPathfinding",
-		IEex_GetPrivateProfileInt("IEex Options", "Improved Pathfinding", 0, ".\\Icewind2.ini") ~= 0 and true or false)
+		IEex_GetPrivateProfileInt("IEex Options", "Improved Pathfinding", 1, ".\\Icewind2.ini") ~= 0 and true or false)
 
 	IEex_Helper_SetBridge(options, "smoothCursor",
 		IEex_GetPrivateProfileInt("IEex Options", "Smooth Cursor", 1, ".\\Icewind2.ini") ~= 0 and true or false)
@@ -5282,7 +5282,7 @@ function IEex_InjectOptionIniComments()
 		["IP Enemy Bumping"]                      = "Improved Pathfinding: let moving enemies bump/shove each other, not just allies. 1 = on.",
 		["IP Directed Adjust"]                    = "Improved Pathfinding: nudge a blocked step toward the intended target instead of stalling. 1 = on.",
 		["AutoLoadSlot"]                          = "Dev/testing: auto-load this save slot on startup (>=0 auto-clicks Load Game); -1 or absent = off (default).",
-		["Improved Pathfinding"]                  = "EXPERIMENTAL, default off (0). Master toggle for the GemRB-inspired pathfinding improvements (retry/backoff, unstucking, ally soft-block). KNOWN ISSUE: movement stutters -- party members and NPCs run in fits and starts when closing to melee in combat. 1 = on.",
+		["Improved Pathfinding"]                  = "Master toggle for the GemRB-inspired pathfinding improvements: retry/backoff, unstucking, ally soft-block, chase re-searches that keep the current path instead of standing still for the whole search, and shovable idle NPCs. 1 = on (default). The other IP * keys are its sub-options.",
 		["IP Pursuit Repath"]                     = "Improved Pathfinding: AI ticks between re-paths while chasing a moving target (vanilla 8, min 2, max 16). Each re-path THROWS AWAY the current path and the sprite stands still until the async search answers (~2 ticks), so this is the walk/stand duty cycle of a chase: 8 = walk ~6 stand ~2, 4 = walk 2 stand 2 (visible stutter closing to melee). Do not lower it below 8 while the re-search still drops the path.",
 		["IP Pursuit Keep Path"]                  = "Improved Pathfinding: keep walking the current path while a chase re-search runs, and swap the fresh route in mid-stride when it lands. Vanilla throws the path away and idles the sprite for the whole search (~2 AI ticks), which is what makes a chase stop-and-go. 1 = on (default). Off = vanilla stop/start.",
 		["IP Bump Idle NPCs"]                     = "Improved Pathfinding: let the party shove IDLE non-hostile NPCs aside (a cat asleep in a corridor, a villager in a doorway). Vanilla makes an idle neutral non-bumpable -- a hard wall for pathfinding that no shove can clear -- until its script happens to start walking. Enemies and immobile creatures stay unshovable. 1 = on (default). Restart required.",

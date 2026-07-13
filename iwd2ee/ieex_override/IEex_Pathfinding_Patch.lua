@@ -142,6 +142,37 @@
 	end
 
 	--------------------------------------------------------------------------
+	-- Phase 7 — pursuit keep-path ("IP Pursuit Keep Path", default 1).      --
+	--                                                                       --
+	-- CGameSprite::MoveToObject re-searches toward a moving target through   --
+	-- its ONE SetTarget call (@0x73F519 -> 0x707D40, thiscall):              --
+	--     73f513  push ecx      ; frontList = LIST_FRONT (0)                 --
+	--     73f514  push 0        ; collisionPath = FALSE                      --
+	--     73f516  push edi      ; the fresh CSearchRequest                   --
+	--     73f517  mov ecx,esi   ; this                                       --
+	--     73f519  call 0x707D40                                              --
+	-- and SetTarget, on LIST_FRONT, does "delete m_pPath; SetIdleSequence()".--
+	-- A path-less sprite cannot move (AIUpdateWalk bails on m_pPath == NULL) --
+	-- so it STANDS THERE until the search thread answers and the resulting   --
+	-- CMessageSetPath is pumped: ~2 AI ticks per re-path. That is the        --
+	-- stop/start of every chase (see "IP Pursuit Repath").                    --
+	--                                                                       --
+	-- PF_PursuitSetTarget keeps the path across the re-search (same request, --
+	-- same FRONT list, same priority); PF_ArrivalPolicy swaps the fresh route --
+	-- in mid-stride when it lands. The sprite never stops. Self-gating: with --
+	-- the toggle off it just forwards to the engine SetTarget, bit for bit.  --
+	--                                                                       --
+	-- thiscall == fastcall with a dummy edx (ecx = this, 3 stack dwords,     --
+	-- callee cleans), so the export can replace the call target outright.    --
+	--------------------------------------------------------------------------
+
+	if IEex_LabelDefault("IEex_Helper_PF_PursuitSetTarget", nil) then
+		if IEex_PF_VerifyBytes(0x73F519, {0xE8, 0x22, 0x88, 0xFC, 0xFF}) then
+			IEex_WriteAssembly(0x73F519, {"!call >IEex_Helper_PF_PursuitSetTarget"})
+		end
+	end
+
+	--------------------------------------------------------------------------
 	-- Phases 2+3 — behavior-policy detours inside CGameSprite::AIUpdateWalk --
 	-- (0x6F9040). Two decision seams route through IEexHelper policies; the --
 	-- rest of the function stays engine bytes. Policies return the exact    --

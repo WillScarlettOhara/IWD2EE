@@ -1889,6 +1889,21 @@ function IEex_Extern_BeforeWorldRender()
 		end
 	end
 
+	-------------------------------------------------
+	-- Refonte: track the party size (reform party) --
+	-------------------------------------------------
+
+	-- The portrait row's composite rects are per-SLOT and REPLACE opaque, so a slot freed by a
+	-- reform (or a member leaving) must lose its rect -- otherwise it composites as a black box
+	-- over the world and still blocks clicks. Rebuilding also re-registers the log rect.
+	if IEex_PortraitGridEnabled and IEex_Refonte_PortraitRow then
+		if IEex_Refonte_NumCharacters() ~= IEex_Refonte_LastNumChars then
+			IEex_Refonte_RebuildStaticRects()
+			IEex_Refonte_RegisterRects()
+			IEex_PanelInvalidate(IEex_GetPanelFromEngine(worldScreen, 1))
+		end
+	end
+
 	---------------------------------------
 	-- Invalidate all worldscreen panels --
 	-- (so they render above viewport)   --
@@ -3863,16 +3878,15 @@ function IEex_InstallPortraitGrid(chuResref)
 	end
 
 	-- Static composite rects (everything but the log, which IEex_Refonte_ApplyLogHeight
-	-- re-registers on every height change).
-	IEex_Refonte_StaticRects = {}
-	for i = 0, 5 do
-		table.insert(IEex_Refonte_StaticRects, {1, rowLeft + i * (slotW + gap), rowTop, slotW, slotH})
-	end
+	-- re-registers on every height change). The portrait slots are derived from this row
+	-- geometry for the CURRENT party size -- see IEex_Refonte_RebuildStaticRects.
+	--
 	-- Bar block: ONE id -3 rect = IEEXBARB art + blended buttons (both rows). The
 	-- degenerate id 0 rect keeps panel 0 in content-rects mode (composite + MOS skip)
 	-- without drawing anything.
-	table.insert(IEex_Refonte_StaticRects, {-3, blockLeft, blockTop, blockW, blockH})
-	table.insert(IEex_Refonte_StaticRects, {0, 0, 0, 0, 0})
+	IEex_Refonte_PortraitRow = {left = rowLeft, top = rowTop, w = slotW, h = slotH, gap = gap}
+	IEex_Refonte_BarRect = {x = blockLeft, y = blockTop, w = blockW, h = blockH}
+	IEex_Refonte_RebuildStaticRects()
 
 	-- Log controls + rects at the saved height (ctrl 16 = the click strip, created
 	-- later alongside the quickloot button -- its placement no-ops until then).
@@ -3891,6 +3905,36 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- Panel 23 (quickloot bar) was built by IEex_InstallQuickloot BEFORE this relocation
 	-- ran, so it sits at panel 1's stock origin (old-HUD spot). Re-anchor it to the refonte.
 	IEex_Refonte_RepositionQuickloot()
+end
+
+-- CInfGame::m_nCharacters (game+0x3846). Falls back to a FULL row when it cannot be read:
+-- a panel 1 owning NO id-1 content rect fails the composite's ownership test, and the whole
+-- widened bounding box would then REPLACE opaque black over the world.
+function IEex_Refonte_NumCharacters()
+	local game = IEex_GetGameData()
+	if game == 0x0 then return 6 end
+	local n = IEex_ReadSignedWord(game + 0x3846, 0x0)
+	if n < 1 or n > 6 then return 6 end
+	return n
+end
+
+-- Rebuild the static composite-rect set for the CURRENT party size. Only OCCUPIED portrait
+-- slots get a rect: the composite REPLACEs every registered rect opaque (blending is off --
+-- the layer's legacy blit alpha is garbage), and a freed tail slot draws NOTHING into the
+-- layer (CInfGame::RenderPortrait 0x5AF770 no-ops once GetCharacterId returns INVALID_INDEX),
+-- so its rect would composite the scissor-cleared transparent black as an opaque BLACK BOX
+-- over the world -- and still read as UI for clicks/wheel. The party shrinks at runtime
+-- (reform party), so IEex_Extern_BeforeWorldRender re-runs this on every size change.
+function IEex_Refonte_RebuildStaticRects()
+	local row, bar = IEex_Refonte_PortraitRow, IEex_Refonte_BarRect
+	if not row or not bar then return end
+	IEex_Refonte_LastNumChars = IEex_Refonte_NumCharacters()
+	IEex_Refonte_StaticRects = {}
+	for i = 0, IEex_Refonte_LastNumChars - 1 do
+		table.insert(IEex_Refonte_StaticRects, {1, row.left + i * (row.w + row.gap), row.top, row.w, row.h})
+	end
+	table.insert(IEex_Refonte_StaticRects, {-3, bar.x, bar.y, bar.w, bar.h})
+	table.insert(IEex_Refonte_StaticRects, {0, 0, 0, 0, 0})
 end
 
 -- Re-register the full refonte composite-rect set: statics (portrait slots id 1,

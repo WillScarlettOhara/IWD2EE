@@ -1496,8 +1496,41 @@ end)
 -- GUI Hook Functions --
 ------------------------
 
+-- The World HUD Refonte inflates panels 0 and 1 into bounding boxes so that CUIPanel::IsOver still
+-- covers the relocated controls: panel 0 spans the full-width bottom band from the (draggable) log
+-- top down to the screen bottom, panel 1 the bottom-right column. Both keep their stock MOS
+-- background, so the IEex_PanelHasBackground shortcut below reports that whole band as UI -- the
+-- world showing through the inflated gaps became a click / hover / world-coordinate dead-zone, and
+-- it grows with the log box and with the 2x UI. Gate those two panels on the ACTUAL visible HUD
+-- instead: the composite content rects (portrait slots id 1; bar block id -3, which holds the
+-- action bar, command row, statue buttons and quickloot toggle; log box id -2). The ids are ignored
+-- here -- every refonte control on either panel sits inside one of the rects, and the only question
+-- is whether the cursor is on visible HUD. Mirrors PointerOverRefonteContent in IEexHelper, which
+-- the wheel already gates on (Export_WheelShouldZoom), so wheel-zoom and click/hover agree.
+function IEex_Refonte_OwnsViewportPanel(nPanelID)
+	return IEex_PortraitGridEnabled and IEex_Refonte_StaticRects ~= nil
+		and (nPanelID == 0 or nPanelID == 1)
+end
+
+function IEex_Refonte_PointOverContent(nCursorX, nCursorY)
+	local over = function(x, y, w, h)
+		-- w/h <= 0 skips the degenerate id 0 keep-alive rect (it draws nothing).
+		return w > 0 and h > 0
+			and nCursorX >= x and nCursorX < x + w
+			and nCursorY >= y and nCursorY < y + h
+	end
+	for _, r in ipairs(IEex_Refonte_StaticRects) do
+		if over(r[2], r[3], r[4], r[5]) then return true end
+	end
+	local lr = IEex_Refonte_LogRect
+	return lr ~= nil and over(lr.x, lr.y, lr.w, lr.h)
+end
+
 function IEex_IsPanelBlockingViewport(panel, nCursorX, nCursorY)
 	if not IEex_IsPanelActive(panel) then return false end
+	if IEex_Refonte_OwnsViewportPanel(IEex_GetPanelID(panel)) then
+		return IEex_Refonte_PointOverContent(nCursorX, nCursorY)
+	end
 	if IEex_PanelHasBackground(panel) then
 		return IEex_IsPointOverPanel(panel, nCursorX, nCursorY)
 	else

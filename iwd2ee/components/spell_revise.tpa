@@ -4651,4 +4651,14 @@ END
 >>>>>>>>
 EXTEND_BOTTOM ~BALDUR.bcs~ ~.../script.baf~
 
+// --- 2x UI (DESIGNATED 99/101) already installed? Then this component has just laid its 1x icon art
+//     (bam/bam_spell_revisions + the loose bam/US*.BAM copies above) over the 2x pack. Re-lay the 2x
+//     icon set so it wins. Covers the REVERSE install order; the forward order (2x UI installed after
+//     this component) is handled by components/2x_ui_resolution_gate.tpa. Same shape as the 2x overlay
+//     in world_hud_refonte.tpa. ---
+ACTION_IF (MOD_IS_INSTALLED ~iwd2ee.tp2~ ~99~) OR (MOD_IS_INSTALLED ~iwd2ee.tp2~ ~101~) BEGIN
+  PRINT ~[Spell Revisions] 2x UI detected -- overlaying the 2x versions of the spell icons this component adds.~
+  COPY ~%mod_folder%/bam/bam_2x_ui/spell_revisions~ ~override~
+END
+
 INCLUDE ~%mod_folder%/components/final_patches.tpa~

@@ -365,6 +365,17 @@
 		-- and eax,0x0000FFFF (chars 0-1) ; cmp "SP" (0x5053) ; hit. SP* via CResCell = spell icons +
 		-- SPLBUT (both HD); spell-effect/projectile SP* BAMs are NOT cell-drawn so never reach here.
 		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) 25 FF FF 00 00 !cmp_eax_dword #00005053 !jz_dword >hit "
+		-- HD mod icons: PREFIX gate -- one branch covers the ~640 US* icons the CONTENT components add
+		-- (spell/item/class/creature revisions + NPC Core): spellbook icons, action-bar quickslot icons
+		-- and item icons alike. Their 2x art ships per-component in bam/bam_2x_ui/<subdir>, copied only
+		-- when that component is installed (2x_ui_resolution_gate.tpa + each component's reverse-order
+		-- hook), so gate and shipped set stay in lockstep: a component that is NOT installed puts no US*
+		-- BAM in override, so this branch can never de-double 1x art. US* via CResCell = icons only; the
+		-- mod's US* VFX/projectile/creature BAMs are not cell-drawn (same as the SP* case above) and its
+		-- unreferenced US* icon leftovers are never drawn. Makes the USGBTNQL/USPLAT15 resref entries
+		-- above redundant -- they are kept so each stays correct if this prefix gate is ever narrowed.
+		-- and eax,0x0000FFFF (chars 0-1) ; cmp "US" (0x5355) ; hit.
+		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) 25 FF FF 00 00 !cmp_eax_dword #00005355 !jz_dword >hit "
 		-- HD item icons: PREFIX gate -- one branch covers all I* item icons (and eax,0xFF (char0); cmp 'I').
 		-- I* via CResCell = item icons + INITIALS/INVBUT (HD/de-doubled). SP* scroll item icons are caught
 		-- by the SP* branch above; FIST/TEMP/USPLAT15 by resref. INFOFONT (also starts with 'I') ships NO

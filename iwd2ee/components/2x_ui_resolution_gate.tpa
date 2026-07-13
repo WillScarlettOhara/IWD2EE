@@ -64,6 +64,31 @@ ACTION_IF MOD_IS_INSTALLED ~iwd2ee.tp2~ ~36~ BEGIN
   COPY ~%mod_folder%/bam/bam_2x_ui/new_npcs~ ~override~
 END
 
+// --- 2x icons for the icon sets the CONTENT components add. Each ships its own 1x icon art
+//     (bam/bam_<x>_revisions, plus loose bam/US*.BAM and itm/itm_new_npcs/*.BAM) -- spellbook icons,
+//     action-bar quickslot icons (ability header @+0x04) and item icons. Left at 1x they break at 2x UI
+//     in one of two ways: US* names hit no de-double branch, so the engine NN-doubles them (blurry --
+//     what a player sees as "not upscaled"); I*/SP* names DO hit the prefix gate in IEex_UIScale_Patch.lua,
+//     which drops the doubling for art that is not actually 2x -- those render HALF SIZE. So each 2x set
+//     is keyed to the component that ships its 1x art and copied ONLY when that component is installed;
+//     the de-double gate and the shipped set then stay in lockstep for any install combination.
+//     This covers component-BEFORE-2x-UI (tp2 order). The reverse order is covered by the matching
+//     MOD_IS_INSTALLED 99/101 hook at the end of each component's own tpa.
+//     Regenerate with mod-scripts/icons_2x_pack.py (iwd2-work) against an install that has the FULL
+//     component set -- a sweep run against a partial install simply never sees the missing icons. ---
+ACTION_IF MOD_IS_INSTALLED ~iwd2ee.tp2~ ~0~ BEGIN   // Class Revisions
+  COPY ~%mod_folder%/bam/bam_2x_ui/class_revisions~ ~override~
+END
+ACTION_IF MOD_IS_INSTALLED ~iwd2ee.tp2~ ~2~ BEGIN   // Spell Revisions
+  COPY ~%mod_folder%/bam/bam_2x_ui/spell_revisions~ ~override~
+END
+ACTION_IF MOD_IS_INSTALLED ~iwd2ee.tp2~ ~4~ BEGIN   // Item Revisions
+  COPY ~%mod_folder%/bam/bam_2x_ui/item_revisions~ ~override~
+END
+ACTION_IF MOD_IS_INSTALLED ~iwd2ee.tp2~ ~5~ BEGIN   // Creature Rebalancing
+  COPY ~%mod_folder%/bam/bam_2x_ui/creature_revisions~ ~override~
+END
+
 // --- Russian: the text/UI fonts (NORMAL/TOOLFONT/STONESML/STONESM3/STONEBIG) are cp1252 (Latin) in
 //     bam_2x_ui and can't render Cyrillic. Overwrite them with cyrillic-merged hybrids (Latin glyphs
 //     kept identical, cp1251 Cyrillic appended -- Pagella-cyr body, Mignon Semibold stone). INFOFONT is

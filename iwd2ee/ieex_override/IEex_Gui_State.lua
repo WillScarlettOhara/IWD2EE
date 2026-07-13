@@ -3916,10 +3916,12 @@ end
 -- GetCharacterId(i) (0x452FE0 -- `i < m_nCharacters ? m_characterPortraits[i] : INVALID_INDEX`)
 -- resolves to a live sprite through GetShare. Anything else leaves the slot blank.
 --
--- Do NOT trust m_nCharacters (game+0x3846) alone: a party reformed down to 5 still logged 6
--- registered slot rects, i.e. the count did not follow the removal. The GetShare test is the
--- one that matches what the renderer does, so key on it and use the count only as a cheap
--- upper bound (it is what the engine's own portrait loops gate on).
+-- m_nCharacters (game+0x3846) is no usable slot count on its own, twice over: it reads 0 while the
+-- world CHU is being built (the save populates the party only afterwards -- hence the full-row
+-- fallback below), and it does NOT drop when a reform removes a member. It stayed 6 for a 5-PC
+-- party while m_characterPortraits[5] kept an object id GetShare can no longer resolve -- and that
+-- stale slot is exactly the one that rendered nothing and composited as an opaque black box. So key
+-- on the GetShare test (what the renderer does) and keep the count only as a cheap upper bound.
 function IEex_Refonte_SlotOccupied(i)
 	local game = IEex_GetGameData()
 	if game == 0x0 then return false end

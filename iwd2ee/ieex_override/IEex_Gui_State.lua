@@ -1717,10 +1717,15 @@ end
 -- -> CInfGame::SwapCharacters) rewrites the slot->actor mapping while touching none of the stat
 -- fields below, and it invalidates the two portrait CONTROLS but never panel 1 -- so without the
 -- id in the hash, swapping two same-stat PCs leaves the layer showing the old order.
+--
+-- The id comes from the PORTRAIT array (m_characterPortraits, 0x382E) -- what the slot actually
+-- draws. CInfGame::RenderPortrait resolves its sprite through GetCharacterId (0x452FE0), which
+-- despite the name indexes m_characterPortraits, NOT m_characters (0x3816, IEex_GetActorIDCharacter).
+-- The two orders are distinct, and a reorder permutes the portrait one.
 function IEex_HudLayer_PortraitContentHash()
 	local h = 0
 	for c = 0, 5 do
-		local actorID = IEex_GetActorIDCharacter(c)
+		local actorID = IEex_GetActorIDPortrait(c)
 		if actorID and actorID >= 0 and IEex_IsSprite(actorID, true) then
 			local spr = IEex_GetActorShare(actorID)
 			if spr and spr ~= 0 then
@@ -1897,7 +1902,7 @@ function IEex_Extern_BeforeWorldRender()
 	-- reform (or a member leaving) must lose its rect -- otherwise it composites as a black box
 	-- over the world and still blocks clicks. Rebuilding also re-registers the log rect.
 	if IEex_PortraitGridEnabled and IEex_Refonte_PortraitRow then
-		if IEex_Refonte_NumCharacters() ~= IEex_Refonte_LastNumChars then
+		if IEex_Refonte_SlotMask() ~= IEex_Refonte_LastSlotMask then
 			IEex_Refonte_RebuildStaticRects()
 			IEex_Refonte_RegisterRects()
 			IEex_PanelInvalidate(IEex_GetPanelFromEngine(worldScreen, 1))
@@ -3907,34 +3912,57 @@ function IEex_InstallPortraitGrid(chuResref)
 	IEex_Refonte_RepositionQuickloot()
 end
 
--- CInfGame::m_nCharacters (game+0x3846). Falls back to a FULL row when it cannot be read:
--- a panel 1 owning NO id-1 content rect fails the composite's ownership test, and the whole
--- widened bounding box would then REPLACE opaque black over the world.
-function IEex_Refonte_NumCharacters()
+-- Will slot i actually DRAW? Mirrors CInfGame::RenderPortrait (0x5AF770): it renders only when
+-- GetCharacterId(i) (0x452FE0 -- `i < m_nCharacters ? m_characterPortraits[i] : INVALID_INDEX`)
+-- resolves to a live sprite through GetShare. Anything else leaves the slot blank.
+--
+-- Do NOT trust m_nCharacters (game+0x3846) alone: a party reformed down to 5 still logged 6
+-- registered slot rects, i.e. the count did not follow the removal. The GetShare test is the
+-- one that matches what the renderer does, so key on it and use the count only as a cheap
+-- upper bound (it is what the engine's own portrait loops gate on).
+function IEex_Refonte_SlotOccupied(i)
 	local game = IEex_GetGameData()
-	if game == 0x0 then return 6 end
-	local n = IEex_ReadSignedWord(game + 0x3846, 0x0)
-	if n < 1 or n > 6 then return 6 end
-	return n
+	if game == 0x0 then return false end
+	if i >= IEex_ReadSignedWord(game + 0x3846, 0x0) then return false end   -- m_nCharacters
+	local id = IEex_GetActorIDPortrait(i)                                   -- m_characterPortraits[i]
+	return id ~= nil and id >= 0 and IEex_IsSprite(id, true)
 end
 
--- Rebuild the static composite-rect set for the CURRENT party size. Only OCCUPIED portrait
--- slots get a rect: the composite REPLACEs every registered rect opaque (blending is off --
--- the layer's legacy blit alpha is garbage), and a freed tail slot draws NOTHING into the
--- layer (CInfGame::RenderPortrait 0x5AF770 no-ops once GetCharacterId returns INVALID_INDEX),
--- so its rect would composite the scissor-cleared transparent black as an opaque BLACK BOX
--- over the world -- and still read as UI for clicks/wheel. The party shrinks at runtime
--- (reform party), so IEex_Extern_BeforeWorldRender re-runs this on every size change.
+-- Bitmask of the slots that will draw. Zero (party not loaded yet -- the world CHU is built
+-- before the save populates it) falls back to the FULL row: a panel 1 owning NO id-1 content
+-- rect fails the composite's ownership test, and its whole widened bounding box would then
+-- REPLACE opaque black over the world.
+function IEex_Refonte_SlotMask()
+	local mask = 0
+	for i = 0, 5 do
+		if IEex_Refonte_SlotOccupied(i) then mask = mask + bit.lshift(1, i) end
+	end
+	if mask == 0 then return 0x3F end
+	return mask
+end
+
+-- Rebuild the static composite-rect set for the slots that currently draw. An EMPTY slot must
+-- not keep a rect: the composite REPLACEs every registered rect opaque (blending is off -- the
+-- layer's legacy blit alpha is garbage), so a slot the renderer skips composites the
+-- scissor-cleared transparent black as an opaque BLACK BOX over the world, and still reads as UI
+-- for clicks/wheel. Party membership changes at runtime (reform), so IEex_Extern_BeforeWorldRender
+-- re-runs this whenever the mask moves.
 function IEex_Refonte_RebuildStaticRects()
 	local row, bar = IEex_Refonte_PortraitRow, IEex_Refonte_BarRect
 	if not row or not bar then return end
-	IEex_Refonte_LastNumChars = IEex_Refonte_NumCharacters()
+	local mask = IEex_Refonte_SlotMask()
+	IEex_Refonte_LastSlotMask = mask
 	IEex_Refonte_StaticRects = {}
-	for i = 0, IEex_Refonte_LastNumChars - 1 do
-		table.insert(IEex_Refonte_StaticRects, {1, row.left + i * (row.w + row.gap), row.top, row.w, row.h})
+	for i = 0, 5 do
+		if bit.band(mask, bit.lshift(1, i)) ~= 0 then
+			table.insert(IEex_Refonte_StaticRects, {1, row.left + i * (row.w + row.gap), row.top, row.w, row.h})
+		end
 	end
 	table.insert(IEex_Refonte_StaticRects, {-3, bar.x, bar.y, bar.w, bar.h})
 	table.insert(IEex_Refonte_StaticRects, {0, 0, 0, 0, 0})
+	local game = IEex_GetGameData()
+	print(string.format("[REFONTE] portrait slots: mask=0x%02X m_nCharacters=%d", mask,
+		game ~= 0x0 and IEex_ReadSignedWord(game + 0x3846, 0x0) or -1))
 end
 
 -- Re-register the full refonte composite-rect set: statics (portrait slots id 1,

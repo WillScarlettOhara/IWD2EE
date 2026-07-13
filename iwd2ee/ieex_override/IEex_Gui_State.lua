@@ -90,6 +90,8 @@ if not IEex_Vanilla then
 		{"Action Indicators", 1},
 		{"Highlight Empty Containers in Gray", 1},
 		{"Improved Pathfinding", 0},
+		{"IP Pursuit Repath", 8},
+		{"IP Collision Smoothing", 0},
 		{"IP Enemy Soft Block", 0},
 		{"Prevent Equipping Armor During Combat", 0},
 	}
@@ -5279,6 +5281,8 @@ function IEex_InjectOptionIniComments()
 		["IP Directed Adjust"]                    = "Improved Pathfinding: nudge a blocked step toward the intended target instead of stalling. 1 = on.",
 		["AutoLoadSlot"]                          = "Dev/testing: auto-load this save slot on startup (>=0 auto-clicks Load Game); -1 or absent = off (default).",
 		["Improved Pathfinding"]                  = "EXPERIMENTAL, default off (0). Master toggle for the GemRB-inspired pathfinding improvements (retry/backoff, unstucking, ally soft-block). KNOWN ISSUE: movement stutters -- party members and NPCs run in fits and starts when closing to melee in combat. 1 = on.",
+		["IP Pursuit Repath"]                     = "Improved Pathfinding: AI ticks between re-paths while chasing a moving target (vanilla 8, min 2, max 16). Each re-path THROWS AWAY the current path and the sprite stands still until the async search answers (~2 ticks), so this is the walk/stand duty cycle of a chase: 8 = walk ~6 stand ~2, 4 = walk 2 stand 2 (visible stutter closing to melee). Do not lower it below 8 while the re-search still drops the path.",
+		["IP Collision Smoothing"]                = "Improved Pathfinding: keep path smoothing on collision re-searches (vanilla drops it). Prettier post-bump paths, but each one costs the SINGLE shared search thread an extra pass -- and that queue is what every sprite waits on while standing path-less. Default off.",
 		["IP Enemy Soft Block"]                   = "Improved Pathfinding sub-option: enemy searches soft-cost through bumpable allies instead of hard-blocking. Default off (enemies may path into the party line and grind).",
 		["IP Combat Slide"]                       = "Improved Pathfinding EXPERIMENTAL: melee allies may slide around their target to make room for more attackers instead of jamming corridors single-file. Party-only (enemies keep vanilla rules, so door/tunnel body-blocking gets STRONGER for the player); slides are short interpolated glides, ~2 cells max per burst. Default off.",		["Tile Atlas"]                            = "OpenGL: batch map tiles into an atlas texture for faster tile rendering. 1 = on. OpenGL only.",
 		["UI Canvas Scale x10"]                   = "HD UI canvas scale x10: 10 = native 1.0x; >=11 enables the HD UI upscale (e.g. 20 = 2x). Written by the HD/2x UI component.",

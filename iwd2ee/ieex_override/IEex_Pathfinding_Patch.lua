@@ -78,21 +78,49 @@
 		end
 
 		---------------------------------------------------------------
-		-- MoveToObject pursuit re-path throttle 8 -> 4 ticks        --
-		--   (tighter chase of moving targets)                       --
+		-- MoveToObject pursuit re-path throttle (vanilla = 8 ticks) --
+		--                                                           --
+		-- STUTTER WARNING. Every pursuit re-search runs through     --
+		-- SetTarget(req, FALSE, LIST_FRONT) @0x707D40, which        --
+		--     delete m_pPath; m_pPath = NULL;   <- path THROWN AWAY --
+		--     enqueue the request (async search thread)             --
+		--     SetIdleSequence();                                    --
+		-- A path-less sprite does not move: AIUpdateWalk needs      --
+		-- m_pPath. It stands until the search thread answers AND    --
+		-- the CMessageSetPath carrying the new path is pumped --    --
+		-- ~2 AI ticks, more when the (single) search thread is      --
+		-- loaded, i.e. in a fight. So the throttle IS the duty      --
+		-- cycle of the chase: at 8 the sprite walks ~6 ticks and    --
+		-- stands ~2 (the classic IE pursuit shuffle); at 4 it walks --
+		-- 2 and stands 2 -- the "runs in fits and starts closing to --
+		-- melee" report. Halving it doubles the stops AND doubles   --
+		-- the search-thread load for everyone.                      --
+		--                                                           --
+		-- Default 8 = vanilla bytes, no patch. Lower it only once   --
+		-- the re-search stops dropping the path mid-chase.          --
 		---------------------------------------------------------------
 
-		if IEex_PF_VerifyBytes(0x73F321, {0x0F, 0xBF, 0x0D, 0xA4, 0xBB, 0x85, 0x00}) then
-			IEex_WriteAssembly(0x73F321, {"B9 04 00 00 00 90 90"})
+		local pursuitRepath = IEex_GetPrivateProfileInt("IEex Options", "IP Pursuit Repath", 8, ".\\Icewind2.ini")
+		if pursuitRepath < 2 then pursuitRepath = 2 end
+		if pursuitRepath > 16 then pursuitRepath = 16 end
+
+		if pursuitRepath ~= 8 and IEex_PF_VerifyBytes(0x73F321, {0x0F, 0xBF, 0x0D, 0xA4, 0xBB, 0x85, 0x00}) then
+			IEex_WriteAssembly(0x73F321, {string.format("B9 %02X 00 00 00 90 90", pursuitRepath)})
 		end
 
 		---------------------------------------------------------------
-		-- Keep path smoothing on collision re-searches              --
-		--   (vanilla forces m_pathSmooth=FALSE for them -> jagged   --
-		--    panic paths after every bump)                          --
+		-- Keep path smoothing on collision re-searches (default OFF) --
+		--   Vanilla forces m_pathSmooth=FALSE for them -> jagged    --
+		--   panic paths after every bump. Smoothing them is prettier --
+		--   but every collision search then costs the search thread  --
+		--   an extra LOS pass, and that thread is SINGLE and shared: --
+		--   in a scrum its queue is what every sprite waits on while --
+		--   standing path-less. Off until the cost is measured.      --
 		---------------------------------------------------------------
 
-		if IEex_PF_VerifyBytes(0x549480, {0x75, 0x19}) then
+		if IEex_GetPrivateProfileInt("IEex Options", "IP Collision Smoothing", 0, ".\\Icewind2.ini") ~= 0
+			and IEex_PF_VerifyBytes(0x549480, {0x75, 0x19})
+		then
 			IEex_WriteAssembly(0x549480, {"90 90"})
 		end
 

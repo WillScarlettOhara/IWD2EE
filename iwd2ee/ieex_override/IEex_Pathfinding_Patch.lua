@@ -491,6 +491,69 @@
 	end
 
 	--------------------------------------------------------------------------
+	-- Phase 8 — party bump ("IP Party Bump", default 1).                    --
+	--                                                                       --
+	-- m_bBumpable = CanAnimate(), and CanAnimate's action whitelist holds   --
+	-- no movement action at all, so a sprite that is WALKING is             --
+	-- non-bumpable. It therefore stamps 0x70 on the search map, which is    --
+	-- (a) a hard wall for everyone else's A*, (b) an automatic refusal in   --
+	-- ClearBumpPath (@0x6FA900), and (c) +8 in that function's crowd gate,  --
+	-- which aborts the shove before the destination loop even runs. Two     --
+	-- party members meeting in a doorway can only queue: the follower's     --
+	-- next cell is impassable, so AIUpdateWalk reverts it and re-searches   --
+	-- (SetTarget on LIST_FRONT deletes the path = a full stop) until the    --
+	-- leader is clear. An idle PC, by contrast, is already bumpable         --
+	-- (NO_ACTION), which is why the jam always resolves eventually.         --
+	--                                                                       --
+	-- Seam @0x6FB4C7, in front of the NO_ACTION test:                       --
+	--   6fb4c7  mov dx,[esi+0x476]     ; m_curAction.m_actionID             --
+	--   6fb4ce  cmp dx,[0x847784]      ; NO_ACTION                          --
+	--   6fb4d5  jne 0x6fb4e0           ; -> whitelist                       --
+	--   6fb4d7  pop edi/esi; mov eax,1 ; -> return TRUE (bumpable)          --
+	-- PF_CanAnimateWalk answers TRUE for a walking ally (EA <= GOODCUTOFF   --
+	-- with a path and the walk sequence); everything else replays the       --
+	-- engine bytes and falls through to the whitelist unchanged. Composes   --
+	-- with the "IP Bump Idle NPCs" nop at 0x6FB4C5 either way.              --
+	--                                                                       --
+	-- The shove itself must not cost the shoved sprite its path: JumpToPoint --
+	-- (0x745950) queues a CMessageDropPath whenever m_pPath != NULL, and a  --
+	-- path-less sprite cannot move. PF_SlideJump (already on both shove call --
+	-- sites) NULLs the field across the call and hands it straight back, then --
+	-- re-aims m_posDelta — displaced one cell, still running, no re-search.  --
+	-- It also cancels the engine's bump-return for a sprite shoved mid-walk: --
+	-- m_ptBumpedFrom is a cell it has since walked away from, so "returning" --
+	-- would be a jump backwards. esi = this; eax/ecx/edx dead at both        --
+	-- targets, which re-establish their own flags.                           --
+	--------------------------------------------------------------------------
+
+	if IEex_LabelDefault("IEex_Helper_PF_CanAnimateWalk", nil) then
+
+		if IEex_PF_VerifyBytes(0x6FB4C7, {
+			0x66, 0x8B, 0x96, 0x76, 0x04, 0x00, 0x00,
+			0x66, 0x3B, 0x15, 0x84, 0x77, 0x84, 0x00,
+			0x75, 0x09,
+		}) then
+			local canWalkCave = IEex_WriteAssemblyAuto({[[
+				51 52 53 55 56 57
+				56
+				!call >IEex_Helper_PF_CanAnimateWalk
+				5F 5E 5D 5B 5A 59
+				85 C0
+				!jne_dword :6FB4D7
+				66 8B 96 76 04 00 00
+				66 3B 15 84 77 84 00
+				!jne_dword :6FB4E0
+				!jmp_dword :6FB4D7
+			]]})
+			IEex_WriteAssembly(0x6FB4C7, IEex_FlattenTable({
+				{"!jmp_dword", {canWalkCave, 4, 4}},
+				{"!repeat(11,!nop)"},
+			}))
+		end
+
+	end
+
+	--------------------------------------------------------------------------
 	-- Phase 4b (optional, default OFF) — search-side soft-block: keep       --
 	-- m_bBump for EA>30 search requests too (enemy searches then soft-cost  --
 	-- through bumpable allies instead of hard-blocking). @0x54961E jbe->jmp --

@@ -15,12 +15,27 @@ The big changes described above are only applied if you install certain componen
 
 ## Installation
 
-1. Unzip all files into your IWD2 folder.
-2. Double-click on the Setup-iwd2ee.exe application.
-3. The WeiDu window will pop up. Follow the prompt and WeiDu will install the mod on your game. This can also reinstall or uninstall the mod.
-4. In the IWD2 folder will appear a new program: IWD2EE.exe.
+Unzip all files into your IWD2 folder. IWD2EE runs on both Windows and Linux, and ships everything the install needs for either — including a native Linux WeiDU, so the install itself never needs Wine (only the game does). Pick one of the two methods below.
+
+### Method 1 — Graphical installer (recommended)
+
+IWD2EE bundles **iwd2ee-installer**, a graphical front-end that lets you pick components with a UI, handles dependencies, and drives WeiDU for you. It is shipped for both platforms:
+
+- **Windows:** run `iwd2ee-installer.exe`.
+- **Linux:** run `./iwd2ee-installer` (it uses the bundled native WeiDU automatically — no Wine, nothing to set up).
+
+### Method 2 — WeiDU directly
+
+- **Windows:** double-click `Setup-iwd2ee.exe`.
+- **Linux:** open a terminal in the IWD2 folder and run `./setup-iwd2ee` (a native Linux WeiDU; run `chmod +x setup-iwd2ee` first if it is not executable).
+
+Either way, the WeiDU prompts let you install, reinstall, or uninstall components.
+
+### After installing (both platforms)
+
+1. A new program appears in your IWD2 folder: `IWD2EE.exe`.
 <img src="https://github.com/RedChimera/semiOverhaul-v1.32/blob/master/iwd2ee/png/IWD2Programs.png">
-5. You MUST start the game by clicking on IWD2EE.exe. If you click on IWD2.exe instead, the game will crash during character creation or when you load a save game.
+2. You MUST start the game with `IWD2EE.exe` — on Linux, launch it through Wine / your usual launcher (Heroic, Lutris, etc.). If you start `IWD2.exe` instead, the game will crash during character creation or when you load a save game.
 
 If you are using any mods other than IWD2EE, you should also install the IWD2EE mod compatibility patch which comes with IWD2EE. Install the patch after IWD2EE and after all other mods.
 

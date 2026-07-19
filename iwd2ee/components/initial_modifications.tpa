@@ -14,13 +14,22 @@ ACTION_IF NOT FILE_EXISTS ~./aqrit.cfg~ AND NOT FILE_EXISTS ~./ddraw.ini~ BEGIN
 	UNINSTALL ~ddrawfix.tp2~ ~2~
 //			ACTION_IF input = 1 BEGIN
 		COPY ~%mod_folder%/ddrawfix~ ~./~
-		ACTION_IF ~%WEIDU_OS%~ STR_EQ ~win32~ BEGIN
-		    AT_NOW ~rmdir "Shaders" /s /q & xcopy "%mod_folder%\ddrawfix\Shaders" "Shaders" /i /s /e~ EXACT
-		    AT_UNINSTALL ~rmdir "Shaders" /s /q~ EXACT
-		END ELSE BEGIN
-		    // unix + osx: WeiDU COPY is non-recursive, so recurse the nested Shaders tree via the shell
-		    AT_NOW ~rm -Rf Shaders && cp -r "%mod_folder%/ddrawfix/Shaders" .~ EXACT
-		    AT_UNINSTALL ~rm -Rf Shaders~ EXACT
+		// Only ever delete the player's Shaders/ when we have one to put back.
+		ACTION_IF DIRECTORY_EXISTS ~%mod_folder%/ddrawfix/Shaders~ BEGIN
+		    ACTION_IF ~%WEIDU_OS%~ STR_EQ ~win32~ BEGIN
+		        AT_NOW ~rmdir "Shaders" /s /q & xcopy "%mod_folder%\ddrawfix\Shaders" "Shaders" /i /s /e~ EXACT
+		        AT_UNINSTALL ~rmdir "Shaders" /s /q~ EXACT
+		    END ELSE BEGIN
+		        // unix + osx: WeiDU COPY is non-recursive, so recurse the nested Shaders tree via the shell.
+		        // Mirror the win32 line's semantics exactly: the delete and the copy are separate steps,
+		        // both attempted. With `&&` a delete we could not complete (root-owned from a sudo
+		        // install, read-only mount, a handle held by a running Wine process) skipped the copy
+		        // entirely, and the player was left with no Shaders/ at all while WeiDU reported success.
+		        // Copy the directory's *contents* into Shaders/, not the directory itself: if the delete
+		        // did fail, `cp -r src/Shaders .` would nest it as Shaders/Shaders instead of merging.
+		        AT_NOW ~rm -Rf Shaders; mkdir -p Shaders; cp -r "%mod_folder%/ddrawfix/Shaders/." Shaders/~ EXACT
+		        AT_UNINSTALL ~rm -Rf Shaders~ EXACT
+		    END
 		END
 //			END ELSE ACTION_IF input = 2 BEGIN
 //				INCLUDE ~%mod_folder%/components/ddrawfix2.tpa~

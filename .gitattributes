@@ -5,4 +5,7 @@
 /pdb export-ignore
 .gitattributes export-ignore
 log.MD export-ignore
-readme.md export-ignore
+# readme.md is deliberately NOT export-ignored: `git archive` builds the source
+# zip GitHub serves, and the readme opens with "Unzip all files into your IWD2
+# folder" -- excluding it made the install instructions the one file guaranteed
+# missing from what the player just unzipped.

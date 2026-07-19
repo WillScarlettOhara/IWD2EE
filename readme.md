@@ -19,10 +19,10 @@ Unzip all files into your IWD2 folder. IWD2EE runs on both Windows and Linux, an
 
 ### Method 1 — Graphical installer (recommended)
 
-IWD2EE bundles **iwd2ee-installer**, a graphical front-end that lets you pick components with a UI, handles dependencies, and drives WeiDU for you. It is shipped for both platforms:
+**iwd2ee-installer** is a graphical front-end that lets you pick components with a UI, handles dependencies, and drives WeiDU for you. It is a separate download — grab the binary for your platform from its [releases page](https://github.com/WillScarlettOhara/iwd2ee-installer/releases) and put it in your IWD2 folder:
 
-- **Windows:** run `iwd2ee-installer.exe`.
-- **Linux:** run `./iwd2ee-installer` (it uses the bundled native WeiDU automatically — no Wine, nothing to set up).
+- **Windows:** `iwd2ee-installer-windows-x86_64.exe` — run it.
+- **Linux:** `iwd2ee-installer-linux-x86_64` — `chmod +x` it, then run it from the IWD2 folder. It carries its own native WeiDU, so there is no Wine and nothing to set up.
 
 ### Method 2 — WeiDU directly
 

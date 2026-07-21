@@ -1458,6 +1458,10 @@ function IEex_LaunchWorldScreenSpellInfo(spellResref)
 	local spellDesc = IEex_FetchString(IEex_ReadDword(spellData + 0x50))
 	spellWrapper:free()
 
+	-- The panel's title (control 0) is a static "Spell Information" CHU label; the item view
+	-- (IEex_LaunchWorldScreenItemInfo) repurposes this shared panel and retitles it, so set it back.
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newSpellInfoPanel, 0), IEex_FetchString(16189))
+
 	local nameLabel = IEex_GetControlFromPanel(newSpellInfoPanel, 1)
 	IEex_SetControlLabelText(nameLabel, spellName)
 
@@ -1487,6 +1491,10 @@ function IEex_LaunchWorldScreenItemInfo(CItem)
 	local newSpellInfoPanel = IEex_GetPanelFromEngine(worldScreen, IEex_WorldScreenSpellInfoPanelID)
 
 	-- CItem::GetGenericName() - the identified name only once the item has been identified.
+	-- Retitle the shared spell-info panel for an item: its static CHU label reads "Spell Information",
+	-- and CScreenSpellbook::ResetSpellInfoPanel never sets it. ex_tra_55933 = "Item Information" (lua.tra).
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newSpellInfoPanel, 0), IEex_FetchString(ex_tra_55933))
+
 	local nameLabel = IEex_GetControlFromPanel(newSpellInfoPanel, 1)
 	IEex_SetControlLabelText(nameLabel, IEex_FetchString(IEex_Call(0x4E9B10, {}, CItem, 0x0)))
 

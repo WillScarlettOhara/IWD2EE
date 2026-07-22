@@ -28,7 +28,6 @@ ex_tra_939 = 0
 ex_tra_5000 = 0
 ex_tra_55350 = 0
 ex_tra_55369 = 0
-ex_tra_55933 = 0
 ex_tra_55370 = 0
 ex_tra_55371 = 0
 ex_tra_55372 = 0

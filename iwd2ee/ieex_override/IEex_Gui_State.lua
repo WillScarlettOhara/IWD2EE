@@ -793,6 +793,7 @@ end
 -----------------------
 
 IEex_WorldScreenSpellInfoPanelID = 50
+IEex_WorldScreenItemInfoPanelID = 51
 IEex_ActionIndicatorsPanelID = 100
 -- World-HUD refonte (PoE/BG2EE-style floating HUD): portrait busts bottom-right, bars
 -- bottom-centre, resizable log bottom-left. WeiDU-MANAGED: the core ships false; the
@@ -804,6 +805,7 @@ IEex_AllWorldScreenPanelIDs = {0, 1, 7, 8, 9, 6, 17, 19, 21, 22}
 if not IEex_Vanilla then
 	table.insert(IEex_AllWorldScreenPanelIDs, 23) -- Quickloot
 	table.insert(IEex_AllWorldScreenPanelIDs, IEex_WorldScreenSpellInfoPanelID)
+	table.insert(IEex_AllWorldScreenPanelIDs, IEex_WorldScreenItemInfoPanelID)
 	table.insert(IEex_AllWorldScreenPanelIDs, IEex_ActionIndicatorsPanelID)
 end
 
@@ -1458,10 +1460,6 @@ function IEex_LaunchWorldScreenSpellInfo(spellResref)
 	local spellDesc = IEex_FetchString(IEex_ReadDword(spellData + 0x50))
 	spellWrapper:free()
 
-	-- The panel's title (control 0) is a static "Spell Information" CHU label; the item view
-	-- (IEex_LaunchWorldScreenItemInfo) repurposes this shared panel and retitles it, so set it back.
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newSpellInfoPanel, 0), IEex_FetchString(16189))
-
 	local nameLabel = IEex_GetControlFromPanel(newSpellInfoPanel, 1)
 	IEex_SetControlLabelText(nameLabel, spellName)
 
@@ -1480,49 +1478,40 @@ function IEex_LaunchWorldScreenItemInfo(CItem)
 
 	if CItem == 0x0 then return end
 
-	local itemWrapper = IEex_DemandRes(IEex_ReadLString(CItem + 0xC, 8), "ITM") -- CItem.cResRef
-	if not itemWrapper:isValid() then
-		return
-	end
-	local iconResref = IEex_ReadLString(itemWrapper:getData() + 0x3A, 8) -- ITEM_HEADER.itemIcon
-	itemWrapper:free()
-
 	local worldScreen = IEex_GetEngineWorld()
-	local newSpellInfoPanel = IEex_GetPanelFromEngine(worldScreen, IEex_WorldScreenSpellInfoPanelID)
+	-- Items get their OWN panel -- a replica of the stock inventory "Item" popup (GUIINV panel 5):
+	-- a static "Item" title, the item name in yellow above the description, and a full-size (64x64)
+	-- icon. Spells and bard songs keep the spellbook-style panel (IEex_WorldScreenSpellInfoPanelID).
+	local newItemInfoPanel = IEex_GetPanelFromEngine(worldScreen, IEex_WorldScreenItemInfoPanelID)
 
-	-- CItem::GetGenericName() - the identified name only once the item has been identified.
-	-- Retitle the shared spell-info panel for an item: its static CHU label reads "Spell Information",
-	-- and CScreenSpellbook::ResetSpellInfoPanel never sets it. ex_tra_55933 = "Item Information" (lua.tra).
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newSpellInfoPanel, 0), IEex_FetchString(ex_tra_55933))
-
-	local nameLabel = IEex_GetControlFromPanel(newSpellInfoPanel, 1)
+	-- Item name (control 1, yellow) - CItem::GetGenericName() gives the identified name only once the
+	-- item is identified, else the unidentified name. (The title, control 0, is a static "Item" label.)
+	local nameLabel = IEex_GetControlFromPanel(newItemInfoPanel, 1)
 	IEex_SetControlLabelText(nameLabel, IEex_FetchString(IEex_Call(0x4E9B10, {}, CItem, 0x0)))
 
-	-- The icon control is a CUIControlButtonSpellbookSpellInfoIcon: its SetSpell() only knows
-	-- how to derive a BAM from an .SPL, but its Render() just draws m_iconResRef (centered when
-	-- the BAM is smaller than the cell) -> hand it the item's icon BAM directly.
-	local iconControl = IEex_GetControlFromPanel(newSpellInfoPanel, 2)
-	IEex_WriteDword(iconControl + 0x666, 0x0) -- m_spellResRef
-	IEex_WriteDword(iconControl + 0x66A, 0x0)
-	IEex_WriteDword(iconControl + 0x66E, 0x0) -- m_iconResRef
-	IEex_WriteDword(iconControl + 0x672, 0x0)
-	IEex_WriteLString(iconControl + 0x66E, iconResref, 8)
+	-- Icon (control 2): the inventory's item-icon control. SetItem() copies the CItem into the
+	-- control's embedded m_item and points m_pItem at it, so Render draws GetItemIcon() with the item
+	-- BAM's centre-point offset applied -- the icon lands in the frame slot instead of far below it.
+	local iconControl = IEex_GetControlFromPanel(newItemInfoPanel, 2)
+	IEex_Call(0x633EA0, {CItem}, iconControl, 0x0)                   -- CUIControlButtonInventoryHistoryIcon::SetItem()
 
-	IEex_SetPanelActive(newSpellInfoPanel, true)
+	IEex_SetPanelActive(newItemInfoPanel, true)
 
 	-- CItem::FormatItemDescription() appends the same description + stats block the inventory
 	-- popup shows, so RemoveAll() the previous entry's text first.
-	local descTextDisplay = IEex_GetControlFromPanel(newSpellInfoPanel, 3)
+	local descTextDisplay = IEex_GetControlFromPanel(newItemInfoPanel, 3)
 	IEex_Call(0x4E2B50, {}, descTextDisplay, 0x0)                    -- CUIControlTextDisplay::RemoveAll()
 	IEex_Call(0x4EA580, {0xC8C8, descTextDisplay}, CItem, 0x0)       -- RGB(200, 200, 0)
 end
 
 function IEex_StopWorldScreenSpellInfo()
 	local worldScreen = IEex_GetEngineWorld()
-	local newSpellInfoPanel = IEex_GetPanelFromEngine(worldScreen, IEex_WorldScreenSpellInfoPanelID)
-	if IEex_IsPanelActive(newSpellInfoPanel) then
-		IEex_SetPanelActive(newSpellInfoPanel, false)
-		IEex_InvalidatePanelUIManager(newSpellInfoPanel)
+	for _, panelID in ipairs({IEex_WorldScreenSpellInfoPanelID, IEex_WorldScreenItemInfoPanelID}) do
+		local panel = IEex_GetPanelFromEngine(worldScreen, panelID)
+		if IEex_IsPanelActive(panel) then
+			IEex_SetPanelActive(panel, false)
+			IEex_InvalidatePanelUIManager(panel)
+		end
 	end
 end
 
@@ -1764,29 +1753,38 @@ function IEex_Extern_BeforeWorldRender()
 
 	if not IEex_Vanilla then
 
-		local newSpellInfoPanel = IEex_GetPanelFromEngine(worldScreen, IEex_WorldScreenSpellInfoPanelID)
+		-- Both info popups -- spell/bard song (50) and item (51) -- are constructed at the ctor
+		-- origin (0,0) with no def x/y and centred HERE every frame via SetPanelXY, which moves the
+		-- panel m_ptOrigin (+0x24). The engine MageSpellInfoIcon renders at m_pPanel->m_ptOrigin +
+		-- m_ptOrigin, so moving the panel origin drags the icon with it and it stays in the frame.
+		-- (A def x/y or SetPanelArea shifts the panel but leaves the icon at its build position, so
+		-- the icon alone lands top-left of the background.) Only one is ever active at a time.
+		for _, infoPanelID in ipairs({IEex_WorldScreenSpellInfoPanelID, IEex_WorldScreenItemInfoPanelID}) do
 
-		if IEex_IsPanelActive(newSpellInfoPanel) then
+			local infoPanel = IEex_GetPanelFromEngine(worldScreen, infoPanelID)
 
-			local rViewPortLeft, rViewPortTop, rViewPortRight, rViewPortBottom = IEex_GetViewportRect()
-			local _, _, panelWidth, panelHeight = IEex_GetPanelArea(newSpellInfoPanel)
+			if IEex_IsPanelActive(infoPanel) then
 
-			-- Desired on-screen centre of the popup: middle of the visible play area.
-			local centreX = rViewPortLeft + (rViewPortRight - rViewPortLeft) / 2
-			local centreY = rViewPortTop + (IEex_GetMainViewportBottom() - rViewPortTop) / 2
+				local rViewPortLeft, rViewPortTop, rViewPortRight, rViewPortBottom = IEex_GetViewportRect()
+				local _, _, panelWidth, panelHeight = IEex_GetPanelArea(infoPanel)
 
-			-- UI-scaling Stage 2: the world HUD (incl. this panel) renders through a bottom-
-			-- centre MODELVIEW scale, which would shove a panel stored at the play-area centre
-			-- off the top of the screen (cropped). Inverse-map the desired on-screen centre to
-			-- the stored coord so the forward render scale lands the panel centre back there.
-			-- Identity on the software renderer / native UI scale, so vanilla centring is
-			-- unchanged. Subtract NATIVE half-size: the panel's own scaling cancels out.
-			local mappedX, mappedY = IEex_Helper_UIScaleMapWorldCursor(centreX, centreY)
-			local centeredX = mappedX - panelWidth / 2
-			local centeredY = math.max(0, mappedY - panelHeight / 2)
+				-- Desired on-screen centre of the popup: middle of the visible play area.
+				local centreX = rViewPortLeft + (rViewPortRight - rViewPortLeft) / 2
+				local centreY = rViewPortTop + (IEex_GetMainViewportBottom() - rViewPortTop) / 2
 
-			IEex_SetPanelXY(newSpellInfoPanel, centeredX, centeredY)
-			IEex_PanelInvalidate(newSpellInfoPanel)
+				-- UI-scaling Stage 2: the world HUD (incl. this panel) renders through a bottom-
+				-- centre MODELVIEW scale, which would shove a panel stored at the play-area centre
+				-- off the top of the screen (cropped). Inverse-map the desired on-screen centre to
+				-- the stored coord so the forward render scale lands the panel centre back there.
+				-- Identity on the software renderer / native UI scale, so vanilla centring is
+				-- unchanged. Subtract NATIVE half-size: the panel's own scaling cancels out.
+				local mappedX, mappedY = IEex_Helper_UIScaleMapWorldCursor(centreX, centreY)
+				local centeredX = mappedX - panelWidth / 2
+				local centeredY = math.max(0, mappedY - panelHeight / 2)
+
+				IEex_SetPanelXY(infoPanel, centeredX, centeredY)
+				IEex_PanelInvalidate(infoPanel)
+			end
 		end
 	end
 
@@ -2323,6 +2321,11 @@ IEex_Helper_InitBridgeFromTable("IEex_GUIConstants", {
 	["controlTypeMeta"] = {
 		["ButtonWorldContainerSlot"] = { ["constructor"] = 0x6956F0, ["size"] = 0x666 },
 		["ButtonMageSpellInfoIcon"] =  { ["constructor"] = 0x66E3A0, ["size"] = 0x676 },
+		-- Inventory's own item-icon control: its Render adds the BAM centre-point offset that item
+		-- icons carry (GetCurrentCenterPoint) + uses ICON_SIZE_LG, so an item icon lands in its frame
+		-- (the spell MageSpellInfoIcon omits the offset -> item icon renders far below). size = m_item
+		-- (CItem, 0xEE) @0x66A end = 0x758; ctor 0x633D50 constructs the embedded CItem so SetItem is safe.
+		["InventoryHistoryIcon"] =     { ["constructor"] = 0x633D50, ["size"] = 0x758 },
 	},
 
 	["controlOverrides"] = {
@@ -2872,6 +2875,9 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 --]]
 		[IEex_WorldScreenSpellInfoPanelID] = {
 			[5] = IEex_StopWorldScreenSpellInfo,
+		},
+		[IEex_WorldScreenItemInfoPanelID] = {
+			[5] = IEex_StopWorldScreenSpellInfo,   -- shared closer: hides whichever info panel is open
 		}
 	}
 
@@ -4962,6 +4968,117 @@ function IEex_OnCHUInitialized(chuResref)
 			IEex_SetControlButtonText(IEex_GetControlFromPanel(newSpellInfoPanel, 5), IEex_FetchString(11973))
 
 			IEex_SetPanelActive(newSpellInfoPanel, false)
+
+			---------------------------------
+			-- Worldscreen Item Info Popup --
+			---------------------------------
+
+			-- Items get a dedicated panel modelled on the stock inventory "Item" popup (GUIINV panel 5):
+			-- static "Item" title, item name in yellow above the description, full-size 64x64 icon.
+			-- No def x/y (like the spell-info panel): the popup is centred every frame by SetPanelXY in
+			-- the worldscreen position pass, which moves the panel m_ptOrigin so the engine
+			-- MageSpellInfoIcon (rendered at m_pPanel->m_ptOrigin + m_ptOrigin) stays in the frame.
+			local newItemInfoPanel = IEex_AddPanelToEngine(worldScreen, {
+				["id"] = IEex_WorldScreenItemInfoPanelID,
+				["width"] = 513,
+				["height"] = 481,
+				["hasBackground"] = 1,
+				["backgroundImage"] = "GIITMH08",
+			})
+
+			-- "Item" title label - Control ID 0 (static text)
+			IEex_AddControlOverride(chuResref, IEex_WorldScreenItemInfoPanelID, 0, "IEex_UI_Label")
+			IEex_AddControlToPanel(newItemInfoPanel, {
+				["type"] = IEex_ControlStructType.LABEL,
+				["id"] = 0,
+				["x"] = 36,
+				["y"] = 37,
+				["width"] = 357,
+				["height"] = 30,
+				["initialTextStrref"] = 15120, -- "Item"
+				["fontBam"] = "STONEBIG",
+				["fontColor1"] = 0xFFFFF6,
+				["textFlags"] = 0x46, -- Use color(0) | Center justify(4) | Middle justify(6)
+			})
+
+			-- Item name label (yellow) - Control ID 1
+			IEex_AddControlOverride(chuResref, IEex_WorldScreenItemInfoPanelID, 1, "IEex_UI_Label")
+			IEex_AddControlToPanel(newItemInfoPanel, {
+				["type"] = IEex_ControlStructType.LABEL,
+				["id"] = 1,
+				["x"] = 26,
+				["y"] = 111,
+				["width"] = 290,
+				["height"] = 18,
+				["fontBam"] = "NORMAL",
+				["fontColor1"] = 0xC8C8, -- RGB(200,200,0) yellow, as the inventory item name
+				["textFlags"] = 0x49,
+			})
+
+			-- Item icon - Control ID 2 (64x64 cell, sized for item icons like the inventory). Uses the
+			-- inventory's own item-icon control (InventoryHistoryIcon) rather than the spell-icon control:
+			-- its Render adds the item BAM's centre-point offset, so the icon sits in the frame slot.
+			IEex_AddControlOverride(chuResref, IEex_WorldScreenItemInfoPanelID, 2, "InventoryHistoryIcon")
+			IEex_AddControlToPanel(newItemInfoPanel, {
+				["type"] = IEex_ControlStructType.BUTTON,
+				["id"] = 2,
+				["x"] = 429,
+				["y"] = 20,
+				["bam"] = "",
+				["width"] = 64,
+				["height"] = 64,
+			})
+
+			-- Item description area - Control ID 3
+			IEex_AddControlOverride(chuResref, IEex_WorldScreenItemInfoPanelID, 3, "IEex_UI_TextArea")
+			IEex_AddControlToPanel(newItemInfoPanel, {
+				["type"] = IEex_ControlStructType.TEXT_AREA,
+				["id"] = 3,
+				["x"] = 23,
+				["y"] = 132,
+				["width"] = 445,
+				["height"] = 286,
+				["fontBam"] = "NORMAL",
+				["scrollbarID"] = 4,
+			})
+
+			-- Item description area scrollbar - Control ID 4
+			IEex_AddControlOverride(chuResref, IEex_WorldScreenItemInfoPanelID, 4, "IEex_UI_Scrollbar")
+			IEex_AddControlToPanel(newItemInfoPanel, {
+				["type"] = IEex_ControlStructType.SCROLL_BAR,
+				["id"] = 4,
+				["x"] = 480,
+				["y"] = 131,
+				["width"] = 12,
+				["height"] = 287,
+				["graphicsBam"] = "GBTNSCRL",
+				["animationNumber"] = 0,
+				["upArrowFrameUnpressed"] = 0,
+				["upArrowFramePressed"] = 1,
+				["downArrowFrameUnpressed"] = 2,
+				["downArrowFramePressed"] = 3,
+				["troughFrame"] = 4,
+				["sliderFrame"] = 5,
+				["textAreaID"] = 3,
+			})
+
+			-- "Done" - Control ID 5
+			IEex_AddControlOverride(chuResref, IEex_WorldScreenItemInfoPanelID, 5, "IEex_UI_Button")
+			IEex_AddControlToPanel(newItemInfoPanel, {
+				["type"] = IEex_ControlStructType.BUTTON,
+				["id"] = 5,
+				["x"] = 178,
+				["y"] = 445,
+				["width"] = 156,
+				["height"] = 24,
+				["bam"] = "GBTNMED",
+				["frameUnpressed"] = 1,
+				["framePressed"] = 2,
+				["frameDisabled"] = 3,
+			})
+			IEex_SetControlButtonText(IEex_GetControlFromPanel(newItemInfoPanel, 5), IEex_FetchString(11973))
+
+			IEex_SetPanelActive(newItemInfoPanel, false)
 
 			local commandsPanel = IEex_GetPanelFromEngine(worldScreen, 0)
 			local quicklootButtonX = 705

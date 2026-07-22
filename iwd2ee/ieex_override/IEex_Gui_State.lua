@@ -4827,6 +4827,31 @@ function IEex_OnCHUInitialized(chuResref)
 
 		IEex_SetPanelXY(panel0Memory, (resW - w0) / 2, toolbarBottom)
 		IEex_SetPanelXY(panel1Memory, (resW - w1) / 2, toolbarBottom - h1, true)
+
+		-- Horizontal centring width for the dialog-family panels below (6 console / 7 SP-dialog /
+		-- 8 container / 9 button / 17 death). Under the Floating HUD (refonte) the DLL's Stage-2 GL
+		-- transform scales the whole world HUD about the bottom-LEFT (Export_UIScaleRenderBegin, cx=0)
+		-- over a virtual reference-width canvas Wv = max(resW, "Floating HUD Ref Width"), so a panel
+		-- centred on the PHYSICAL width lands at screen-x = ((resW-w)/2)*s -- left-of-centre and
+		-- undersized whenever resW < RefWidth (identity only at the author's 4K == RefWidth). Centre
+		-- these on the SAME canvas the refonte lays its own panels on: (centerW - w)/2 maps back to a
+		-- true screen-centre of resW/2. Gate = IEex_InstallPortraitGrid's own hard requirements
+		-- (GUIW10 + GL) so the stock/classic HUD (bottom-CENTRE pivot, where resW-centred is correct)
+		-- is untouched; and the canvas only diverges from resW under the engine 2x tier (m_bUseNewGui
+		-- @0x8CF6DC+0x4A28, == the DLL's UIMult) -- at 1x GetRefonteHudRefWidth returns resW, so
+		-- centerW == resW and nothing changes. (MP dialog = panel 21, never re-centred here: separate.)
+		local centerW = resW
+		local refonteChitin = IEex_ReadDword(0x8CF6D8)
+		if not IEex_Vanilla and IEex_PortraitGridEnabled and chuResref == "GUIW10"
+			and refonteChitin ~= 0x0 and IEex_ReadDword(refonteChitin + 0x91C) ~= 0x0
+			and IEex_ReadByte(IEex_ReadDword(0x8CF6DC) + 0x4A28, 0) ~= 0
+		then
+			local refW = IEex_GetPrivateProfileInt("IEex Options", "Floating HUD Ref Width", 3840, ".\\Icewind2.ini")
+			if refW < 2560 then refW = 2560 end
+			if refW > 7680 then refW = 7680 end
+			centerW = math.max(resW, refW)
+		end
+
 		-- Debug console (cheat bar, panel 6): every other panel here re-centres with its
 		-- OWN width read back from the panel -- already doubled by fInit under the 2x UI
 		-- (m_bUseNewGui) -- but this one hardcodes the CHU design width 800. Under 2x the
@@ -4834,11 +4859,11 @@ function IEex_OnCHUInitialized(chuResref)
 		-- half (~47 chars of a paste), mosaic cut mid-pattern. Scale the literal by the
 		-- UI multiplier; identity at 1x / software, so vanilla placement is unchanged.
 		local consoleW = 800 * (IEex_ReadByte(IEex_ReadDword(0x8CF6DC) + 0x4A28, 0) == 1 and 2 or 1)
-		IEex_SetPanelArea(panel6Memory, (resW - consoleW) / 2, resH - h6, consoleW)
-		IEex_SetPanelXY(panel7Memory, (resW - w7) / 2, resH - h7)
-		IEex_SetPanelXY(panel8Memory, (resW - w8) / 2, resH - h8)
-		IEex_SetPanelArea(panel9Memory, (resW - w_9_0) / 2, resH - h_9_0 - 4, w_9_0, h_9_0)
-		IEex_SetPanelXY(panel17Memory, (resW - w17) / 2, resH - h17)
+		IEex_SetPanelArea(panel6Memory, (centerW - consoleW) / 2, resH - h6, consoleW)
+		IEex_SetPanelXY(panel7Memory, (centerW - w7) / 2, resH - h7)
+		IEex_SetPanelXY(panel8Memory, (centerW - w8) / 2, resH - h8)
+		IEex_SetPanelArea(panel9Memory, (centerW - w_9_0) / 2, resH - h_9_0 - 4, w_9_0, h_9_0)
+		IEex_SetPanelXY(panel17Memory, (centerW - w17) / 2, resH - h17)
 
 		IEex_SetControlXY(control_9_0_Memory, 0, 0)
 

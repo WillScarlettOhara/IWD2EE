@@ -231,18 +231,21 @@
 		-- default to GL_REPEAT. At some sub-pixel positions the u=1 / v=1 edge wraps onto u=0 / v=0,
 		-- drawing a 1px seam line around the sprite (rare, frame-dependent; a tester caught a vertical
 		-- one in combat). Force CLAMP_TO_EDGE on WRAP_S + WRAP_T right after the engine's
-		-- MIN_FILTER=NEAREST call in each of the three sprite draw paths. glTexParameteri = ds:0x9079D4;
-		-- glTexParameteri(GL_TEXTURE_2D=0xDE1, GL_TEXTURE_WRAP_S=0x2802 / _T=0x2803, GL_CLAMP_TO_EDGE=0x812F).
+		-- MIN_FILTER=NEAREST call in each of the three sprite draw paths. Use glTexParameterF (ds:0x9079CC,
+		-- param passed as a float: 33071.0 = 0x47012F00), NOT glTexParameterI (ds:0x9079D4): the engine only
+		-- ever calls ...f (to set NEAREST, just above each hook), so the ...i pointer is never resolved and is
+		-- NULL on native Windows -- calling it crashed at the main menu (BKRender sprite draw). Wine happens to
+		-- fill ...i in, which hid it. glTexParameterf(TEXTURE_2D=0xDE1, WRAP_S=0x2802 / _T=0x2803, CLAMP=33071.0f).
 		local spriteTexClampStub = IEex_WriteAssemblyAuto({[[
 			!push_all_registers_iwd2
-			68 2F 81 00 00
+			68 00 2F 01 47
 			68 02 28 00 00
 			68 E1 0D 00 00
-			FF 15 D4 79 90 00
-			68 2F 81 00 00
+			FF 15 CC 79 90 00
+			68 00 2F 01 47
 			68 03 28 00 00
 			68 E1 0D 00 00
-			FF 15 D4 79 90 00
+			FF 15 CC 79 90 00
 			!pop_all_registers_iwd2
 			!ret
 		]]})

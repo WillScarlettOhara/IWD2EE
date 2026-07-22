@@ -222,4 +222,31 @@
 	]]})
 	IEex_WriteAssembly(0x642EFA, {[[ !jmp_dword ]], {grabStub, 4, 4}})
 
+	-- ---------------------------------------------------------------------------
+	-- Dialog auto-scroll zoom compensation. CGameDialogEntry::Handle centres the speaker
+	-- horizontally but parks it near the TOP vertically (a small fixed offset, leaving room for
+	-- the dialog panel) -- a fixed PRE-ZOOM screen height. The GL world zoom then scales
+	-- (screenY - cy) by z about the viewport centre, so at high zoom that top offset is amplified
+	-- and the speaker climbs out the top of the viewport (tester + Bubb: "auto-scroll wrong at
+	-- non-default zoom"). Hook @0x484b88 (right after CalculateFxRect: esi = ptScroll.y, [esp+0x1c]
+	-- = speaker.y; the code then does the distance^2 vs no-instant-range check + the 0x68c340 scroll
+	-- call). Export_DialogPanCompensateY rewrites ptScroll.y so the speaker keeps its vanilla
+	-- on-screen height VISUALLY at zoom (identity at z<=1). Displaces 8 bytes (mov ecx,[esp+0x18];
+	-- mov eax,[esp+0x1c]); the stub re-runs them then resumes at 0x484b90. __stdcall reads args
+	-- low-to-high: speakerY pushed last = arg1.
+	local dialogPanStub = IEex_WriteAssemblyAuto({[[
+		8B 44 24 1C
+		56
+		50
+		!call >IEex_Helper_DialogPanCompensateY
+		8B F0
+		8B 4C 24 18
+		8B 44 24 1C
+		!jmp_dword :484B90
+	]]})
+	IEex_WriteAssembly(0x484B88, IEex_FlattenTable({
+		{[[ !jmp_dword ]], {dialogPanStub, 4, 4}},
+		{[[ 90 90 90 ]]},
+	}))
+
 end)()

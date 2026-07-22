@@ -227,6 +227,29 @@
 			IEex_HookRestore(address, 0, 6, {"!call", {spriteInterlaceHook, 4, 4}})
 		end
 
+		-- Sprite textures are created with GL_NEAREST but the engine never sets a wrap mode, so they
+		-- default to GL_REPEAT. At some sub-pixel positions the u=1 / v=1 edge wraps onto u=0 / v=0,
+		-- drawing a 1px seam line around the sprite (rare, frame-dependent; a tester caught a vertical
+		-- one in combat). Force CLAMP_TO_EDGE on WRAP_S + WRAP_T right after the engine's
+		-- MIN_FILTER=NEAREST call in each of the three sprite draw paths. glTexParameteri = ds:0x9079D4;
+		-- glTexParameteri(GL_TEXTURE_2D=0xDE1, GL_TEXTURE_WRAP_S=0x2802 / _T=0x2803, GL_CLAMP_TO_EDGE=0x812F).
+		local spriteTexClampStub = IEex_WriteAssemblyAuto({[[
+			!push_all_registers_iwd2
+			68 2F 81 00 00
+			68 02 28 00 00
+			68 E1 0D 00 00
+			FF 15 D4 79 90 00
+			68 2F 81 00 00
+			68 03 28 00 00
+			68 E1 0D 00 00
+			FF 15 D4 79 90 00
+			!pop_all_registers_iwd2
+			!ret
+		]]})
+		IEex_HookRestore(0x7C54ED, 0, 5, {"!call", {spriteTexClampStub, 4, 4}})   -- CVidCell::FXRender3d @0x7C5330
+		IEex_HookRestore(0x7C4BE0, 0, 6, {"!call", {spriteTexClampStub, 4, 4}})   -- CVidCell::Render3d @0x7C4A90
+		IEex_HookRestore(0x7C4F3D, 0, 6, {"!call", {spriteTexClampStub, 4, 4}})   -- CVidCell::Render3d @0x7C4E20
+
 		-- Toggle FoW interlacing for ground piles
 		IEex_HookJump(0x47FA0D, 4, {[[
 			!call ]], {getFogTypePtr, 4, 4}, [[

@@ -1865,8 +1865,16 @@ function IEex_Extern_EnforceViewportBottomBound(CInfinity, nViewY)
 end
 
 function IEex_Extern_AdjustAutoScrollY(y)
+	-- Shift the auto-scroll target down by half the HUD-covered strip so the scrolled-to
+	-- point centres in the VISIBLE part of the screen above the bottom bar. That offset is
+	-- a SCREEN-space distance: under the GL camera zoom (which scales about the viewport
+	-- centre) a fixed world-space offset amplifies by the zoom factor and pushes the target
+	-- out the top of the view (dialog speakers ended off-screen at zoom). Divide by the
+	-- zoom so the on-screen shift stays constant at every zoom level; identity at z==1.
 	local _, resH = IEex_GetResolution()
-	return y + (resH - IEex_GetMainViewportBottom(false, true)) / 2
+	local zoom = IEex_Helper_GetCameraZoom and IEex_Helper_GetCameraZoom() or 1
+	if zoom < 1 then zoom = 1 end
+	return y + math.floor((resH - IEex_GetMainViewportBottom(false, true)) / 2 / zoom + 0.5)
 end
 
 function IEex_Extern_AutoScroll(CInfinity, targetViewX, targetViewY, speed)

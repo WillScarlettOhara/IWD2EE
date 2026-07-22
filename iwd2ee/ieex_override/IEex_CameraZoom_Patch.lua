@@ -223,21 +223,20 @@
 	IEex_WriteAssembly(0x642EFA, {[[ !jmp_dword ]], {grabStub, 4, 4}})
 
 	-- ---------------------------------------------------------------------------
-	-- Dialog auto-scroll zoom compensation. CGameDialogEntry::Handle centres the speaker
-	-- horizontally but parks it near the TOP vertically (a small fixed offset, leaving room for
-	-- the dialog panel) -- a fixed PRE-ZOOM screen height. The GL world zoom then scales
-	-- (screenY - cy) by z about the viewport centre, so at high zoom that top offset is amplified
-	-- and the speaker climbs out the top of the viewport (tester + Bubb: "auto-scroll wrong at
-	-- non-default zoom"). Hook @0x484b88 (right after CalculateFxRect: esi = ptScroll.y, [esp+0x1c]
-	-- = speaker.y; the code then does the distance^2 vs no-instant-range check + the 0x68c340 scroll
-	-- call). Export_DialogPanCompensateY rewrites ptScroll.y so the speaker keeps its vanilla
-	-- on-screen height VISUALLY at zoom (identity at z<=1). Displaces 8 bytes (mov ecx,[esp+0x18];
-	-- mov eax,[esp+0x1c]); the stub re-runs them then resumes at 0x484b90. __stdcall reads args
-	-- low-to-high: speakerY pushed last = arg1.
+	-- Dialog auto-scroll zoom compensation. CGameDialogEntry::Handle scrolls to centre the speaker,
+	-- but an extra vertical ptReference.y/2 nudge lands it OFF the GL zoom pivot ROW, so at zoom the
+	-- scale about the viewport centre amplifies it and the auto-pan misses (Bubb: bottom speaker pans
+	-- the wrong way). Export_DialogPanCompensateY retargets ptScroll.y to speakerWorldY - vpHeight/2
+	-- (dead-centre on the pivot -> zoom-invariant like the horizontal axis), identity at z<=1.
+	-- Hook @0x484b88, right after the GetViewPosition() call: esi = ptScroll.y (vanilla target), edi =
+	-- pSprite (m_pos.y @edi+0x0A = speaker world Y). Pass BOTH: push edi (arg2 = pSprite) then esi
+	-- (arg1 = ptScrollY). NB [esp+0x1c] here is nCurrentY -- the GetViewPosition result for the
+	-- dx^2+dy^2 jump-cut test, NOT the speaker (the old bug read it as speakerY). Displaces 8 bytes
+	-- (mov ecx,[esp+0x18]; mov eax,[esp+0x1c]); stub re-runs them, resumes 0x484b90. __stdcall callee
+	-- cleans its 8 bytes so esp is restored for the displaced [esp+0x18]/[esp+0x1c] reads.
 	local dialogPanStub = IEex_WriteAssemblyAuto({[[
-		8B 44 24 1C
+		57
 		56
-		50
 		!call >IEex_Helper_DialogPanCompensateY
 		8B F0
 		8B 4C 24 18

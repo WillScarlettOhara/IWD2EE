@@ -212,6 +212,16 @@ function IEex_Extern_CheckScroll()
 			local deltaX = IEex_Helper_GetBridgeNL("IEex_Scroll_MiddleMouseState", "oldX") - cursorX
 			local deltaY = IEex_Helper_GetBridgeNL("IEex_Scroll_MiddleMouseState", "oldY") - cursorY
 
+			-- Zoom-correct the pan: the cursor delta is in SCREEN pixels but the view moves in WORLD
+			-- pixels, and the GL camera zoom magnifies the world on screen (1 world px = zoom screen px).
+			-- Divide by the zoom so the grabbed map point stays under the cursor (true grab-drag) instead
+			-- of the world sliding at a different speed than the cursor. No-op at zoom 1.0.
+			local zoom = IEex_Helper_GetCameraZoom and IEex_Helper_GetCameraZoom() or 1
+			if zoom and zoom > 0 then
+				deltaX = deltaX / zoom
+				deltaY = deltaY / zoom
+			end
+
 			if IEex_IsWorldScreenAcceptingInput() and not IEex_IsGameAutoScrolling() then
 				IEex_AdjustViewPosition(deltaX, deltaY)
 			end

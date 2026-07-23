@@ -1879,6 +1879,47 @@ end
 
 function IEex_Extern_AutoScroll(CInfinity, targetViewX, targetViewY, speed)
 
+	local resW, resH = IEex_GetResolution()
+	local nAreaWidth = IEex_ReadDword(CInfinity + 0x80)
+	local nAreaHeight = IEex_ReadDword(CInfinity + 0x84)
+	local nViewportBottom = IEex_GetMainViewportBottom(false, true)
+
+	-- The IEexHelper SetViewPosition override lets the camera overscroll half a viewport past
+	-- every map edge (manual-pan feature), so the engine no longer clamps auto-scroll for us.
+	-- At camera zoom z the visible window only covers the central resW/z x resH/z of the
+	-- viewport, meaning the camera may legitimately pass a map edge by the hidden margin
+	-- ("slack" below) before any void shows on screen. Clamp the scroll TARGET to that
+	-- visible-content range: at z == 1 the slack is 0 and these are exactly the vanilla map
+	-- bounds the stock SetViewPosition used to enforce. This both keeps dialog/script pans out
+	-- of the void (including the instant speed == 0 path, which never reaches the stuck checks
+	-- below) and lets a dialog speaker near a map edge centre fully when zoomed in (a speaker
+	-- in the outer half-viewport band, e.g. Hedron on the AR1000 east dock, previously stopped
+	-- short: the old stuck test aborted the scroll at the unzoomed map bound).
+	local zoom = IEex_Helper_GetCameraZoom and IEex_Helper_GetCameraZoom() or 1
+	if zoom < 1 then zoom = 1 end
+	local slackX = math.floor(resW / 2 * (1 - 1 / zoom))
+	local slackYTop = math.floor(resH / 2 * (1 - 1 / zoom))
+	local slackYBot = math.floor(math.max(0, nViewportBottom - resH / 2) * (1 - 1 / zoom))
+
+	local xLo, xHi = -slackX, nAreaWidth - resW + slackX
+	local yLo, yHi = -slackYTop, nAreaHeight - nViewportBottom + slackYBot
+
+	-- Maps smaller than the viewport invert the range; leave those to the engine
+	local clampedX, clampedY = targetViewX, targetViewY
+	if xLo <= xHi then
+		clampedX = math.max(xLo, math.min(xHi, targetViewX))
+	end
+	if yLo <= yHi then
+		clampedY = math.max(yLo, math.min(yHi, targetViewY))
+	end
+	if clampedX ~= targetViewX or clampedY ~= targetViewY then
+		-- Write back so every subsequent tick (the engine re-pushes m_ptScrollDest) sees it
+		IEex_WriteDword(CInfinity + 0x18E, clampedX) -- m_ptScrollDest.x
+		IEex_WriteDword(CInfinity + 0x192, clampedY) -- m_ptScrollDest.y
+		targetViewX = clampedX
+		targetViewY = clampedY
+	end
+
 	-- CInfinity_Scroll
 	IEex_Call(0x5D1380, {speed, targetViewY, targetViewX}, CInfinity, 0x0)
 
@@ -1891,16 +1932,12 @@ function IEex_Extern_AutoScroll(CInfinity, targetViewX, targetViewY, speed)
 		return
 	end
 
-	local resW, resH = IEex_GetResolution()
-
 	local nNewX = IEex_ReadDword(CInfinity + 0x40)
 	local nNewY = IEex_ReadDword(CInfinity + 0x44)
 
-	local nAreaWidth = IEex_ReadDword(CInfinity + 0x80)
-	local nAreaHeight = IEex_ReadDword(CInfinity + 0x84)
-
-	local xStuck = (targetViewX < nNewX and nNewX <= 0) or (targetViewX > nNewX and nNewX >= nAreaWidth - resW)
-	local yStuck = (targetViewY < nNewY and nNewY <= 0) or (targetViewY > nNewY and IEex_GetEffectiveViewBottom(nNewY) >= nAreaHeight)
+	-- Safety net for targets that still can't be reached (same bounds as the clamp above)
+	local xStuck = (targetViewX < nNewX and nNewX <= xLo) or (targetViewX > nNewX and nNewX >= xHi)
+	local yStuck = (targetViewY < nNewY and nNewY <= yLo) or (targetViewY > nNewY and nNewY >= yHi)
 
 	if (xStuck and yStuck) or (xStuck and nNewY == targetViewY) or (yStuck and nNewX == targetViewX) then
 		IEex_WriteDword(CInfinity + 0x18E, -1) -- m_ptScrollDest.x

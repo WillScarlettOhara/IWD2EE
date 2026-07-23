@@ -223,6 +223,50 @@
 	IEex_WriteAssembly(0x642EFA, {[[ !jmp_dword ]], {grabStub, 4, 4}})
 
 	-- ---------------------------------------------------------------------------
+	-- STAGE 3b: load-game camera recentre. On load, CGameSprite::Unmarshal (party
+	-- branch, @0x70CC2F) restores the camera from the GAM party record's stored
+	-- viewport top-left (m_posViewX/Y, WORDs @pCreature+0x24/+0x26). Two problems
+	-- under the GL zoom: (1) the save side (CGameSprite::Marshal @0x70F2xx) stuffs
+	-- GetViewPosition() into those WORDs, and the overscroll-aware SetViewPosition
+	-- override makes NEGATIVE / past-map view positions legal (zoomed pan past map
+	-- edges, 4K viewport letterboxing maps smaller than the viewport) -> the WORD
+	-- cast wraps them to ~65k and the restore clamps to a far corner (party
+	-- off-screen, sometimes pure fog). (2) even sane values restore a stale
+	-- TOP-LEFT captured under whatever zoom was active at save time -> party lands
+	-- off-centre after any zoom change. Replace the arg load: ignore the stored
+	-- view entirely and centre on the character's own position (m_posX/Y
+	-- @pCreature+0x20/+0x22), exactly the OnPortraitLDblClick math (pos - vp/2 via
+	-- rViewPort @CGameArea+0x4CC+0x48); the SetViewPosition override handles the
+	-- zoom-aware clamp. Last party member processed wins = party on screen.
+	--   Displaced 0x70CC2F..0x70CC4A (27 bytes: movzx from +0x26/+0x24, push args,
+	--   lea ecx,[esi+0x4CC], call 0x5D11F0). ebx = pCreature, esi = pArea; edx
+	--   free (caller-saved, dead across the original call). The only branch into
+	--   the range (jne @0x70CC1A) targets 0x70CC2F = the patch jmp itself. Resume
+	--   0x70CC75 (the original jmp @0x70CC4A's destination).
+	local loadRecentreStub = IEex_WriteAssemblyAuto({[[
+		0F B7 43 22
+		0F B7 4B 20
+		8B 96 1C 05 00 00
+		2B 96 14 05 00 00
+		D1 FA
+		2B CA
+		8B 96 20 05 00 00
+		2B 96 18 05 00 00
+		D1 FA
+		2B C2
+		6A 01
+		50
+		51
+		8D 8E CC 04 00 00
+		!call :5D11F0
+		!jmp_dword :70CC75
+	]]})
+	IEex_WriteAssembly(0x70CC2F, IEex_FlattenTable({
+		{[[ !jmp_dword ]], {loadRecentreStub, 4, 4}},
+		{[[ 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 ]]},
+	}))
+
+	-- ---------------------------------------------------------------------------
 	-- Dialog auto-scroll zoom compensation. CGameDialogEntry::Handle scrolls to centre the speaker,
 	-- but an extra vertical ptReference.y/2 nudge lands it OFF the GL zoom pivot ROW, so at zoom the
 	-- scale about the viewport centre amplifies it and the auto-pan misses (Bubb: bottom speaker pans

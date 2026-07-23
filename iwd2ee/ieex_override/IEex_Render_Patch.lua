@@ -154,6 +154,23 @@
 			!call >IEex_Helper_RenderBinkFrameGL
 			!ret_word 04 00
 		]]})
+		--
+		-- (4) MOVIE SUBTITLES (0x43EDFE): because (1) forces the movie-open path under GL,
+		--     EngineActivated now also reaches the `m_bDisplayMovieSubtitles` overlay block
+		--     (CGameOptions +0x90) that the stock 3d-guard used to skip along with BinkOpen.
+		--     Its overlay ctor (0x43F6D0) walks pActiveEngine->pVidMode's DirectDraw surface
+		--     chain (pVidMode+0xA0 -> [that]), which is NULL under GL -> 0xC0000005 the instant
+		--     ANY movie plays (BISLOGO/WOTC at startup, INTRO on new game) while the "Display
+		--     Movie Subtitles" option is ON. The overlay blits to the DD back surface, so it
+		--     renders NOTHING under GL even if it didn't crash -- so skip it. The guard at
+		--     0x43EDFE is `je 0x43EE6C` (74 6C) = the subtitles-OFF skip branch (lands at
+		--     pDimm->Suspend, exactly where option==0 goes); force it unconditional (je -> jmp
+		--     short, same rel8 0x6C) so GL always takes the no-subtitle path regardless of the
+		--     option. Overlay global @0x8CFF30 stays its stock subtitles-OFF value (never
+		--     allocated) -> TimerAsynchronousUpdate/EngineDeactivated skip it, same as software
+		--     with subtitles off. Software renderer untouched (whole block gated on 3D Accel).
+		--     (Rendering subtitles INTO the GL movie quad is a separate future feature.)
+		IEex_WriteByte(0x43EDFE, 0xEB)
 
 		-----------------------------------------------------------------------------
 		-- SPRITE PER-CELL TINT UNDER GL (lightmap / infravision / fades) -------- --

@@ -5705,6 +5705,7 @@ function IEex_InjectOptionIniComments()
 		["Max FPS"]                               = "Frame cap: 0 = auto (just under display refresh), 9999 = uncapped. The 'Cap FPS to Display Refresh' menu toggle flips 0/9999.",
 		["Fill Screen"]                           = "OpenGL: 1 = fit the game image to the desktop via an FBO; 0 = raw direct present (native resolution only).",
 		["Software Renderer"]                     = "1 = force the stock software (DirectDraw) renderer; 0 = OpenGL (default). [Program Options] '3D Acceleration' is rewritten from this every launch.",
+		["Gamma Normalized"]                      = "(internal) 1 = the one-time reset of [Program Options] 'Gamma Correction' to 0 already ran (the GOG-shipped 2 is tuned for the unmodded renderer). Delete this key to run the reset once more.",
 	}
 
 	local nl = content:find("\r\n", 1, true) and "\r\n" or "\n"

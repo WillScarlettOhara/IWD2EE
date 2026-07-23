@@ -115,6 +115,21 @@
 			!ret_word 08 00
 		]]})
 
+		-- BACKGROUND AUDIO. Skipping the OnAltTab pause keeps the game SIMULATING out of
+		-- focus, but the OS still mutes it: DirectSound secondary buffers created without
+		-- DSBCAPS_GLOBALFOCUS (0x8000) are silenced whenever their window loses focus.
+		-- OR the flag into the two secondary-buffer descs (all game audio funnels through
+		-- CSound): Create2DBuffer @0x7A90D0 stores dwFlags CTRLFREQUENCY|CTRLPAN|CTRLVOLUME
+		-- = 0xE0 (imm dword @0x7A90FC), Create3DBuffer @0x7A9260 stores CTRL3D|CTRLFREQUENCY
+		-- |CTRLVOLUME = 0xB0 (imm dword @0x7A92A4). The primary buffer and the 32-byte
+		-- CSoundProperties capability probe must not carry the flag and are left alone.
+		-- Gated on "Run In Background"=1 (default): with the classic pause (=0) the stock
+		-- OS mute is the wanted behavior.
+		if IEex_GetPrivateProfileInt("IEex Options", "Run In Background", 1, ".\\Icewind2.ini") ~= 0 then
+			IEex_WriteDword(0x7A90FC, 0x80E0)   -- 2D: 0xE0  | DSBCAPS_GLOBALFOCUS
+			IEex_WriteDword(0x7A92A4, 0x80B0)   -- 3D: 0xB0  | DSBCAPS_GLOBALFOCUS
+		end
+
 	-----------------------------------------------------------------------------
 	-- SAVE-GAME BMP CAPTURE UNDER THE FBO ------------------------------------- --
 	-----------------------------------------------------------------------------

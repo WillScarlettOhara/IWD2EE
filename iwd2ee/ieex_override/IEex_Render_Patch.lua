@@ -87,6 +87,34 @@
 			!nop
 		]]})
 
+		--------------------------------------------------------------------------
+		-- FOCUS WITHOUT THE VIDEO TEARDOWN (refocus stall + run-in-background). --
+		-- CChitin::OnAltTab (0x7914D0, WM_ACTIVATEAPP) destroys the GL context  --
+		-- on every focus loss (CleanUp3d: UnloadFonts + wglDeleteContext) and   --
+		-- rebuilds the whole video stack on regain (Initialize3d) -- that IS    --
+		-- the multi-second refocus stall (atlas/VRAM/FBO re-uploads, multiplied --
+		-- by OBS's graphics-hook re-initializing around the context churn) and  --
+		-- the origin of every alt-tab context loss. The borderless GL window    --
+		-- needs none of it. IEex_Helper_OnAltTabIntercept(hWnd, bActivate)      --
+		-- gates (native Windows + GL only; CD-switch/progress-bar keep stock)   --
+		-- and either lets the game RUN in the background ("Run In Background"=1 --
+		-- default) or emulates the classic pause without the teardown (=0).     --
+		-- Returns 1 = skip the stock body (ret 8), 0 = stock path (Wine, etc).  --
+		--------------------------------------------------------------------------
+
+		IEex_HookRestore(0x7914D0, 0, 5, {[[
+			!mark_esp
+			!push_registers_iwd2
+			!marked_esp !push([esp+8]) ; BOOL bActivate ;
+			!marked_esp !push([esp+4]) ; HWND hWnd ;
+			!call >IEex_Helper_OnAltTabIntercept
+			!pop_registers_iwd2
+			!test(eax,eax)
+			!jz_dword >return
+
+			!ret_word 08 00
+		]]})
+
 	-----------------------------------------------------------------------------
 	-- SAVE-GAME BMP CAPTURE UNDER THE FBO ------------------------------------- --
 	-----------------------------------------------------------------------------

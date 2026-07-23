@@ -1733,8 +1733,22 @@ function IEex_HudLayer_PortraitContentHash()
 				local flOn  = IEex_ReadDword(spr + 0x53E2)            -- m_bBloodFlashOn
 				local hcol  = IEex_ReadDword(spr + 0x53E6)            -- health-colour tint state
 				local talk  = IEex_ReadDword(spr + 0x712A)            -- m_talkingCounter (animates)
+				-- Ring inputs (selection ring / speaker highlight). RenderPortrait derives the
+				-- ring colour from these, but ring repaints used to rely on the ENGINE's native
+				-- control invalidates -- and the pre-world UI render can consume that counter
+				-- before the HUD-layer render runs, so a selection change sometimes never
+				-- reached the layer (ring stuck absent -- or stale -- until the next unrelated
+				-- repaint). Hashing them re-invalidates panel 1 deterministically instead.
+				local sel    = IEex_ReadDword(spr + 0x50B2)           -- m_bSelected
+				local marker = IEex_ReadDword(spr + 0x564E)           -- m_marker.m_rgbColor (pulses while talking)
+				local area   = IEex_ReadDword(spr + 0x12)             -- m_pArea
+				local pick   = 0
+				if area ~= 0 and IEex_ReadDword(spr + 0x5C) == IEex_ReadDword(area + 0x246) then
+					pick = 1                                          -- m_id == area->m_iPicked (hover marker)
+				end
 				h = (h * 131 + c * 1000003 + actorID * 31 + hp + 100000) % 2147483647
 				h = (h * 131 + maxHP + flAmt * 7 + flOn * 13 + hcol * 17 + talk * 19) % 2147483647
+				h = (h * 131 + sel * 23 + pick * 29 + marker) % 2147483647
 			end
 		end
 	end

@@ -63,6 +63,24 @@ if not IEex_Vanilla then
 	IEex_WritePrivateProfileInt("IEex Options", "Software Renderer", softwareRenderer and 1 or 0, ".\\Icewind2.ini")
 	IEex_WritePrivateProfileInt("Program Options", "3D Acceleration", softwareRenderer and 0 or 1, ".\\Icewind2.ini")
 
+	-- The GOG install ships [Program Options] "Gamma Correction"=2 (the in-game "contrast"
+	-- slider, notch 2 of 5; the engine's own default for a missing key is 0 = identity).
+	-- Vanilla applies that boost to the scene AND the mainscreen MOS alike, so it reads
+	-- coherent; modded, the mainscreen MOS deliberately renders gamma-less ("Disable
+	-- Gamma-correction on mainscreen MOS" in IEex_Gui_Patch.lua), which turns the HUD into
+	-- a neutral reference the boosted scene clashes against -- the shipped default looks
+	-- over-contrasted until the player discovers the slider. Normalize to 0 ONCE per
+	-- install, behind a marker key: later launches never touch it again, so the in-game
+	-- contrast slider stays fully respected.
+	if IEex_GetPrivateProfileInt("IEex Options", "Gamma Normalized", 0, ".\\Icewind2.ini") == 0 then
+		local shippedGamma = IEex_GetPrivateProfileInt("Program Options", "Gamma Correction", 0, ".\\Icewind2.ini")
+		if shippedGamma ~= 0 then
+			print(string.format("[IEex] Normalized [Program Options] \"Gamma Correction\" %d -> 0 (one-time; the GOG default is tuned for the unmodded renderer)", shippedGamma))
+		end
+		IEex_WritePrivateProfileInt("Program Options", "Gamma Correction", 0, ".\\Icewind2.ini")
+		IEex_WritePrivateProfileInt("IEex Options", "Gamma Normalized", 1, ".\\Icewind2.ini")
+	end
+
 	-- Seed the remaining [IEex Options] keys so a fresh Icewind2.ini is fully populated on
 	-- the first launch (the in-game IEex Options menu otherwise materialises each key only
 	-- when its row is built/toggled). Read-with-default then write BACK the read value: an

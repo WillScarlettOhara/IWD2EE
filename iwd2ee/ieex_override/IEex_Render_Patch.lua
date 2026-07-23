@@ -154,6 +154,32 @@
 			!call >IEex_Helper_RenderBinkFrameGL
 			!ret_word 04 00
 		]]})
+
+		-----------------------------------------------------------------------------
+		-- SPRITE PER-CELL TINT UNDER GL (lightmap / infravision / fades) -------- --
+		-----------------------------------------------------------------------------
+		-- CInfinity::FXRender (0x5CE280) only ORs blit flag 0x20000 ("apply the cell's
+		-- m_paletteAffects.rgbTintColor during the palette realize") when NOT
+		-- 3d-accelerated:
+		--   0x5CE2F2  mov eax,[ecx+0x91C]   ; m_bIs3dAccelerated
+		--   0x5CE2F8  test eax,eax
+		--   0x5CE2FA  jne 0x5CE308          ; GL -> skip `or ebx,0x20000`
+		-- That flag carries everything routed through the per-cell tint colour: the
+		-- area lightmap sampled at the sprite's feet (LM/LN bmp, CGameArea::
+		-- GetTintColor), creature darkening at night in extended-night (night-WED)
+		-- areas, the infravision grey (200,200,200) when a darkvision party member is
+		-- out at full night, and area-transition fades on sprites. The fullscreen
+		-- RenderTint3d multiply never covers sprites (it fires at the end of
+		-- CInfinity::Render and at the tile-atlas flush, both BEFORE sprites draw), so
+		-- under GL all of the above was silently dropped -- at full night characters
+		-- rendered full-bright daylight. The GL realize paths (RealizeResource3d
+		-- 0x7D6240 / RealizeRange3d 0x7D6900 -> shared CVidPalette::GetTint 0x7BF430)
+		-- already handle 0x20000; only this gate withheld the flag. NOP the jne so GL
+		-- takes the same OR the software renderer takes (software is unchanged: with
+		-- m_bIs3dAccelerated==0 the jne was never taken). The 0x10000 global-tint
+		-- night blue (plain outdoor areas) is untouched -- FXRender only reaches this
+		-- OR when 0x10000 is absent.
+		IEex_WriteAssembly(0x5CE2FA, {"!repeat(2,!nop)"})
 	end
 
 	--------------------------------------------------------------------------

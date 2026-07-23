@@ -114,6 +114,25 @@
 	]]})
 
 	--------------------------------------------------------------------------------
+	-- FX-scratch composite filter (0x7C4240 CVidCell::RenderTexture). Every FX composite --
+	-- creature sprites, the dragged item, and the hover TOOLTIP -- is uploaded into the shared
+	-- 512x512 scratch (texture 2, created GL_NEAREST) and drawn as one quad by this function.
+	-- The trampoline lets the helper swap that filter to LINEAR for the individual composites
+	-- that are MINIFIED and so lose texel rows under NEAREST:
+	--   * the world tooltip below 4K -- it is the mouse POINTER (cursor 101), drawn from
+	--     RenderPointer3d AFTER the HUD-layer composite, so it misses the virtual canvas and
+	--     eats the raw Stage-2 scale (0.667 at 1440p) that mangled its TOOLFONT text;
+	--   * the HD Creature Sprites half-scale draw (IEex_HDSprites_Patch.lua), when installed.
+	-- Owned here rather than by the HD-sprites patch because that component is optional and
+	-- ships off; the helper body (Export_CVidCell_RenderTextureHD) is a pass-through unless one
+	-- of the two cases armed it, so an unarmed frame costs a branch.
+	--------------------------------------------------------------------------------
+	IEex_HookReplaceFunctionMaintainOriginal(0x7C4240, 6, "CVidCell::RenderTextureOriginal", {[[
+		!jmp_dword >IEex_Helper_CVidCell_RenderTextureHD
+	]]})
+	IEex_Helper_DefineAddress("CVidCell::RenderTextureOriginal", IEex_Label("CVidCell::RenderTextureOriginal"))
+
+	--------------------------------------------------------------------------------
 	-- SHOW-FPS vs STRETCH. CVidInf::Flip (0x79C1E0) draws the Show-FPS counter via
 	-- DisplayFrameRate (vtable [edx+0x78]) AFTER the UI pass, at fixed top-centre coords
 	-- through the CURRENT MODELVIEW. On a full-screen UI engine Export_UIScaleRenderEndUI

@@ -2,10 +2,13 @@
 -- BAMs; the GL renderer composites their layers into the FX scratch as stock, then the
 -- final composite quad is drawn at HALF scale (MODELVIEW wrap inside the RenderTexture
 -- trampoline) so the logical world size is unchanged and camera zoom samples 2x texels.
--- Three MaintainOriginal trampolines (bodies in IEexHelper.dll render.cpp):
+-- Two MaintainOriginal trampolines (bodies in IEexHelper.dll render.cpp):
 --   0x7C5330 CVidCell::FXRender3d(7)  arm when the cell's BAM resref is registered
 --   0x79CC90 CVidInf::FXBltToBack     halve the ref-point subtraction (mirror-aware)
---   0x7C4240 CVidCell::RenderTexture  wrap original draw in scale(0.5) about the anchor
+-- The third link -- 0x7C4240 CVidCell::RenderTexture, which wraps the original draw in
+-- scale(0.5) about the anchor -- is hooked unconditionally by IEex_UIScale_Patch.lua (it
+-- also serves the sub-4K world tooltip), so this file must NOT re-hook it or redefine
+-- CVidCell::RenderTextureOriginal; UIScale loads first (IEex_IWD2_Patch.lua file list).
 -- IEEX_HD_SPRITES is WeiDU-managed (the HD Creature Sprites component flips it on
 -- install, like IEEX_HD_UI); the 2x BAMs only exist in override/ when installed.
 
@@ -14,7 +17,6 @@ local IEEX_HD_SPRITES = false
 local function IEex_HDSprites_DefineOff()
 	IEex_Helper_DefineAddress("CVidCell::FXRender3dOriginal", -1)
 	IEex_Helper_DefineAddress("CVidInf::FXBltToBackOriginal", -1)
-	IEex_Helper_DefineAddress("CVidCell::RenderTextureOriginal", -1)
 end
 
 if not IEEX_HD_SPRITES then
@@ -44,10 +46,7 @@ IEex_HookReplaceFunctionMaintainOriginal(0x79CC90, 6, "CVidInf::FXBltToBackOrigi
 ]]})
 IEex_Helper_DefineAddress("CVidInf::FXBltToBackOriginal", IEex_Label("CVidInf::FXBltToBackOriginal"))
 
-IEex_HookReplaceFunctionMaintainOriginal(0x7C4240, 6, "CVidCell::RenderTextureOriginal", {[[
-	!jmp_dword >IEex_Helper_CVidCell_RenderTextureHD
-]]})
-IEex_Helper_DefineAddress("CVidCell::RenderTextureOriginal", IEex_Label("CVidCell::RenderTextureOriginal"))
+-- (0x7C4240 CVidCell::RenderTexture is hooked by IEex_UIScale_Patch.lua -- see the header.)
 
 IEex_EnableCodeProtection()
 

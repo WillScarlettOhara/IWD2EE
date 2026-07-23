@@ -169,7 +169,9 @@
 		--     option. Overlay global @0x8CFF30 stays its stock subtitles-OFF value (never
 		--     allocated) -> TimerAsynchronousUpdate/EngineDeactivated skip it, same as software
 		--     with subtitles off. Software renderer untouched (whole block gated on 3D Accel).
-		--     (Rendering subtitles INTO the GL movie quad is a separate future feature.)
+		--     The subtitles themselves are then rendered GL-natively (2da colour + frame timing
+		--     + tlk text, drawn below the movie quad) by IEexHelper render.cpp MovieDrawSubtitles,
+		--     so "Display Movie Subtitles" works under GL without the DD overlay.
 		IEex_WriteByte(0x43EDFE, 0xEB)
 
 		-----------------------------------------------------------------------------

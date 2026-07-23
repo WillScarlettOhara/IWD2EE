@@ -179,22 +179,15 @@
 		-- m_bIs3dAccelerated==0 the jne was never taken). The 0x10000 global-tint
 		-- night blue (plain outdoor areas) is untouched -- FXRender only reaches this
 		-- OR when 0x10000 is absent.
+		-- (Verified in-game 2026-07-23 via a temporary FXRender probe: with a
+		-- darkvision party member at full night the engine takes the INFRAVISION
+		-- branch -- per-cell tint RGB(200,200,200), no 0x10000 -- so the correct
+		-- look there is a mild neutral dim, not the night blue; the blue applies
+		-- to creatures NOT under infravision. Both now match the software
+		-- renderer. Infravision grey constant: 0x703B51 imm 0xC8C8C8, guarded by
+		-- jg @0x703B4F, in CGameSprite::Render 0x703700 -- kept vanilla by user
+		-- choice.)
 		IEex_WriteAssembly(0x5CE2FA, {"!repeat(2,!nop)"})
-
-		-- TINT PROBE (diagnostic, TEMPORARY -- delete together with Export_TintProbe
-		-- in the DLL once the GL night-tint report is resolved). Logs the flags +
-		-- tint inputs FXRender ends up with to <game>\tint_probe.log (on-change,
-		-- 100ms floor, 400-line cap). Hooked right after the un-gated
-		-- `or ebx,0x20000` block: ebx = final dwFlags, ebp = pVidCell; the replaced
-		-- 6-byte `mov eax,[ecx+0x3c4]` is re-run by the trampoline after the stub.
-		-- [IEex Options] "Tint Probe"=0 disables (default on).
-		IEex_HookRestore(0x5CE308, 0, 6, {[[
-			!push_all_registers_iwd2
-			!push(ebx)
-			!push(ebp)
-			!call >IEex_Helper_TintProbe
-			!pop_all_registers_iwd2
-		]]})
 	end
 
 	--------------------------------------------------------------------------

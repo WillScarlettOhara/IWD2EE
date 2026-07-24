@@ -130,23 +130,17 @@
 			IEex_WriteDword(0x7A92A4, 0x80B0)   -- 3D: 0xB0  | DSBCAPS_GLOBALFOCUS
 		end
 
-		-- BACKGROUND CURSOR POSITION. The engine POLLS GetCursorPos (global screen coords)
-		-- on its input tick, and borderless fullscreen makes game coords == desktop coords:
-		-- with the game running out of focus, the DESKTOP cursor riding a screen edge read
-		-- as in-game edge-scroll (camera panned while mousing around Windows). Keyboard and
-		-- mouse buttons never leak (the raw-input pump is focus-gated); the position was the
-		-- one hole. Reroute both GetCursorPos call sites (IAT slot @0x8474D4, 6-byte FF 15)
-		-- through the helper: focused = passthrough, unfocused = last focused position
-		-- clamped off the desktop edges. @0x78F2B3 = CChitin input poll (m_ptPointer /
-		-- edge-scroll), @0x45F6F8 = CGameAIBase::MoveCursor (cutscene cursor).
-		IEex_WriteAssembly(0x78F2B3, {[[
-			!call >IEex_Helper_GetCursorPosGated
-			!nop
-		]]})
-		IEex_WriteAssembly(0x45F6F8, {[[
-			!call >IEex_Helper_GetCursorPosGated
-			!nop
-		]]})
+		-- BACKGROUND CURSOR POSITION: handled DLL-SIDE via an IAT hook (ExportFunctions
+		-- writes IEex_Helper_GetCursorPosGated into the USER32!GetCursorPos import slot
+		-- @0x8474D4). Site patches here CANNOT work: IEex_Key_Patch.lua runs AFTER this
+		-- file and rewrites the same two call sites (0x78F2B3 input poll, 0x45F6F8
+		-- MoveCursor) to its own IEex_GetCursorPos stub -- and that stub, plus the async
+		-- lua capture path that also feeds m_ptPointer, reads the cursor through the SAME
+		-- IAT slot ("!call_[dword] #8474D4" in IEex_Core_Patch.lua). Hooking the slot
+		-- gates every path at once, regardless of patch order: focused + cursor over the
+		-- game window = passthrough; otherwise the last live position, clamped inside the
+		-- game window rect -- so the desktop cursor can never edge-scroll the unfocused,
+		-- still-simulating game (Run In Background).
 
 	-----------------------------------------------------------------------------
 	-- SAVE-GAME BMP CAPTURE UNDER THE FBO ------------------------------------- --

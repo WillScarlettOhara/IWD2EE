@@ -4239,7 +4239,7 @@ function IEex_InstallActionIndicators()
 	end
 end
 
-function IEex_InstallQuickloot()
+function IEex_InstallQuickloot(chuResref)
 
 	local worldScreen = IEex_GetEngineWorld()
 
@@ -4255,82 +4255,122 @@ function IEex_InstallQuickloot()
 
 	local x1, y1, w1, h1 = IEex_GetPanelArea(panel1Memory)
 
-	-- Panel height: the historical h1 (full action-bar height) leaves a ~2/3 tail of
-	-- colorkey-transparent MOS BELOW the item row, overlapping the action-indicator
-	-- row -- under the HUD layer that region composites as a solid band (REPLACE
-	-- ignores colorkey). Measure the real content: bottom of the deepest control
-	-- (slots + arrows share panel-local Y offsets) + a small pad, so the panel rect
-	-- matches what is actually drawn.
-	local contentBottom = 0
-	local contentRight = 0
-	for i = 7, 16 do
-		local refX, refY = IEex_GetControlArea(IEex_GetControlFromPanel(panel1Memory, i))
-		local _, _, copyW, copyH = IEex_GetControlArea(IEex_GetControlFromPanel(panel8Memory, i - 7))
-		contentBottom = math.max(contentBottom, refY + 1 + copyH)
-		contentRight = math.max(contentRight, refX + 1 + copyW)
+	-- Refonte (Floating HUD) or the stock HUD? The two need DIFFERENT quickloot geometry, and
+	-- the flag alone is not the answer here: IEex_InstallPortraitGrid owns the runtime veto but
+	-- runs AFTER this function, so IEex_PortraitGridEnabled is still optimistically true when
+	-- the refonte is about to bail. Re-test its hard requirements (GUIW10 + the GL renderer,
+	-- chitin+0x91C) so a vetoed refonte gets the stock layout, not the refonte one.
+	local chitin = IEex_ReadDword(0x8CF6D8)
+	local refonte = IEex_PortraitGridEnabled and chuResref == "GUIW10"
+		and chitin ~= 0x0 and IEex_ReadDword(chitin + 0x91C) ~= 0x0
+
+	-- Panel rect (pre-div where the ctor doubles) + panel-local control rects, filled per branch:
+	-- slotRects[1..10] = the item slots, arrowRects[1] = left scroll, arrowRects[2] = right.
+	local panelY, panelW, panelH
+	local slotRects, arrowRects = {}, {}
+
+	if refonte then
+
+		-- B3QKLOOM = the user's bar art (quickloot.png, 505x51 == the IEEXBARB block width).
+		-- Lay the action bar's grid inside it: 12 buttons, btnW 38, pitch 41, left inset 8
+		-- (489 centred in 505, exactly like the action row in the block) -- [0] left arrow,
+		-- [1..10] item slots, [11] right arrow. Sizes 1x-authored (the ctor doubles for HD).
+		local gBtn, gPitch, gInset = 38, 41, 8
+		-- Sit the buttons low in the bar (art top trim is thick; centring pushes them up into
+		-- it). Bar 51 - btn 38 = 13 max; 12 leaves a 1px bottom margin.
+		local slotY = 12
+
+		panelW, panelH = 505, 51
+		panelY = math.floor(y1 / div) - panelH
+		for i = 1, 10 do
+			slotRects[i] = {gInset + i * gPitch, slotY, gBtn, gBtn}
+		end
+		arrowRects[1] = {gInset, slotY, gBtn, gBtn}
+		arrowRects[2] = {gInset + 11 * gPitch, slotY, gBtn, gBtn}
+
+	else
+
+		-- Stock HUD: the bar owns no art -- it borrows the command bar's MOS, whose decorative
+		-- frame insets the functional strip (112px each side at 1024). So EVERY coord must come
+		-- from the LIVE action bar (panel 1 controls 6..17) -- the slots then sit exactly above
+		-- the buttons and the panel spans the same strip. The refonte's fixed grid above is
+		-- authored for its own 505-wide art, which starts at the panel origin: applied here it
+		-- lands the whole bar 112px left of the command bar below it.
+		--
+		-- Panel height: the historical h1 (full action-bar height) leaves a ~2/3 tail of
+		-- colorkey-transparent MOS BELOW the item row, overlapping the action-indicator
+		-- row -- under the HUD layer that region composites as a solid band (REPLACE
+		-- ignores colorkey). Measure the real content: bottom of the deepest control
+		-- (slots + arrows share panel-local Y offsets) + a small pad, so the panel rect
+		-- matches what is actually drawn. Width likewise: the slots + arrows only span the
+		-- LEFT part of the action bar, the rest of the MOS is unused stone -- clip it via the
+		-- panel rect (the MOS renders clipped, no asset edit) so the shorter bar no longer
+		-- overlaps the action indicators horizontally and both can share the row above the HUD.
+		local contentBottom = 0
+		local contentRight = 0
+		for i = 7, 16 do
+			local refX, refY = IEex_GetControlArea(IEex_GetControlFromPanel(panel1Memory, i))
+			local _, _, copyW, copyH = IEex_GetControlArea(IEex_GetControlFromPanel(panel8Memory, i - 7))
+			contentBottom = math.max(contentBottom, refY + 1 + copyH)
+			contentRight = math.max(contentRight, refX + 1 + copyW)
+			slotRects[i - 6] = {math.floor((refX + 1) / div), math.floor((refY + 1) / div),
+				math.floor(copyW / div), math.floor(copyH / div)}
+		end
+		for k, arrowID in ipairs({6, 17}) do
+			local arrowX, arrowY, arrowW, arrowH = IEex_GetControlArea(IEex_GetControlFromPanel(panel1Memory, arrowID))
+			contentBottom = math.max(contentBottom, arrowY + arrowH)
+			contentRight = math.max(contentRight, arrowX + arrowW)
+			arrowRects[k] = {math.floor(arrowX / div), math.floor(arrowY / div),
+				math.floor(arrowW / div), math.floor(arrowH / div)}
+		end
+
+		local quicklootHeight = math.min(h1, contentBottom + 4)
+		panelW = math.floor(math.min(w1, contentRight + 4) / div)
+		panelH = math.floor(quicklootHeight / div)
+		panelY = math.floor((y1 - quicklootHeight) / div)
+
 	end
-	for _, arrowID in ipairs({6, 17}) do
-		local arrowX, arrowY, arrowW, arrowH = IEex_GetControlArea(IEex_GetControlFromPanel(panel1Memory, arrowID))
-		contentBottom = math.max(contentBottom, arrowY + arrowH)
-		contentRight = math.max(contentRight, arrowX + arrowW)
-	end
-	-- B3QKLOOM = the user's bar art (quickloot.png, 505x51 == the IEEXBARB block width).
-	-- Lay the action bar's grid inside it: 12 buttons, btnW 38, pitch 41, left inset 8
-	-- (489 centred in 505, exactly like the action row in the block) -- [0] left arrow,
-	-- [1..10] item slots, [11] right arrow. Sizes 1x-authored (the ctor doubles for HD).
-	local gBtn, gPitch, gInset = 38, 41, 8
-	local quicklootWidth, quicklootHeight = 505, 51
-	-- Sit the buttons low in the bar (art top trim is thick; centring pushes them up into
-	-- it). Bar 51 - btn 38 = 13 max; 12 leaves a 1px bottom margin.
-	local slotY = 12
 
 	local quicklootPanel = IEex_AddPanelToEngine(worldScreen, {
 		["id"]              = 23,
 		["x"]               = math.floor(x1 / div),
-		["y"]               = math.floor(y1 / div) - quicklootHeight,
-		["width"]           = quicklootWidth,
-		["height"]          = quicklootHeight,
+		["y"]               = panelY,
+		["width"]           = panelW,
+		["height"]          = panelH,
 		["hasBackground"]   = 1,
-		["backgroundImage"] = "B3QKLOOM"   -- always-minimal (opaque) quickloot bg for the refonte world HUD
+		["backgroundImage"] = "B3QKLOOM"   -- always-minimal quickloot bg (opaque 505x51 under the refonte)
 	})
 
-	-- Ten item slots: panel 8 controls 0-9 supply the id + button BAM; the grid supplies
-	-- the geometry (uniform 38x38, matching the action bar buttons) at positions 1..10.
+	-- Ten item slots: panel 8 controls 0-9 supply the id + button BAM, slotRects the geometry.
 	for i = 7, 16 do
 		local copyControl = IEex_GetControlFromPanel(panel8Memory, i - 7)
+		local r = slotRects[i - 6]
 		IEex_AddControlToPanel(quicklootPanel, {
 			["id"]     = IEex_GetControlID(copyControl),
-			["x"]      = gInset + (i - 6) * gPitch,
-			["y"]      = slotY,
-			["width"]  = gBtn,
-			["height"] = gBtn,
+			["x"]      = r[1],
+			["y"]      = r[2],
+			["width"]  = r[3],
+			["height"] = r[4],
 			["type"]   = IEex_ControlStructType.BUTTON,
 			["bam"]    = IEex_GetControlButtonBAM(copyControl),
 		})
 	end
 
-	IEex_AddControlToPanel(quicklootPanel, {
-		["id"]             = 10,               -- left scroll arrow, grid position 0
-		["x"]              = gInset,
-		["y"]              = slotY,
-		["width"]          = gBtn,
-		["height"]         = gBtn,
-		["type"]           = IEex_ControlStructType.BUTTON,
-		["bam"]            = "GUIBTACT",
-		["frameUnpressed"] = 48,
-		["framePressed"]   = 49,
-	})
-	IEex_AddControlToPanel(quicklootPanel, {
-		["id"]             = 11,               -- right scroll arrow, grid position 11
-		["x"]              = gInset + 11 * gPitch,
-		["y"]              = slotY,
-		["width"]          = gBtn,
-		["height"]         = gBtn,
-		["type"]           = IEex_ControlStructType.BUTTON,
-		["bam"]            = "GUIBTACT",
-		["frameUnpressed"] = 52,
-		["framePressed"]   = 53,
-	})
+	-- Scroll arrows: {control id, GUIBTACT unpressed frame, pressed frame}.
+	for k, arrow in ipairs({{10, 48, 49}, {11, 52, 53}}) do
+		local r = arrowRects[k]
+		IEex_AddControlToPanel(quicklootPanel, {
+			["id"]             = arrow[1],
+			["x"]              = r[1],
+			["y"]              = r[2],
+			["width"]          = r[3],
+			["height"]         = r[4],
+			["type"]           = IEex_ControlStructType.BUTTON,
+			["bam"]            = "GUIBTACT",
+			["frameUnpressed"] = arrow[2],
+			["framePressed"]   = arrow[3],
+		})
+	end
 end
 
 function IEex_InstallIEexOptions()
@@ -4925,7 +4965,7 @@ function IEex_OnCHUInitialized(chuResref)
 		---------------
 
 		if not IEex_Vanilla then
-			IEex_InstallQuickloot()
+			IEex_InstallQuickloot(chuResref)
 		end
 
 		if not IEex_Vanilla and IEex_PortraitGridEnabled then

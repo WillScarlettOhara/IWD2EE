@@ -3878,13 +3878,13 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- corner, clipped, never scaled) -- identical at all three heights.
 	IEex_Refonte_Scale = s
 	-- Tab footprint, 1x-authored (x2 at the engine's 2x tier, matching the 76x24 BAM the
-	-- 2x asset set ships, 76x28). Must equal the BAM frame size -- the control rect only CLIPS the
+	-- 2x asset set ships, 76x26). Must equal the BAM frame size -- the control rect only CLIPS the
 	-- frame, so a smaller rect silently crops the art rather than erroring.
 	-- The tab is taller than the bezel's 12px top cap because it casts a real offset drop
 	-- shadow (down+right) onto the log interior; IEex_Refonte_LogTextTop below hands it that
 	-- strip so the shadow never lands on a log line.
-	IEex_Refonte_LogTabW, IEex_Refonte_LogTabH = 38 * s, 14 * s
-	IEex_Refonte_LogTextTop = 17 * s   -- text/scrollbar top inset: tab (14) + 3 clear
+	IEex_Refonte_LogTabW, IEex_Refonte_LogTabH = 38 * s, 13 * s
+	IEex_Refonte_LogTextTop = 16 * s   -- text/scrollbar top inset: tab (13) + 3 clear
 	IEex_Refonte_LogHeights = { 128 * s, 192 * s, 256 * s }
 	IEex_Refonte_LogHeightIdx = math.max(1, math.min(#IEex_Refonte_LogHeights,
 		IEex_GetPrivateProfileInt("IEex Options", "Refonte Log Height", 1, ".\\Icewind2.ini")))
@@ -4090,7 +4090,7 @@ function IEex_Refonte_ApplyLogHeight(idx)
 	-- The TOP inset is textTop, not the old flat 8*s: the resize tab (ctrl 17) overhangs the
 	-- bezel's top cap and casts a drop shadow below itself, so the text starts under the whole
 	-- tab footprint instead of the tab being squeezed into the cap. Costs ~half a line.
-	local tabW, tabH = IEex_Refonte_LogTabW or 38 * s, IEex_Refonte_LogTabH or 14 * s
+	local tabW, tabH = IEex_Refonte_LogTabW or 38 * s, IEex_Refonte_LogTabH or 13 * s
 	local textTop = IEex_Refonte_LogTextTop or (tabH + 3 * s)
 	local textH = h - textTop - 8 * s
 	local place = {
@@ -5308,7 +5308,7 @@ function IEex_OnCHUInitialized(chuResref)
 				local lr = IEex_Refonte_LogRect
 				local oR = IEex_Refonte_P0Origin
 				local tabW = IEex_Refonte_LogTabW or 38 * IEex_Refonte_Scale
-				local tabH = IEex_Refonte_LogTabH or 14 * IEex_Refonte_Scale
+				local tabH = IEex_Refonte_LogTabH or 13 * IEex_Refonte_Scale
 				IEex_AddControlOverride(chuResref, 0, 16, "IEex_UI_Button")
 				IEex_AddControlToPanel(commandsPanel, {
 					["type"] = IEex_ControlStructType.BUTTON,

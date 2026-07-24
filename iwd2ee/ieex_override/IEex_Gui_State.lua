@@ -4085,7 +4085,9 @@ function IEex_Refonte_ApplyLogHeight(idx)
 	-- live scrollbar (ctrl 2) in the right margin, text fills the rest. Widths derive from
 	-- g.w (the box width, now variable to dodge the centred-block overlap) so the scrollbar
 	-- stays pinned to the right frame and the text/input wrap to fit -- at the full 551*s
-	-- these reduce to the original 517 / 533 / 523.
+	-- these reduce to 517 / 530 / 523. The scrollbar's right inset is 21, not the frame's
+	-- ~6: the bezel's inner bevel needs clear air to its right or the thumb reads as if it
+	-- were sitting on the frame.
 	--
 	-- The TOP inset is textTop, not the old flat 8*s: the resize tab (ctrl 17) overhangs the
 	-- bezel's top cap and casts a drop shadow below itself, so the text starts under the whole
@@ -4095,7 +4097,7 @@ function IEex_Refonte_ApplyLogHeight(idx)
 	local textH = h - textTop - 8 * s
 	local place = {
 		[1]  = { g.x + 8 * s,        logY + textTop,    g.w - 34 * s, textH },
-		[2]  = { g.x + g.w - 18 * s, logY + textTop,    12 * s,       textH },
+		[2]  = { g.x + g.w - 21 * s, logY + textTop,    12 * s,       textH },
 		[3]  = { g.x + 8 * s,        logY + h - 26 * s, g.w - 28 * s, 20 * s },
 		[16] = { g.x,                logY,              g.w,          12 * s },
 		-- Visible resize tab: CONSTANT size at every preset (the BAM frame is drawn at its

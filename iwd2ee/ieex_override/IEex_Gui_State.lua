@@ -3877,10 +3877,14 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- preset, while a BAM frame renders at NATIVE px (CVidCell: anchored at the control
 	-- corner, clipped, never scaled) -- identical at all three heights.
 	IEex_Refonte_Scale = s
-	-- Tab footprint, 1x-authored (x2 at the engine's 2x tier, matching the 56x16 BAM the
-	-- 2x asset set ships). 8*s tall is the whole vertical budget: the text display (ctrl 1)
-	-- starts at logY + 8*s, so anything taller would sit over the first log line.
-	IEex_Refonte_LogTabW, IEex_Refonte_LogTabH = 28 * s, 8 * s
+	-- Tab footprint, 1x-authored (x2 at the engine's 2x tier, matching the 76x24 BAM the
+	-- 2x asset set ships). Must equal the BAM frame size -- the control rect only CLIPS the
+	-- frame, so a smaller rect silently crops the art rather than erroring.
+	-- The tab is taller than the bezel's 12px top cap because it casts a real offset drop
+	-- shadow (down+right) onto the log interior; IEex_Refonte_LogTextTop below hands it that
+	-- strip so the shadow never lands on a log line.
+	IEex_Refonte_LogTabW, IEex_Refonte_LogTabH = 38 * s, 12 * s
+	IEex_Refonte_LogTextTop = 15 * s   -- text/scrollbar top inset: tab (12) + 3 clear
 	IEex_Refonte_LogHeights = { 128 * s, 192 * s, 256 * s }
 	IEex_Refonte_LogHeightIdx = math.max(1, math.min(#IEex_Refonte_LogHeights,
 		IEex_GetPrivateProfileInt("IEex Options", "Refonte Log Height", 1, ".\\Icewind2.ini")))
@@ -4077,16 +4081,21 @@ function IEex_Refonte_ApplyLogHeight(idx)
 	local h = IEex_Refonte_LogHeights[idx]
 	IEex_Refonte_LogHeightIdx = idx
 	local logY = resH - 8 * s - h
-	-- Interior for the user bg (thin ~6px frame, NO baked scrollbar): tight 8px insets
-	-- top+bottom, live scrollbar (ctrl 2) in the right margin, text fills the rest. Widths
-	-- derive from g.w (the box width, now variable to dodge the centred-block overlap) so
-	-- the scrollbar stays pinned to the right frame and the text/input wrap to fit -- at
-	-- the full 551*s these reduce to the original 517 / 533 / 523.
-	local textH = h - 16 * s
-	local tabW, tabH = IEex_Refonte_LogTabW or 28 * s, IEex_Refonte_LogTabH or 8 * s
+	-- Interior for the user bg (thin ~6px frame, NO baked scrollbar): 8px bottom inset,
+	-- live scrollbar (ctrl 2) in the right margin, text fills the rest. Widths derive from
+	-- g.w (the box width, now variable to dodge the centred-block overlap) so the scrollbar
+	-- stays pinned to the right frame and the text/input wrap to fit -- at the full 551*s
+	-- these reduce to the original 517 / 533 / 523.
+	--
+	-- The TOP inset is textTop, not the old flat 8*s: the resize tab (ctrl 17) overhangs the
+	-- bezel's top cap and casts a drop shadow below itself, so the text starts under the whole
+	-- tab footprint instead of the tab being squeezed into the cap. Costs ~half a line.
+	local tabW, tabH = IEex_Refonte_LogTabW or 38 * s, IEex_Refonte_LogTabH or 12 * s
+	local textTop = IEex_Refonte_LogTextTop or (tabH + 3 * s)
+	local textH = h - textTop - 8 * s
 	local place = {
-		[1]  = { g.x + 8 * s,        logY + 8 * s,      g.w - 34 * s, textH },
-		[2]  = { g.x + g.w - 18 * s, logY + 8 * s,      12 * s,       textH },
+		[1]  = { g.x + 8 * s,        logY + textTop,    g.w - 34 * s, textH },
+		[2]  = { g.x + g.w - 18 * s, logY + textTop,    12 * s,       textH },
 		[3]  = { g.x + 8 * s,        logY + h - 26 * s, g.w - 28 * s, 20 * s },
 		[16] = { g.x,                logY,              g.w,          12 * s },
 		-- Visible resize tab: CONSTANT size at every preset (the BAM frame is drawn at its
@@ -5287,7 +5296,7 @@ function IEex_OnCHUInitialized(chuResref)
 			--   ctrl 17 = the visible chevron tab (IEEXRSZB) centred on it, which is what
 			--             actually tells the player the border is interactive.
 			-- Both cycle the height presets, and both carry the tooltip so hovering ANYWHERE
-			-- on the border explains the feature -- not just the 28px tab.
+			-- on the border explains the feature -- not just the tab itself.
 			-- ORDER MATTERS, don't swap the two blocks: the rects overlap, and CUIPanel walks
 			-- its control list TAIL-first for input (OnLButtonDown 0x4D2D80) but HEAD-first
 			-- for render (0x4D3100). Adding 17 last therefore gives it both the click (tab shows
@@ -5298,8 +5307,8 @@ function IEex_OnCHUInitialized(chuResref)
 				local divLS = (mgrLS ~= 0 and IEex_ReadDword(mgrLS + 0xAA) ~= 0) and 2 or 1
 				local lr = IEex_Refonte_LogRect
 				local oR = IEex_Refonte_P0Origin
-				local tabW = IEex_Refonte_LogTabW or 28 * IEex_Refonte_Scale
-				local tabH = IEex_Refonte_LogTabH or 8 * IEex_Refonte_Scale
+				local tabW = IEex_Refonte_LogTabW or 38 * IEex_Refonte_Scale
+				local tabH = IEex_Refonte_LogTabH or 12 * IEex_Refonte_Scale
 				IEex_AddControlOverride(chuResref, 0, 16, "IEex_UI_Button")
 				IEex_AddControlToPanel(commandsPanel, {
 					["type"] = IEex_ControlStructType.BUTTON,

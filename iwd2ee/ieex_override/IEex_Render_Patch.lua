@@ -118,16 +118,31 @@
 		-- BACKGROUND AUDIO. Skipping the OnAltTab pause keeps the game SIMULATING out of
 		-- focus, but the OS still mutes it: DirectSound secondary buffers created without
 		-- DSBCAPS_GLOBALFOCUS (0x8000) are silenced whenever their window loses focus.
-		-- OR the flag into the two secondary-buffer descs (all game audio funnels through
-		-- CSound): Create2DBuffer @0x7A90D0 stores dwFlags CTRLFREQUENCY|CTRLPAN|CTRLVOLUME
-		-- = 0xE0 (imm dword @0x7A90FC), Create3DBuffer @0x7A9260 stores CTRL3D|CTRLFREQUENCY
-		-- |CTRLVOLUME = 0xB0 (imm dword @0x7A92A4). The primary buffer and the 32-byte
-		-- CSoundProperties capability probe must not carry the flag and are left alone.
+		-- The game has TWO independent audio engines sharing ONE IDirectSound device (the
+		-- single DSSCL_EXCLUSIVE cooperative level is set once, in CSoundMixer::Initialize),
+		-- and each builds its own secondary-buffer dwFlags -- so both need the flag:
+		--   (a) CSound (sound effects, ambients, voices). Create2DBuffer @0x7A90D0 stores
+		--       CTRLFREQUENCY|CTRLPAN|CTRLVOLUME = 0xE0 (imm dword @0x7A90FC), Create3DBuffer
+		--       @0x7A9260 stores CTRL3D|CTRLFREQUENCY|CTRLVOLUME = 0xB0 (imm @0x7A92A4).
+		--   (b) MUSIC + the ACM/movie audio, which never touch CSound: they run through the
+		--       bundled Interplay C sound library (src/music/), whose soundAllocate @0x7D1BF0
+		--       fills Sound.bufferDesc.dwFlags -- GETCURRENTPOSITION2 = 0x10000 (imm dword
+		--       @0x7D1D19), or 0x10080 with CTRLVOLUME (imm @0x7D1D22, the branch the song
+		--       player takes) -- and creates the buffer later, in preloadBuffers @0x7D1EE0.
+		--       CSoundMixer::Initialize hands its own m_pDirectSound to soundInit, so this
+		--       library is "unowned": same device, its own flags, no GLOBALFOCUS -> the music
+		--       alone stayed muted out of focus while every CSound source kept playing.
+		-- Those two mov immediates are the only whole-value writes to the desc; the
+		-- CTRLPAN/CTRLFREQUENCY ORs downstream build on top of them. The primary buffer, the
+		-- 32-byte CSoundProperties capability probe and the (unreachable) own-device branch of
+		-- soundInit must not carry the flag and are left alone.
 		-- Gated on "Run In Background"=1 (default): with the classic pause (=0) the stock
 		-- OS mute is the wanted behavior.
 		if IEex_GetPrivateProfileInt("IEex Options", "Run In Background", 1, ".\\Icewind2.ini") ~= 0 then
-			IEex_WriteDword(0x7A90FC, 0x80E0)   -- 2D: 0xE0  | DSBCAPS_GLOBALFOCUS
-			IEex_WriteDword(0x7A92A4, 0x80B0)   -- 3D: 0xB0  | DSBCAPS_GLOBALFOCUS
+			IEex_WriteDword(0x7A90FC, 0x80E0)    -- CSound 2D: 0xE0    | DSBCAPS_GLOBALFOCUS
+			IEex_WriteDword(0x7A92A4, 0x80B0)    -- CSound 3D: 0xB0    | DSBCAPS_GLOBALFOCUS
+			IEex_WriteDword(0x7D1D19, 0x18000)   -- music lib: 0x10000 | DSBCAPS_GLOBALFOCUS
+			IEex_WriteDword(0x7D1D22, 0x18080)   -- music lib: 0x10080 | DSBCAPS_GLOBALFOCUS
 		end
 
 		-- BACKGROUND CURSOR POSITION: handled DLL-SIDE via an IAT hook (ExportFunctions

@@ -8,9 +8,10 @@
 //
 // What this component does:
 //   * COPIES the refonte-only 1x assets from bam/world_hud_refonte (the 83 54x84
-//     *_B.BMP busts, IEEXBARB/IEEXLOGB.BMP, IEEXNULB.BAM + IEEXRSZB.BAM -- the invisible
-//     click strip and the visible chevron tab that together make the log's resize
-//     border, GCOMMBTN.BAM with the
+//     *_B.BMP busts, IEEXBARB/IEEXLOGB.BMP, IEEXLOGI.BMP (the tall synthesised log
+//     interior the DLL samples 1:1 so the enlarged log neither smears nor repeats),
+//     IEEXNULB.BAM + IEEXRSZB.BAM -- the invisible click strip and the visible chevron
+//     tab that together make the log's resize border, GCOMMBTN.BAM with the
 //     appended icon cycles, the bare-icon USGBTNQL.BAM), mirroring the 2x layout
 //     (bam/bam_2x_ui/world_hud_refonte). Without this component the stock quickloot
 //     toggle art comes from initial/USGBTNQL.BAM as always and GCOMMBTN stays the

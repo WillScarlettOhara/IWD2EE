@@ -3750,3 +3750,5 @@ Tipo: Uma Mão~
 @56072 = ~Quando tocada, todos os aliados do bardo recebem +1 de bônus de ataque, +1 de dano e +1 em testes de resistência.~
 @56073 = ~World HUD Refonte (PoE-style floating HUD: portrait busts bottom-right, action/command bars bottom-centre, resizable combat log bottom-left)~
 @56074 = ~The World HUD Refonte is not yet compatible with the "2x UI" component -- install one or the other (2x support for the refonte is in progress).~
+@56075 = ~Círculos de seleção coloridos~
+@56076 = ~Colore o círculo de seleção e o marcador de destino de cada personagem com a cor secundária (roupas) do próprio personagem, em vez do verde original. Os inimigos continuam vermelhos e os neutros ciano; um personagem que está falando continua branco e um em pânico continua amarelo. As molduras dos retratos mantêm o verde original, a menos que "Colored Portrait Rings" esteja definido como 1 na seção [IEex Options] do Icewind2.ini. A espessura dos círculos e dos marcadores e' definida nessa mesma seção com "Selection Circle Thickness" (0 = automático, ou de 1 a 4 pixels; apenas OpenGL).~

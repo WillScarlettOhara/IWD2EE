@@ -3702,3 +3702,5 @@ Type d’arme : à une main~
 @56072 = ~Lorsqu'elle est jouée, tous les alliés du barde gagnent +1 aux jets d'attaque, +1 aux dégâts et +1 aux jets de sauvegarde.~
 @56073 = ~HUD flottant (style PoE) : bustes de portraits en bas à droite, barres d'action/commandes en bas au centre, journal de combat redimensionnable en bas à gauche)~
 @56074 = ~La refonte du HUD n'est pas encore compatible avec le composant « 2x UI » -- installez l'un ou l'autre (le support 2x de la refonte est en cours).~
+@56075 = ~Cercles de sélection colorés~
+@56076 = ~Colore le cercle de sélection et le marqueur de destination de chaque personnage avec sa couleur secondaire (vêtements) au lieu du vert d'origine. Les ennemis restent rouges et les neutres cyan ; un personnage qui parle reste blanc et un personnage paniqué reste jaune. Le cadre des portraits garde le vert d'origine, sauf si « Colored Portrait Rings » vaut 1 dans la section [IEex Options] d'Icewind2.ini. L'épaisseur des cercles et des marqueurs se règle dans cette même section avec « Selection Circle Thickness » (0 = automatique, ou de 1 à 4 pixels ; OpenGL uniquement).~

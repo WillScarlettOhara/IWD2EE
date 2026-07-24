@@ -3646,3 +3646,5 @@
 @56072 = ~При исполнении все союзники барда получают +1 к броскам атаки, +1 к урону и +1 к спасброскам.~
 @56073 = ~World HUD Refonte (PoE-style floating HUD: portrait busts bottom-right, action/command bars bottom-centre, resizable combat log bottom-left)~
 @56074 = ~The World HUD Refonte is not yet compatible with the "2x UI" component -- install one or the other (2x support for the refonte is in progress).~
+@56075 = ~Цветные круги выделения~
+@56076 = ~Окрашивает круг выделения и метку назначения каждого персонажа в его собственный вторичный цвет (одежда) вместо стандартного зелёного. Враги остаются красными, нейтральные голубыми; говорящий персонаж остаётся белым, а паникующий жёлтым. Рамки портретов сохраняют стандартный зелёный цвет, если параметр "Colored Portrait Rings" в разделе [IEex Options] файла Icewind2.ini не равен 1. Толщина кругов и меток задаётся в том же разделе параметром "Selection Circle Thickness" (0 = автоматически, либо от 1 до 4 пикселей; только OpenGL).~

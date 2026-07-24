@@ -3564,3 +3564,5 @@ Type:  One-handed~
 @56072 = ~When played, all the bard's allies gain a +1 bonus to attack rolls, +1 to damage, and +1 to saving throws.~
 @56073 = ~Floating HUD (PoE-style): portrait busts bottom-right, action/command bars bottom-centre, resizable combat log bottom-left~
 @56074 = ~The World HUD Refonte is not yet compatible with the "2x UI" component -- install one or the other (2x support for the refonte is in progress).~
+@56075 = ~Colored selection circles~
+@56076 = ~Tints each party member's selection circle and move-destination marker with that character's own secondary (minor clothing) color instead of the vanilla green. Enemies stay red and neutrals cyan; a character who is talking stays white and a panicking one stays yellow. Portrait frames keep the vanilla green unless "Colored Portrait Rings" is set to 1 under [IEex Options] in Icewind2.ini. The thickness of the circles and markers is set in that same section with "Selection Circle Thickness" (0 = automatic, or 1 to 4 pixels; OpenGL only).~

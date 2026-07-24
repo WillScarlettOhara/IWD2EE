@@ -102,6 +102,9 @@ if not IEex_Vanilla then
 		{"Max FPS", 0},
 		{"Show FPS", 0},
 		{"Tile Atlas", 1},
+		{"Colored Selection Circles", 1},
+		{"Selection Circle Thickness", 0},
+		{"Colored Portrait Rings", 0},
 		{"Smooth Cursor", 1},
 		{"Stretch UI to Screen", 0},
 		{"UI Borders", 1},
@@ -156,6 +159,10 @@ IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration",
 --   Transparent Fog of War (5) is SOFTWARE-only  -> hidden under GL  (Export_RenderFoW early-returns in GL).
 --   Stretch UI (13), Vsync (17), Smooth Cursor (23) are GL-only -> hidden in software
 --   (their C++ no-ops without a GL context: ComputeUIScale / EnsureVSync / cursor resample).
+--   Colored Selection Circles (27) is renderer-independent (the tint hooks CMarker::Asynchronous-
+--   Update, not a draw call) -> always visible. Only the marker THICKNESS that ships with it is
+--   GL-only, and that has no row: [IEex Options] "Selection Circle Thickness" in Icewind2.ini.
+--   (Row 27 was 'Tile Atlas', now hardwired via its ini key only -- nobody turns it off.)
 --   Improved Pathfinding (21) is renderer-independent -> always visible. (Row 21 was 'UI Single
 --   Buffer', now hardwired via its ini key only: =0 is never correct with the GL present FBO --
 --   RENDER_COUNT=2 on a single buffer truncates dialog/UI text until an alt-tab FBO rebuild.)
@@ -164,8 +171,16 @@ IEEX_OPTION_ROW_ORDER = {7, 9, 5, 11, 13, 15, 17, 19, 21, 23, 25, 27}
 
 function IEex_OptionRowVisible(labelId)
 	if labelId == 5 then return not IEEX_GL_ACTIVE end
-	if labelId == 13 or labelId == 17 or labelId == 23 or labelId == 27 then return IEEX_GL_ACTIVE end
+	if labelId == 13 or labelId == 17 or labelId == 23 then return IEEX_GL_ACTIVE end
 	return true
+end
+
+-- Option label/description text: the TRA strref when the mod's strings are installed,
+-- otherwise the English fallback. Needed because a freshly deployed lua can run against an
+-- IEex_TRA.LUA whose placeholders are still 0 (the WeiDU install resolves them), and
+-- IEex_FetchString(0) would render strref 0.
+function IEex_OptionText(traId, fallback)
+	return (traId or 0) ~= 0 and IEex_FetchString(traId) or fallback
 end
 
 function IEex_OptionRowShift(labelId)
@@ -3024,6 +3039,13 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 					end
 
 					IEex_WriteOptions()
+
+					-- Marker colour/thickness live-apply: the helper caches its [IEex Options]
+					-- keys on first use, so drop the cache now that the ini has been rewritten.
+					-- Also picks up the ini-only marker keys (thickness, portrait rings, colour
+					-- slot, brightness floor) on the next open/close of this panel.
+					if IEex_Helper_SetMarkerStyle then IEex_Helper_SetMarkerStyle() end
+
 					closeIEexOptions()
 				end,
 				-- "Cancel" Button
@@ -3151,15 +3173,15 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 						IEex_Helper_SetBridge(workingOptions, "maxFps", 0)
 					end
 				end,
-				-- "Tile Atlas" Toggle
+				-- "Colored Selection Circles" Toggle
 				[28] = function()
 					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "tileAtlas") then
+					if IEex_Helper_GetBridge(workingOptions, "coloredCircles") then
 						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "tileAtlas", false)
+						IEex_Helper_SetBridge(workingOptions, "coloredCircles", false)
 					else
 						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "tileAtlas", true)
+						IEex_Helper_SetBridge(workingOptions, "coloredCircles", true)
 					end
 				end,
 			},
@@ -3440,7 +3462,7 @@ function IEex_SetOptionDescription(labelId)
 		[21] = "GemRB-inspired pathfinding improvements: characters wait for walkers instead of shuffling, stop cleanly next to occupied destinations, no longer stop short of their goal, and enemies unclog doorways by shoving their own allies (never party members). Chasing a moving target keeps its path while the new one is computed, instead of standing still for the whole search -- that is what made a run to melee stop and start. Idle non-hostile NPCs can be shoved aside instead of walling off a corridor. Fine-tuning keys (IP *) live in icewind2.ini under [IEex Options]. Requires a restart to fully take effect.",
 		[23] = "Samples the mouse position at the rendering framerate instead of the game's logic tick rate, for smoother cursor movement. Requires a restart to take effect.",
 		[25] = "Limits the framerate to your display's refresh rate to reduce GPU and CPU load. Requires a restart to take effect.",
-		[27] = "Batches world-tile rendering through a single texture atlas for a large framerate gain at high resolutions. Requires a restart to take effect.",
+		[27] = IEex_OptionText(ex_tra_56076, "Tints each party member's selection circle and move-destination marker with that character's own secondary (minor clothing) color instead of the vanilla green. Enemies stay red and neutrals cyan; a character who is talking stays white and a panicking one stays yellow. Portrait frames keep the vanilla green unless \"Colored Portrait Rings\" is set to 1 under [IEex Options] in Icewind2.ini. The thickness of the circles and markers is set in that same section with \"Selection Circle Thickness\" (0 = automatic, or 1 to 4 pixels; OpenGL only)."),
 	}
 	local d = descriptions[labelId]
 	if d == nil then return end
@@ -4893,7 +4915,7 @@ function IEex_InstallIEexOptions()
 
 	if IEex_OptionRowVisible(27) then
 
-	-- "Tile Atlas" Label - ID 27
+	-- "Colored Selection Circles" Label - ID 27
 	IEex_AddControlOverride("GUIOPT", 14, 27, "IEex_UI_Label")
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
@@ -4905,9 +4927,10 @@ function IEex_InstallIEexOptions()
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
 	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 27), "Tile Atlas (restart required)")
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 27),
+		IEex_OptionText(ex_tra_56075, "Colored selection circles"))
 
-	-- "Tile Atlas" Toggle - ID 28
+	-- "Colored Selection Circles" Toggle - ID 28
 	IEex_AddControlOverride("GUIOPT", 14, 28, "IEex_UI_Button")
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.BUTTON,
@@ -5698,6 +5721,11 @@ function IEex_LoadOptions()
 
 	IEex_Helper_SetBridge(options, "tileAtlas",
 		IEex_GetPrivateProfileInt("IEex Options", "Tile Atlas", 1, ".\\Icewind2.ini") ~= 0 and true or false)
+
+	-- Tile Atlas lost its row to this one; its key stays live (IEex_HDTiles_Patch.lua reads
+	-- the ini directly), it just has no UI any more.
+	IEex_Helper_SetBridge(options, "coloredCircles",
+		IEex_GetPrivateProfileInt("IEex Options", "Colored Selection Circles", 1, ".\\Icewind2.ini") ~= 0 and true or false)
 end
 
 function IEex_WriteOptions()
@@ -5743,6 +5771,9 @@ function IEex_WriteOptions()
 
 	IEex_WritePrivateProfileString("IEex Options", "Tile Atlas",
 		IEex_Helper_GetBridge(options, "tileAtlas") and "1" or "0", ".\\Icewind2.ini")
+
+	IEex_WritePrivateProfileString("IEex Options", "Colored Selection Circles",
+		IEex_Helper_GetBridge(options, "coloredCircles") and "1" or "0", ".\\Icewind2.ini")
 end
 
 function IEex_InitOptionButtons()
@@ -5798,7 +5829,7 @@ function IEex_InitOptionButtons()
 
 	if IEex_OptionRowVisible(27) then
 		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 28),
-			IEex_Helper_GetBridge(options, "tileAtlas") and 3 or 1)
+			IEex_Helper_GetBridge(options, "coloredCircles") and 3 or 1)
 	end
 end
 
@@ -5838,7 +5869,13 @@ function IEex_InjectOptionIniComments()
 		["IP Ally Queue"]                         = "Improved Pathfinding: when a party member is blocked by ANOTHER party member who is walking somewhere, hold position and step in behind them instead of re-searching. Vanilla waits two short rounds then throws the path away and asks for a new one -- which stands the character still for the whole search and then routes it into the next body, because at a one-cell doorway there is no way around. That churn, per follower, is the stutter at every narrow passage. The party threads a door as a tight queue instead. 1 = on (default).",
 		["IP Collision Smoothing"]                = "Improved Pathfinding: keep path smoothing on collision re-searches (vanilla drops it). Prettier post-bump paths, but each one costs the SINGLE shared search thread an extra pass -- and that queue is what every sprite waits on while standing path-less. Default off.",
 		["IP Enemy Soft Block"]                   = "Improved Pathfinding sub-option: enemy searches soft-cost through bumpable allies instead of hard-blocking. Default off (enemies may path into the party line and grind).",
-		["IP Combat Slide"]                       = "Improved Pathfinding EXPERIMENTAL: melee allies may slide around their target to make room for more attackers instead of jamming corridors single-file. Party-only (enemies keep vanilla rules, so door/tunnel body-blocking gets STRONGER for the player); slides are short interpolated glides, ~2 cells max per burst. Default off.",		["Tile Atlas"]                            = "OpenGL: batch map tiles into an atlas texture for faster tile rendering. 1 = on. OpenGL only.",
+		["IP Combat Slide"]                       = "Improved Pathfinding EXPERIMENTAL: melee allies may slide around their target to make room for more attackers instead of jamming corridors single-file. Party-only (enemies keep vanilla rules, so door/tunnel body-blocking gets STRONGER for the player); slides are short interpolated glides, ~2 cells max per burst. Default off.",
+		["Tile Atlas"]                            = "OpenGL: batch map tiles into an atlas texture for faster tile rendering. 1 = on. OpenGL only. (No longer in the options menu -- ini only.)",
+		["Colored Selection Circles"]             = "Tint each character's selection circle and move-destination marker with that character's own secondary (minor clothing) colour instead of the vanilla green. Enemies stay red, neutrals cyan, talking white, morale failure yellow. 1 = on (default).",
+		["Selection Circle Thickness"]            = "Stroke width, in pixels, of the selection circles and move-destination markers. 0 = automatic (2 px, or 3 px above 1920 screen width), or force 1 to 4. 1 = the vanilla hairline. Thickness grows INWARD, so the outer edge -- and the click target -- never moves. OpenGL only.",
+		["Colored Portrait Rings"]                = "0 = keep the vanilla green frame around the party portraits while the ground circles are coloured (default); 1 = tint the portrait frame with the character's colour too. Ignored when Colored Selection Circles = 0.",
+		["Selection Circle Color Slot"]           = "Which creature colour drives the tint: 0 metal, 1 minor clothing (default -- the 'Couleur secondaire' swatch in the inventory), 2 major clothing, 3 skin, 4 leather, 5 armor, 6 hair.",
+		["Selection Circle Min Brightness"]       = "Legibility floor (0-255) for tinted circles, so a character in near-black clothing still gets a visible circle. The hue is preserved; only brightness is raised. Default 110; 0 disables.",
 		["UI Canvas Scale x10"]                   = "HD UI canvas scale x10: 10 = native 1.0x; >=11 enables the HD UI upscale (e.g. 20 = 2x). Written by the HD/2x UI component.",
 		["Windowed"]                              = "1 = run in a window; 0 = fullscreen (default). No-op under Wine.",
 		["Run In Background"]                     = "Keep the game simulating, rendering and playing its audio while another window has the focus (alt-tab). 1 = on (default); 0 = the classic pause, which also mutes the game. Presents are skipped only while the window is minimised. Native Windows + OpenGL; Wine and the software renderer keep the stock behavior.",

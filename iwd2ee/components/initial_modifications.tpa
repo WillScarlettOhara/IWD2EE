@@ -428,6 +428,10 @@ COPY_EXISTING ~IEex_TRA.lua~ ~override~
 	REPLACE_TEXTUALLY CASE_INSENSITIVE ~ex_tra_55932 *=.*~ ~ex_tra_55932 = %ex_tra_55932%~
 	ex_tra_55933 = RESOLVE_STR_REF(@55933)
 	REPLACE_TEXTUALLY CASE_INSENSITIVE ~ex_tra_55933 *=.*~ ~ex_tra_55933 = %ex_tra_55933%~
+	ex_tra_56075 = RESOLVE_STR_REF(@56075)
+	REPLACE_TEXTUALLY CASE_INSENSITIVE ~ex_tra_56075 *=.*~ ~ex_tra_56075 = %ex_tra_56075%~
+	ex_tra_56076 = RESOLVE_STR_REF(@56076)
+	REPLACE_TEXTUALLY CASE_INSENSITIVE ~ex_tra_56076 *=.*~ ~ex_tra_56076 = %ex_tra_56076%~
 	SPRINT ex_str_level @55000
 	REPLACE_TEXTUALLY ~ex_str_level *=.*~ ~ex_str_level = "%ex_str_level%"~
 	SPRINT ex_str_barbarian @55001

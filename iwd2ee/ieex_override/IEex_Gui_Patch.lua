@@ -1571,6 +1571,50 @@
 		IEex_WriteAssembly(0x68C320, IEex_FlattenTable({
 			{[[ !jmp_dword ]], {formUpStub, 4, 4}},
 		}))
+
+		-- Parallel to the Formation (right-click) wrap above: the LEFT-click / mouse-move world
+		-- dispatch also runs UNCONDITIONALLY after the UI manager. Under the floating HUD at a
+		-- sub-reference resolution (s < 1) the cursor is stored LOGICAL over the inflated HUD
+		-- panels (so the engine's virtual-space control hit-test still finds the relocated
+		-- buttons), but CGameArea's world handlers feed that logical point to GetWorldCoordinates
+		-- AND to their device-space rViewPort bounds gates -- so in the gaps between the floating
+		-- HUD elements the party can't be move-clicked and the formation preview rotates about the
+		-- wrong point. Each wrapper swaps the handler's pt to the PHYSICAL cursor (Export_*Phys ->
+		-- WorldPtPhysicalize, a no-op off the scaled HUD and at s==1); the reject/viewport tests
+		-- undo it (IEex_Helper_WorldRejectMapCursor) so their content hit-test stays logical. Same
+		-- call-site shape as Formation (ecx = pArea, pt already pushed; original `call` is 5 bytes).
+		local actionDownStub = IEex_WriteAssemblyAuto({[[
+			51
+			!call >IEex_Helper_ActionDownPhys
+			!jmp_dword :68C0D9
+		]]})
+		IEex_WriteAssembly(0x68C0D4, IEex_FlattenTable({
+			{[[ !jmp_dword ]], {actionDownStub, 4, 4}},
+		}))
+		local actionUpStub = IEex_WriteAssemblyAuto({[[
+			51
+			!call >IEex_Helper_ActionUpPhys
+			!jmp_dword :68C182
+		]]})
+		IEex_WriteAssembly(0x68C17D, IEex_FlattenTable({
+			{[[ !jmp_dword ]], {actionUpStub, 4, 4}},
+		}))
+		local actionDblClkStub = IEex_WriteAssemblyAuto({[[
+			51
+			!call >IEex_Helper_ActionDblClkPhys
+			!jmp_dword :68C065
+		]]})
+		IEex_WriteAssembly(0x68C060, IEex_FlattenTable({
+			{[[ !jmp_dword ]], {actionDblClkStub, 4, 4}},
+		}))
+		local mouseMoveStub = IEex_WriteAssemblyAuto({[[
+			51
+			!call >IEex_Helper_MouseMovePhys
+			!jmp_dword :68C249
+		]]})
+		IEex_WriteAssembly(0x68C244, IEex_FlattenTable({
+			{[[ !jmp_dword ]], {mouseMoveStub, 4, 4}},
+		}))
 	end
 
 	IEex_EnableCodeProtection()

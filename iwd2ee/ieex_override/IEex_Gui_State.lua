@@ -2214,13 +2214,33 @@ function IEex_Extern_MouseInAreaViewport(CGameArea)
 		return false
 	end
 
+	-- m_ptMousePos (CGameArea+0x256) is the PHYSICAL cursor whenever a world handler physicalized
+	-- it (the *Phys wrappers); over the world it is physical anyway. The device-space viewport-rect
+	-- test below wants that physical point, but the UI-block test wants the LOGICAL cursor -- so map
+	-- a copy back for the block test only (IEex_Helper_WorldRejectMapCursor: no-op off the scaled
+	-- HUD / at s==1). Inlined (not IEex_MouseInViewport) because the two tests want different spaces.
 	local nCursorX = IEex_ReadDword(CGameArea + 0x256)
 	local nCursorY = IEex_ReadDword(CGameArea + 0x25A)
-	return IEex_MouseInViewport(IEex_GetCInfinityFromArea(CGameArea), nCursorX, nCursorY)
+	local lx, ly = nCursorX, nCursorY
+	if IEex_Helper_WorldRejectMapCursor then
+		lx, ly = IEex_Helper_WorldRejectMapCursor(nCursorX, nCursorY)
+	end
+	if IEex_IsUIBlockingViewport(lx, ly) then
+		return false
+	end
+	local L, T, R, B = IEex_GetViewportRectFromCInfinity(IEex_GetCInfinityFromArea(CGameArea))
+	return nCursorX >= L and nCursorX < R and nCursorY >= T and nCursorY < B
 end
 
 function IEex_Extern_RejectGetWorldCoordinates(CInfinity, x, y)
 	IEex_AssertThread(IEex_Thread.Async, true)
+	-- A world-interaction handler may have swapped its pt to the PHYSICAL cursor (the *Phys
+	-- wrappers) so its world math + device-space viewport gate work over the scaled-HUD gaps; map
+	-- it back to the LOGICAL cursor for the panel content test. No-op for a genuine logical cursor,
+	-- a non-cursor point, or at s==1 (physical == logical). Keeps IEex_IsUIBlockingViewport correct.
+	if IEex_Helper_WorldRejectMapCursor then
+		x, y = IEex_Helper_WorldRejectMapCursor(x, y)
+	end
 	return IEex_IsUIBlockingViewport(x, y)
 end
 

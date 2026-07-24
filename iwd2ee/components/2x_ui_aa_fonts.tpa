@@ -1,29 +1,51 @@
 // =====================================================================================
-// 2x UI - Non-pixelated (AA) fonts   (sub-choice of the 2x UI component; runs AFTER the gate)
+// 2x UI - Non-pixelated fonts   (sub-choice of the 2x UI component; runs AFTER the gate)
 // =====================================================================================
-// Swaps the portrait HP digits (NUMFONT) for an anti-aliased, TTF-rendered BAM (Roboto Condensed
-// Bold), built by scripts/build_aa_font_bam.py into bam/bam_2x_ui/aa_fonts. Every glyph keeps the SAME
-// per-glyph cell geometry (w/h/cx/cy) as the stock 2x NUMFONT -> identical layout/footprint. Digits are
-// language-neutral, so it ships for every language.
+// Two pieces:
 //
-// COLOUR MODEL (iwd2-re CVidFont::RealizePalette + CGameText SetColor(white,black)): the BAM palette
-// is rebuilt by the engine as index1~=background .. index255~=foreground, index0=transparent. So the
-// glyphs are encoded by INDEX (ink/body -> high index = foreground; AA edge + drop bevel -> low index).
-// NUMFONT already de-doubles via its hd_match resref (IEex_UIScale_Patch.lua), so the AA BAM renders
-// native-crisp at the 2x tier instead of being NN-doubled.
+// 1) NUMFONT (portrait HP digits): anti-aliased TTF-rendered BAM (Roboto Condensed Bold), built by
+//    scripts/build_aa_font_bam.py. Same per-glyph cell geometry as the stock 2x NUMFONT -> identical
+//    layout/footprint. Digits are language-neutral, so it ships for every language.
+//    COLOUR MODEL (iwd2-re CVidFont::RealizePalette): the engine rebuilds the BAM palette as
+//    index1~=background .. index255~=foreground, index0=transparent -> glyphs encoded by INDEX.
 //
-// TEXT FONTS STAY STOCK, ON PURPOSE. AA'd INFOFONT (parchment + worldmap labels) and AA'd floating
-// world text (CGameText -> IEEXFLT) were both built, shipped and then DROPPED: the engine's text model
-// is 1-bit ink over a colour-keyed background, so an AA face muddies the glyphs instead of smoothing
-// them -- worst of all on the 1x world text. So:
-//   · INFOFONT ships NO BAM here -> the engine loads the player's stock 1x font and NN-doubles it at
-//     the 2x tier (sharp, and language-correct for free). Its de-double branch in
-//     IEex_UIScale_Patch.lua MUST therefore stay >skip -- do NOT flip it to >hit.
-//   · IEEXFLT (floating world text) stays the base component's COPY_EXISTING capture of that same
-//     stock INFOFONT.
-// Do not re-add an AA INFOFONT/IEEXFLT (any language) without reopening that call.
+// 2) IEEXFLT (floating world text, CGameText): SUPERSAMPLE replacement. Plain AA at the stock ~8px
+//    cap was tried and rejected (1-bit ink over colour-key -> AA muddies the glyphs), so instead the
+//    option ships IEEXFLT.BAM as a NATIVE-2x Play Bold atlas (cap16, mod-scripts/fonts/
+//    build_infofont.py in iwd2-work) and IEex_SupersampleFont_Patch.lua has IEexHelper OWN
+//    CGameText::Render: each line redrawn as sharp GL quads at HALF scale (supersampled, LINEAR),
+//    lines centred, block lifted just above the owner's head, translucent readability panel,
+//    zoom-aware. The patch file ships with the core (ieex_override, inert); THIS component adds it
+//    to the IEex_IWD2_Patch.lua loader lists, AFTER the BAM + patch file are in place (dofile-race
+//    footgun). GL only: under the software renderer ('3D Acceleration'=0) the lua no-ops -> the 2x
+//    atlas would render 2x too big; the whole 2x UI is GL-targeted, so this stays a known non-goal.
+//
+// INFOFONT (loading parchment + worldmap labels) intentionally ships NO BAM: the engine loads the
+// player's stock 1x font and NN-doubles it at the 2x tier (sharp, language-correct for free). Its
+// de-double branch in IEex_UIScale_Patch.lua MUST stay >skip -- do NOT flip it to >hit, and do not
+// re-add an AA INFOFONT (any language) without reopening that call.
 // =====================================================================================
-PRINT ~[2x UI] Non-pixelated fonts: AA NUMFONT (portrait HP digits)~
+PRINT ~[2x UI] Non-pixelated fonts: AA NUMFONT (portrait HP digits) + supersampled floating world text~
 
 // NUMFONT: always (language-neutral digits). Overwrites the stock silly_pixel NUMFONT.
 COPY ~%mod_folder%/bam/bam_2x_ui/aa_fonts/NUMFONT.BAM~ ~override/NUMFONT.BAM~
+
+// IEEXFLT: native-2x Play Bold atlas, language-selected (cp1251 build for Russian, cp1252 else).
+// Overwrites the base component's stock COPY_EXISTING capture; landing BEFORE the loader-list edit
+// below keeps the patch file inert until everything it needs is in place.
+ACTION_IF ~%LANGUAGE%~ STRING_EQUAL ~Russian~ BEGIN
+  COPY ~%mod_folder%/bam/bam_2x_ui/aa_fonts/IEEXFLT_ru.BAM~ ~override/IEEXFLT.BAM~
+END ELSE BEGIN
+  COPY ~%mod_folder%/bam/bam_2x_ui/aa_fonts/IEEXFLT_en.BAM~ ~override/IEEXFLT.BAM~
+END
+
+// Enable the supersample overlay: append the (core-shipped, inert) patch file to BOTH loader lists
+// in the deployed IEex_IWD2_Patch.lua, right after IEex_UIScale_Patch.lua. Reinstalls are safe:
+// WeiDU uninstalls (restores the backed-up file) before re-running this.
+ACTION_IF FILE_EXISTS ~override/IEex_SupersampleFont_Patch.lua~ BEGIN
+  COPY_EXISTING ~override/IEex_IWD2_Patch.lua~ ~override~
+    REPLACE_TEXTUALLY ~"override/IEex_UIScale_Patch.lua",~ ~"override/IEex_UIScale_Patch.lua",%WNL%	"override/IEex_SupersampleFont_Patch.lua",~
+  BUT_ONLY_IF_IT_CHANGES
+END ELSE BEGIN
+  WARN ~[2x UI] override/IEex_SupersampleFont_Patch.lua not found (install the IWD2EE core first) -- floating world text stays stock.~
+END

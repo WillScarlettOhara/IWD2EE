@@ -2919,7 +2919,8 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 	local worldHandler = {
 		[0] = {
 			[15] = IEex_CScreenWorld_OnQuicklootButtonLClick,
-			[16] = IEex_Refonte_CycleLogHeight,
+			[16] = IEex_Refonte_CycleLogHeight,   -- invisible full-width strip on the log's top border
+			[17] = IEex_Refonte_CycleLogHeight,   -- the VISIBLE tab on the same border (same action)
 		},
 --[[
 		[22] = {
@@ -3866,7 +3867,20 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- clicking the box's TOP BORDER (invisible IEEXNULB button, ctrl 16), persisted in
 	-- the ini. Box width now sized above (logW) to avoid the centred-block overlap;
 	-- interior controls scale to logW in ApplyLogHeight.
+	--
+	-- Ctrl 17 (IEEXRSZB) is the VISIBLE half of that: a small chevron tab centred on the
+	-- same border. The strip alone was undiscoverable -- a community poll came back
+	-- unanimously "didn't know the log resizes" -- so the tab advertises it and both
+	-- controls run the same cycle. It has to be a BAM control, NOT paint baked into
+	-- IEEXLOGB: the bezel is drawn as a 3-slice whose caps scale with the box WIDTH and
+	-- whose middle band stretches, so baked art would squash per resolution and per
+	-- preset, while a BAM frame renders at NATIVE px (CVidCell: anchored at the control
+	-- corner, clipped, never scaled) -- identical at all three heights.
 	IEex_Refonte_Scale = s
+	-- Tab footprint, 1x-authored (x2 at the engine's 2x tier, matching the 56x16 BAM the
+	-- 2x asset set ships). 8*s tall is the whole vertical budget: the text display (ctrl 1)
+	-- starts at logY + 8*s, so anything taller would sit over the first log line.
+	IEex_Refonte_LogTabW, IEex_Refonte_LogTabH = 28 * s, 8 * s
 	IEex_Refonte_LogHeights = { 128 * s, 192 * s, 256 * s }
 	IEex_Refonte_LogHeightIdx = math.max(1, math.min(#IEex_Refonte_LogHeights,
 		IEex_GetPrivateProfileInt("IEex Options", "Refonte Log Height", 1, ".\\Icewind2.ini")))
@@ -4069,11 +4083,16 @@ function IEex_Refonte_ApplyLogHeight(idx)
 	-- the scrollbar stays pinned to the right frame and the text/input wrap to fit -- at
 	-- the full 551*s these reduce to the original 517 / 533 / 523.
 	local textH = h - 16 * s
+	local tabW, tabH = IEex_Refonte_LogTabW or 28 * s, IEex_Refonte_LogTabH or 8 * s
 	local place = {
 		[1]  = { g.x + 8 * s,        logY + 8 * s,      g.w - 34 * s, textH },
 		[2]  = { g.x + g.w - 18 * s, logY + 8 * s,      12 * s,       textH },
 		[3]  = { g.x + 8 * s,        logY + h - 26 * s, g.w - 28 * s, 20 * s },
 		[16] = { g.x,                logY,              g.w,          12 * s },
+		-- Visible resize tab: CONSTANT size at every preset (the BAM frame is drawn at its
+		-- native px and only clipped by this rect) -- only its y follows logY, so it stays
+		-- glued to the border without ever changing shape as the box grows.
+		[17] = { g.x + math.floor((g.w - tabW) / 2), logY, tabW, tabH },
 	}
 	for id, r in pairs(place) do
 		local c = IEex_GetControlFromPanel(panel0, id)
@@ -5262,13 +5281,25 @@ function IEex_OnCHUInitialized(chuResref)
 				["customHotkeyHintIndex"] = IEex_Hotkeys_CustomBinding.TOGGLE_QUICKLOOT,
 			})
 
-			-- Refonte: invisible click strip on the log box's TOP BORDER (ctrl 16,
-			-- fully-transparent IEEXNULB bam) -- clicking cycles the height presets.
+			-- Refonte: the log box's TOP BORDER is the resize control, in two halves --
+			--   ctrl 16 = the invisible full-width click strip (transparent IEEXNULB), so the
+			--             whole border stays clickable as it always has been;
+			--   ctrl 17 = the visible chevron tab (IEEXRSZB) centred on it, which is what
+			--             actually tells the player the border is interactive.
+			-- Both cycle the height presets, and both carry the tooltip so hovering ANYWHERE
+			-- on the border explains the feature -- not just the 28px tab.
+			-- ORDER MATTERS, don't swap the two blocks: the rects overlap, and CUIPanel walks
+			-- its control list TAIL-first for input (OnLButtonDown 0x4D2D80) but HEAD-first
+			-- for render (0x4D3100). Adding 17 last therefore gives it both the click (tab shows
+			-- its pressed frame instead of the strip silently eating the press) and the top
+			-- of the draw order.
 			if IEex_PortraitGridEnabled and IEex_Refonte_LogRect then
 				local mgrLS = IEex_GetUIManagerFromEngine(worldScreen)
 				local divLS = (mgrLS ~= 0 and IEex_ReadDword(mgrLS + 0xAA) ~= 0) and 2 or 1
 				local lr = IEex_Refonte_LogRect
 				local oR = IEex_Refonte_P0Origin
+				local tabW = IEex_Refonte_LogTabW or 28 * IEex_Refonte_Scale
+				local tabH = IEex_Refonte_LogTabH or 8 * IEex_Refonte_Scale
 				IEex_AddControlOverride(chuResref, 0, 16, "IEex_UI_Button")
 				IEex_AddControlToPanel(commandsPanel, {
 					["type"] = IEex_ControlStructType.BUTTON,
@@ -5282,8 +5313,30 @@ function IEex_OnCHUInitialized(chuResref)
 					["frameUnpressed"] = 0,
 					["framePressed"] = 0,
 					["frameDisabled"] = 0,
+					["tooltipStrref"] = ex_tra_55933,
 				})
 				IEex_SetControlButtonPlayLButtonDownSound(IEex_GetControlFromPanel(commandsPanel, 16), false)
+
+				IEex_AddControlOverride(chuResref, 0, 17, "IEex_UI_Button")
+				IEex_AddControlToPanel(commandsPanel, {
+					["type"] = IEex_ControlStructType.BUTTON,
+					["id"] = 17,
+					["x"] = math.floor((lr.x + math.floor((lr.w - tabW) / 2) - oR.x) / divLS),
+					["y"] = math.floor((lr.y - oR.y) / divLS),
+					["width"] = math.floor(tabW / divLS),
+					["height"] = math.floor(tabH / divLS),
+					["bam"] = "IEEXRSZB",
+					["sequence"] = 0,
+					["frameUnpressed"] = 0,
+					["framePressed"] = 1,
+					["frameDisabled"] = 0,
+					["tooltipStrref"] = ex_tra_55933,
+				})
+
+				-- Both controls exist now: re-run the placer so their rects come from the
+				-- one function that owns log geometry, instead of the divLS arithmetic above
+				-- (which only exists because the control CTOR doubles world-manager coords).
+				IEex_Refonte_ApplyLogHeight(IEex_Refonte_LogHeightIdx)
 			end
 		end
 

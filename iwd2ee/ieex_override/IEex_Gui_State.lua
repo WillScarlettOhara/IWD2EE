@@ -1980,11 +1980,16 @@ function IEex_Extern_BeforeWorldRender()
 		-- layer on their own -- but the portrait CONTENT (CInfGame::RenderPortrait:
 		-- damage tint, state overlays, casting glow) is live sprite state drawn
 		-- with no invalidate on change. All of it advances at AI-tick rate, so
-		-- repaint once per game tick (~15 Hz). While PAUSED ticks stop and the
-		-- content is frozen -- but fall back to per-frame invalidate anyway: it
-		-- covers the initial post-load stamp under auto-pause (sprites not yet
-		-- loaded -> black portraits with no tick to heal them), and paused fps
-		-- are irrelevant.
+		-- repaint once per game tick (~15 Hz). While PAUSED the tick stops, so there
+		-- is no edge to gate on -- hash EVERY frame there instead. The old blanket
+		-- per-frame invalidate on the paused branch cost 2.3ms/frame of panel-1 full
+		-- repaint (it holds m_doRender > 0, which defeats the DLL's
+		-- HudLayerContentPanel1CleanSkip): measured on Bubb's 240Hz box as render CPU
+		-- 2.14 -> 4.50ms/frame, over the 4.167ms budget of the 238 cap, so paused fps
+		-- fell 240 -> 210. The hash still covers what that fallback was written for:
+		-- the initial post-load stamp under auto-pause (sprites not yet loaded ->
+		-- black portraits, no tick to heal them) moves hp/maxHP the moment they land,
+		-- and selection/hover ring inputs are hashed too.
 		local invalidatePortraits = true
 		-- Refonte: the stale-selection-border cause was PIXEL RESIDUE in the persistent layer, not
 		-- invalidation timing -- RenderPortrait draws NOTHING where it means "off" (the ring DrawLines
@@ -1994,13 +1999,22 @@ function IEex_Extern_BeforeWorldRender()
 		-- registered rect + full-invalidates the panel before each repaint. The tick-gate below stays
 		-- for the portrait CONTENT cadence (damage tint, casting glow at AI-tick rate) in BOTH layouts.
 		local game = IEex_GetGameData()
-		if game ~= 0x0 and IEex_ReadByte(game + 0x1B7C) ~= 0 then -- m_worldTime.m_active
-			local gameTime = IEex_ReadDword(game + 0x1B78)        -- m_worldTime.m_gameTime
-			if gameTime ~= IEex_HudLayer_LastGameTime then
-				IEex_HudLayer_LastGameTime = gameTime
-				-- AI tick advanced: repaint portraits ONLY if their content actually changed
-				-- this tick (HP / blood-flash / talking / health-colour). Idle/walking leaves
-				-- them identical -> skip the ~5ms full panel-1 repaint (93% portraits, measured).
+		if game ~= 0x0 then
+			-- Running: gate on the game-tick edge (the content only advances per tick).
+			-- Paused: m_worldTime.m_active is 0 and m_gameTime is frozen, so there is no
+			-- edge -- treat every frame as one and let the hash below do the gating.
+			local tickEdge = true
+			if IEex_ReadByte(game + 0x1B7C) ~= 0 then           -- m_worldTime.m_active
+				local gameTime = IEex_ReadDword(game + 0x1B78)   -- m_worldTime.m_gameTime
+				tickEdge = gameTime ~= IEex_HudLayer_LastGameTime
+				if tickEdge then
+					IEex_HudLayer_LastGameTime = gameTime
+				end
+			end
+			if tickEdge then
+				-- Repaint portraits ONLY if their content actually changed (HP / blood-flash /
+				-- talking / health-colour / selection / hover). Idle/walking leaves them
+				-- identical -> skip the ~5ms full panel-1 repaint (93% portraits, measured).
 				-- Flash/talk animate the hashed fields each tick so they still play; a missed
 				-- state self-heals on the next HP change.
 				local hash = IEex_HudLayer_PortraitContentHash()

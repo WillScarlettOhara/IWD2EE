@@ -8,8 +8,10 @@
 //
 // What this component does:
 //   * COPIES the refonte-only 1x assets from bam/world_hud_refonte (the 83 54x84
-//     *_B.BMP busts, IEEXBARB/IEEXLOGB.BMP, IEEXLOGI.BMP (the tall synthesised log
-//     interior the DLL samples 1:1 so the enlarged log neither smears nor repeats),
+//     *_B.BMP busts, IEEXBARB/IEEXLOGB.BMP, IEEXLOG1/2/3.BMP (a COMPLETE log bezel per
+//     height preset, interior texture-synthesised at its final size -- the DLL draws the
+//     matching one as a single quad, so the enlarged log neither smears nor repeats nor
+//     shows a splice line; IEEXLOGB stays as the 3-slice fallback),
 //     IEEXNULB.BAM + IEEXRSZB.BAM -- the invisible click strip and the visible chevron
 //     tab that together make the log's resize border, GCOMMBTN.BAM with the
 //     appended icon cycles, the bare-icon USGBTNQL.BAM), mirroring the 2x layout

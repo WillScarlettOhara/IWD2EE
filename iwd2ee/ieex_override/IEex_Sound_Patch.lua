@@ -245,6 +245,57 @@
 	IEex_HookPCVoicePositional(0x70256B, 0x702574)
 	IEex_HookPCVoicePositional(0x7027BE, 0x7027C7)
 
+	--------------------------------------------------------------------------------
+	-- Cross-language soundset folder remap. Saves/.CHRs store each PC's voice set as
+	-- the SOUND FOLDER NAME, which is localized (FEMALE_BARD_1 on English installs vs
+	-- Femme_Barde_1 on French ones). Loading a save from another language makes the
+	-- engine call CDimm::AddToDirectoryList (0x782240, non-recursive) on a missing
+	-- folder -> none of the set's WAVs enter the key table -> ALL soundset lines of
+	-- that PC (select/action barks, battle cries, the AFK "bored" lines) fail
+	-- CSound::Play silently: no audio, no m_talkingCounter, so no white talking frame
+	-- on the portrait, and the CHARSTR.2DA subtitle row (keyed on the same name)
+	-- misses too. The file prefix (m_secondarySounds) IS language-independent, so
+	-- IEex_Helper_FixSoundSetFolder (IEexHelper.dll) rescans sounds\* for the folder
+	-- whose files match <prefix>*.wav and rewrites field_725A (char[32] @ +0x725A)
+	-- in place, BEFORE the engine builds the path -- the original AddToDirectoryList
+	-- then registers the right folder. No-op when the stored folder exists.
+	--
+	-- Two load sites, ebp = CGameSprite* at both; 55 = push ebp (__stdcall arg):
+	--  * CGameSprite::Unmarshal @0x70CB48 (savegame party member): right after the
+	--    rep-movs that fills field_725A from CSavedGamePartyCreature.field_25E and
+	--    before the GetDirSounds path build. Displaced 6 bytes: 8B 0D DC F6 8C 00 =
+	--    mov ecx,[0x8CF6DC] -> 5-byte jmp + 1 NOP.
+	--  * CInfGame::ImportCharacter @0x5A17E5 (.CHR import): right after the memcpy
+	--    from pChrData+0x184 (+ its NUL-cap). Displaced 5 bytes: A1 DC F6 8C 00 =
+	--    mov eax,[0x8CF6DC] -> exactly the 5-byte jmp. This address is the target of
+	--    the jae @0x5A17DB, which lands cleanly on the jmp.
+	-- WARNING (see above): keep the [[ ]] asm blocks pure hex + `!` directives, no `--`.
+	--------------------------------------------------------------------------------
+	local fixSoundFolderUnmarshalStub = IEex_WriteAssemblyAuto({[[
+		!push_all_registers_iwd2
+		55
+		!call >IEex_Helper_FixSoundSetFolder
+		!pop_all_registers_iwd2
+		8B 0D DC F6 8C 00
+		!jmp_dword :70CB4E
+	]]})
+	IEex_WriteAssembly(0x70CB48, IEex_FlattenTable({
+		{[[ !jmp_dword ]], {fixSoundFolderUnmarshalStub, 4, 4}},
+		{[[ 90 ]]},
+	}))
+
+	local fixSoundFolderImportStub = IEex_WriteAssemblyAuto({[[
+		!push_all_registers_iwd2
+		55
+		!call >IEex_Helper_FixSoundSetFolder
+		!pop_all_registers_iwd2
+		A1 DC F6 8C 00
+		!jmp_dword :5A17EA
+	]]})
+	IEex_WriteAssembly(0x5A17E5, IEex_FlattenTable({
+		{[[ !jmp_dword ]], {fixSoundFolderImportStub, 4, 4}},
+	}))
+
 	IEex_EnableCodeProtection()
 
 end)()

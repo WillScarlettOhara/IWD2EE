@@ -130,6 +130,24 @@
 			IEex_WriteDword(0x7A92A4, 0x80B0)   -- 3D: 0xB0  | DSBCAPS_GLOBALFOCUS
 		end
 
+		-- BACKGROUND CURSOR POSITION. The engine POLLS GetCursorPos (global screen coords)
+		-- on its input tick, and borderless fullscreen makes game coords == desktop coords:
+		-- with the game running out of focus, the DESKTOP cursor riding a screen edge read
+		-- as in-game edge-scroll (camera panned while mousing around Windows). Keyboard and
+		-- mouse buttons never leak (the raw-input pump is focus-gated); the position was the
+		-- one hole. Reroute both GetCursorPos call sites (IAT slot @0x8474D4, 6-byte FF 15)
+		-- through the helper: focused = passthrough, unfocused = last focused position
+		-- clamped off the desktop edges. @0x78F2B3 = CChitin input poll (m_ptPointer /
+		-- edge-scroll), @0x45F6F8 = CGameAIBase::MoveCursor (cutscene cursor).
+		IEex_WriteAssembly(0x78F2B3, {[[
+			!call >IEex_Helper_GetCursorPosGated
+			!nop
+		]]})
+		IEex_WriteAssembly(0x45F6F8, {[[
+			!call >IEex_Helper_GetCursorPosGated
+			!nop
+		]]})
+
 	-----------------------------------------------------------------------------
 	-- SAVE-GAME BMP CAPTURE UNDER THE FBO ------------------------------------- --
 	-----------------------------------------------------------------------------

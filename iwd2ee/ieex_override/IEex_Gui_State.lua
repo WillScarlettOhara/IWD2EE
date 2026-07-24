@@ -4264,9 +4264,9 @@ function IEex_InstallQuickloot(chuResref)
 	local refonte = IEex_PortraitGridEnabled and chuResref == "GUIW10"
 		and chitin ~= 0x0 and IEex_ReadDword(chitin + 0x91C) ~= 0x0
 
-	-- Panel rect (pre-div where the ctor doubles) + panel-local control rects, filled per branch:
-	-- slotRects[1..10] = the item slots, arrowRects[1] = left scroll, arrowRects[2] = right.
-	local panelY, panelW, panelH
+	-- Panel rect (pre-div where the ctor doubles), background resref + panel-local control rects,
+	-- filled per branch: slotRects[1..10] = the item slots, arrowRects[1] = left scroll, [2] = right.
+	local panelY, panelW, panelH, bgResref
 	local slotRects, arrowRects = {}, {}
 
 	if refonte then
@@ -4280,6 +4280,10 @@ function IEex_InstallQuickloot(chuResref)
 		-- it). Bar 51 - btn 38 = 13 max; 12 leaves a 1px bottom margin.
 		local slotY = 12
 
+		-- Always the minimal resref: the refonte's own B3QKLOOM is fully opaque at 505x51 (it is
+		-- its own cover, the IEEXBARB analogue), and the refonte HUD carries no stone frame to
+		-- match, so the "UI Borders" state is irrelevant here.
+		bgResref = "B3QKLOOM"
 		panelW, panelH = 505, 51
 		panelY = math.floor(y1 / div) - panelH
 		for i = 1, 10 do
@@ -4297,6 +4301,13 @@ function IEex_InstallQuickloot(chuResref)
 		-- authored for its own 505-wide art, which starts at the panel origin: applied here it
 		-- lands the whole bar 112px left of the command bar below it.
 		--
+		-- Ask for the DECORATED art and let the "UI Borders" toggle decide, exactly like every
+		-- other world-HUD panel: IEex_Gui_Patch's CDimm::GetResObject redirect swaps B3QKLOOT ->
+		-- B3QKLOOM at load time when borders are off, and the DLL's HUD-layer composite knows to
+		-- skip a minimal panel's keyed margins. Hardcoding B3QKLOOM instead (the refonte's choice)
+		-- bypasses both: with borders ON its 112px colour-key margin has nothing handling it and
+		-- the world HUD's REPLACE composite renders it as a solid black block.
+		bgResref = "B3QKLOOT"
 		-- Panel height: the historical h1 (full action-bar height) leaves a ~2/3 tail of
 		-- colorkey-transparent MOS BELOW the item row, overlapping the action-indicator
 		-- row -- under the HUD layer that region composites as a solid band (REPLACE
@@ -4338,7 +4349,7 @@ function IEex_InstallQuickloot(chuResref)
 		["width"]           = panelW,
 		["height"]          = panelH,
 		["hasBackground"]   = 1,
-		["backgroundImage"] = "B3QKLOOM"   -- always-minimal quickloot bg (opaque 505x51 under the refonte)
+		["backgroundImage"] = bgResref
 	})
 
 	-- Ten item slots: panel 8 controls 0-9 supply the id + button BAM, slotRects the geometry.

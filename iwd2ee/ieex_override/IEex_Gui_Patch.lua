@@ -1620,6 +1620,73 @@
 		IEex_WriteAssembly(0x68C244, IEex_FlattenTable({
 			{[[ !jmp_dword ]], {mouseMoveStub, 4, 4}},
 		}))
+
+		-- PHANTOM UI HIT-TEST GATE -- the mirror of the wrappers above. Those keep a LOGICAL cursor
+		-- out of world math; these keep a PHYSICAL cursor out of UI math. Off the drawn HUD the
+		-- capture transform leaves m_ptPointer physical (world picking must stay exact), but
+		-- CScreenWorld hands that same point to CUIManager, whose panels/controls live on the
+		-- VIRTUAL canvas. At s < 1 a panel's logical rect is 1/s bigger than its drawn image, so the
+		-- band between its logical top and its drawn top -- and the strip right of it (bottom-LEFT
+		-- pivot) -- is a PHANTOM hit zone. Bubb's report: with the cursor ABOVE the dialog box the
+		-- replies flip red->white (and a click there selects one). Dialogs expose it because the
+		-- engine deactivates panels 0/1 there, so nothing else covers the band.
+		--
+		-- On ticks where the DLL says the cursor is over no drawn panel each wrapper still runs the
+		-- dispatch, but with the point moved out of every rect ("the pointer is nowhere") -- which is
+		-- exactly what an honest hit-test would produce, and keeps CUIManager::OnMouseMove's tooltip
+		-- housekeeping running. Otherwise it calls straight through, and the flag is never armed at
+		-- s >= 1, so 4K / native-layout installs are unchanged. A control holding mouse capture is
+		-- exempt in the helper (log scrollbar / resize-tab drags keep the real point).
+		-- CUIManager::OnLButtonUp (0x4D42B0) is focused-branch only -- no panel walk, not wrapped --
+		-- so a captured control always gets its release.
+		local uiMouseMoveStub = IEex_WriteAssemblyAuto({[[
+			51
+			!call >IEex_Helper_UIMouseMoveGated
+			!jmp_dword :68C214
+		]]})
+		IEex_WriteAssembly(0x68C20F, IEex_FlattenTable({   -- CScreenWorld::OnMouseMove -> CUIManager::OnMouseMove
+			{[[ !jmp_dword ]], {uiMouseMoveStub, 4, 4}},
+		}))
+		local uiLDownStub = IEex_WriteAssemblyAuto({[[
+			51
+			!call >IEex_Helper_UILDownGated
+			!jmp_dword :68C0A6
+		]]})
+		IEex_WriteAssembly(0x68C0A1, IEex_FlattenTable({   -- CScreenWorld::OnLButtonDown -> CUIManager::OnLButtonDown
+			{[[ !jmp_dword ]], {uiLDownStub, 4, 4}},
+		}))
+		local uiDblClkStub = IEex_WriteAssemblyAuto({[[
+			51
+			!call >IEex_Helper_UIDblClkGated
+			!jmp_dword :68C032
+		]]})
+		IEex_WriteAssembly(0x68C02D, IEex_FlattenTable({   -- CScreenWorld::OnLButtonDblClk -> CUIManager::OnLButtonDblClk
+			{[[ !jmp_dword ]], {uiDblClkStub, 4, 4}},
+		}))
+		local uiRDownStub = IEex_WriteAssemblyAuto({[[
+			51
+			!call >IEex_Helper_UIRDownGated
+			!jmp_dword :68C292
+		]]})
+		IEex_WriteAssembly(0x68C28D, IEex_FlattenTable({   -- CScreenWorld::OnRButtonDown -> CUIManager::OnRButtonDown
+			{[[ !jmp_dword ]], {uiRDownStub, 4, 4}},
+		}))
+
+		-- Same phantom on the per-tick panel path: CUIManager::TimerAsynchronousUpdate walks the
+		-- panels against m_ptPointer and CUIPanel::TimerAsynchronousUpdate re-tests every control,
+		-- so in the band it arms that panel's tooltips AND keeps reporting the pointer as inside a
+		-- control the cursor has left (which is what clears a hovered dialog reply). The helper does
+		-- not skip this one -- it replays the panel's per-tick control work with "over no control",
+		-- so tooltips stay down, a stale reply highlight is released, and the animations that ride
+		-- this path (clock gears, combat-log smooth scroll) keep running.
+		local panelTimerStub = IEex_WriteAssemblyAuto({[[
+			51
+			!call >IEex_Helper_PanelTimerGated
+			!jmp_dword :4D3FCC
+		]]})
+		IEex_WriteAssembly(0x4D3FC7, IEex_FlattenTable({   -- CUIManager::TimerAsynchronousUpdate -> CUIPanel::TimerAsynchronousUpdate
+			{[[ !jmp_dword ]], {panelTimerStub, 4, 4}},
+		}))
 	end
 
 	IEex_EnableCodeProtection()

@@ -292,4 +292,46 @@
 		{[[ 90 90 90 ]]},
 	}))
 
+	-- ---------------------------------------------------------------------------
+	-- Scripted camera framing (cutscenes). A script's MoveViewPoint/MoveViewObject asks for a world
+	-- POINT and the engine turns it into a viewport top-left, point - viewport/2, so the point lands
+	-- on the viewport centre -- the same pivot the GL zoom scales about, hence already zoom-correct.
+	-- What breaks at high resolution is the engine's CLAMP of that top-left, twice over:
+	--
+	--   CGameAIBase::MoveViewPoint @0x45F5D0 clamps it to [0, nAreaX], which throws away the
+	--     authored X for any point in the left half of the map (at 4K that is anything under 1920).
+	--   CGameAIBase::MoveView      @0x45F2A0 clamps it to [0, nAreaX - W] with the RAW viewport,
+	--     which COLLAPSES in any area narrower than the screen: measured in AR2000 (3328 wide) at
+	--     3840x2160, maxX = -512, so every shot of the Torak cutscene framed 602px left of its
+	--     authored centre (1408 vs 2010) and the scene's 210px pan never happened. The dialog beat
+	--     inside that same scene landed on 2008 -- 2px off authored -- because dialog pans go
+	--     through CInfinity::SetViewPosition (our override) and never touch MoveView.
+	--
+	-- Fix: MoveViewPoint's clamp is skipped outright, and MoveView's is replaced by
+	-- Export_ClampScriptViewDest, which uses the same range as our SetViewPosition override
+	-- ([-W/2, nAreaWidth - W/2] = "the authored point is somewhere on the map"). SetViewPosition
+	-- still has the last word: it re-centres a map narrower than the VISIBLE viewport, so zoom 1
+	-- keeps the vanilla framing and the authored framing returns as soon as the zoom makes the
+	-- visible span fit inside the map. No zoom lock needed for either.
+	--
+	-- MoveView: the clamp block spans 0x45F305..0x45F36F (both the < 0 folds and the two max
+	-- clamps; the register loads inside it exist only to compute those maxima). ebp = dest.x and
+	-- [esp+0x38] = dest.y are the only values that survive it -- 0x45F36F reloads eax/ebx from the
+	-- stack and edi (this) is untouched -- so the whole block becomes: hand both to the helper,
+	-- take X back in eax. No push_all: __stdcall preserves ebx/esi/edi/ebp and eax/ecx/edx are dead
+	-- here. The `lea` runs BEFORE the two pushes, while esp still matches the block's frame.
+	IEex_WriteAssembly(0x45F305, {[[
+		8D 44 24 38
+		50
+		55
+		!call >IEex_Helper_ClampScriptViewDest
+		8B E8
+		!jmp_dword :45F36F
+	]]})
+
+	-- MoveViewPoint: skip its own [0, nAreaX] clamp (0x45F614..0x45F63D) and let the replacement
+	-- above do the bounding. edi/ebx carry dest.x/dest.y straight into the MoveView call, and ecx
+	-- -- the only register the skipped range set up -- is reloaded at 0x45F646 (mov ecx, esi).
+	IEex_WriteAssembly(0x45F614, {[[ !jmp_dword :45F63D ]]})
+
 end)()

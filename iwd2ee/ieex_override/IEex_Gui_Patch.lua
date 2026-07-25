@@ -1709,6 +1709,28 @@
 		IEex_WriteAssembly(0x4D3FC7, IEex_FlattenTable({   -- CUIManager::TimerAsynchronousUpdate -> CUIPanel::TimerAsynchronousUpdate
 			{[[ !jmp_dword ]], {panelTimerStub, 4, 4}},
 		}))
+
+		-- A party-reorder drag paints the dragged portrait's border yellow from
+		-- CUIControlPortraitWorld::m_bHighlighted (+0x666), set when the cursor leaves the control
+		-- under LMB capture (0x77AFD0) and cleared on the release (0x77B160). The release is not
+		-- guaranteed: CUIManager::KillCapture goes through CUIControlButton::KillFocus, which resets
+		-- m_bPressed and nothing else (the portrait class does not override it), so the flag survives
+		-- and the border stays yellow through every later repaint. Reachable mid-drag from
+		-- CScreenWorld::OnLButtonUp with m_mode == 0x142 (kills capture INSTEAD of dispatching the
+		-- release), SetCapture stealing focus, EngineDeactivated, StopCommand, a popup close, or
+		-- RemoveControl. The helper clears the flag and invalidates the control; it self-gates on the
+		-- CUIControlPortraitWorld vtable, so every other button's KillFocus is untouched. Not gated on
+		-- IEex_PortraitGridEnabled -- the stranded flag is an engine bug in both layouts.
+		-- Prologue: 56 push esi / 8B F1 mov esi,ecx / 8B 86 46 06 00 00 mov eax,[esi+0x646];
+		-- replayed whole, resume at the following test eax,eax. ecx is saved across the __stdcall
+		-- (caller-saved) because the replayed body still needs it.
+		IEex_AttemptHook(0x4D4C50, {[[
+			51
+			51
+			!call >IEex_Helper_ButtonKillFocus
+			59
+		]]}, {"56 8B F1 8B 86 46 06 00 00 !jmp_dword :4D4C59"},
+		     {0x56, 0x8B, 0xF1, 0x8B, 0x86, 0x46, 0x06, 0x00, 0x00})
 	end
 
 	IEex_EnableCodeProtection()

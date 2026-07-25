@@ -102,8 +102,8 @@ if not IEex_Vanilla then
 		{"Max FPS", 0},
 		{"Show FPS", 0},
 		{"Tile Atlas", 1},
-		{"Colored Selection Circles", 1},
-		{"Selection Circle Thickness", 0},
+		{"Colored Selection Circles", 0},
+		{"Selection Circle Thickness", 1},
 		{"Destination Marker Thickness", 0},
 		{"Colored Portrait Frames", 0},
 		{"Portrait Frame Thickness", 1},
@@ -5833,7 +5833,7 @@ function IEex_LoadOptions()
 	-- Their consumers read the ini directly: IEex_HDTiles_Patch.lua for Tile Atlas, the
 	-- RenderPointer3d prologue in IEexHelper for Smooth Cursor.
 	IEex_Helper_SetBridge(options, "coloredCircles",
-		IEex_GetPrivateProfileInt("IEex Options", "Colored Selection Circles", 1, ".\\Icewind2.ini") ~= 0 and true or false)
+		IEex_GetPrivateProfileInt("IEex Options", "Colored Selection Circles", 0, ".\\Icewind2.ini") ~= 0 and true or false)
 end
 
 function IEex_WriteOptions()
@@ -5978,9 +5978,9 @@ function IEex_InjectOptionIniComments()
 		["IP Enemy Soft Block"]                   = "Improved Pathfinding sub-option: enemy searches soft-cost through bumpable allies instead of hard-blocking. Default off (enemies may path into the party line and grind).",
 		["IP Combat Slide"]                       = "Improved Pathfinding EXPERIMENTAL: melee allies may slide around their target to make room for more attackers instead of jamming corridors single-file. Party-only (enemies keep vanilla rules, so door/tunnel body-blocking gets STRONGER for the player); slides are short interpolated glides, ~2 cells max per burst. Default off.",
 		["Tile Atlas"]                            = "OpenGL: batch map tiles into an atlas texture for faster tile rendering. 1 = on. OpenGL only. (No longer in the options menu -- ini only.)",
-		["Colored Selection Circles"]             = "Tint each character's selection circle and move-destination marker with that character's own secondary (minor clothing) colour instead of the vanilla green, the way BG2EE colours its party circles. Enemies stay red, neutrals cyan, talking white, morale failure yellow. 1 = on (default); 0 = vanilla green. Colour only -- the stroke width is a separate key.",
-		["Selection Circle Thickness"]            = "Stroke width, in pixels, of the selection circles under characters. 0 = automatic (default: 2 px, or 3 px above 1920 screen width), or force 1 to 4. 1 = the vanilla hairline. Thickness grows INWARD, so the outer edge -- and the click target -- never moves. OpenGL only.",
-		["Destination Marker Thickness"]          = "Stroke width, in pixels, of the move-destination / target reticle. 0 = one step lighter than Selection Circle Thickness, never below 1 (default -- the BG2EE look, where the destination chevrons echo the circle rather than match it), or force 1 to 4. OpenGL only.",
+		["Colored Selection Circles"]             = "Tint each character's selection circle and move-destination marker with that character's own secondary (minor clothing) colour instead of the vanilla green, the way BG2EE colours its party circles. Enemies stay red, neutrals cyan, talking white, morale failure yellow. 0 = vanilla green (default -- the tint is opt-in, so an untouched install looks like the original under either renderer); 1 = tinted. In the options menu. Colour only -- the stroke width is a separate key.",
+		["Selection Circle Thickness"]            = "Stroke width, in pixels, of the selection circles under characters. 1 = the vanilla hairline (default); 0 = automatic (2 px, or 3 px above 1920 screen width -- the BG2EE weighting); or force up to 4. Independent of Colored Selection Circles: either can be had without the other. Thickness grows INWARD, so the outer edge -- and the click target -- never moves. OpenGL only.",
+		["Destination Marker Thickness"]          = "Stroke width, in pixels, of the move-destination / target reticle. 0 = one step lighter than Selection Circle Thickness, never below 1 (default -- the BG2EE look, where the destination chevrons echo the circle rather than match it; with the default 1 px circles that floor keeps it at the vanilla 1 px), or force 1 to 4. OpenGL only.",
 		["Colored Portrait Frames"]               = "Tint the selection frame around each party portrait with that character's colour, matching the circle under their feet. 0 = vanilla green frames (default -- BG2EE colours the ground circles, not the portrait frames); 1 = tinted. In the options menu. Requires Colored Selection Circles = 1, and needs the World HUD Refonte component (that is what installs the portrait renderer this draws through).",
 		["Portrait Frame Thickness"]              = "Stroke width, in pixels, of the party portrait selection frames. 1 = the vanilla hairline (default -- the slot is small and its frame sits right on the bust), up to 4, or 0 to follow Selection Circle Thickness. Grows inward but stops at the gap between the frame and the portrait art, so it never covers the face. Under the software renderer, 0 means the vanilla hairline (the circle thickness is an OpenGL-only feature).",
 		["Selection Circle Color Slot"]           = "Which creature colour drives the tint: 0 metal, 1 minor clothing (default -- the 'Couleur secondaire' swatch in the inventory), 2 major clothing, 3 skin, 4 leather, 5 armor, 6 hair.",

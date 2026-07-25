@@ -95,9 +95,12 @@
 
 	--------------------------------------------------------------------------------
 	-- STAGE 3a: replace CInfinity::SetViewPosition (0x5D11F0) with an overscroll-
-	-- aware reimplementation. When zoomed, allow panning past the map edges (~half
-	-- the viewport) so content the bottom UI would occlude can be repositioned;
-	-- byte-faithful vanilla clamp at z==1. __thiscall(int,int,uint), ret 0xC.
+	-- aware reimplementation. Allows panning ~half a viewport past every map edge at
+	-- EVERY zoom, z==1 included, so content the bottom UI would occlude can be
+	-- repositioned and the overrun survives a full zoom-out. Vanilla's small-map
+	-- centring is kept, but only for absolute framing requests (bSetExactScale) --
+	-- as a clamp it would forbid the pan outright at z==1 on any map not larger than
+	-- the screen. __thiscall(int,int,uint), ret 0xC.
 	--------------------------------------------------------------------------------
 	IEex_WriteAssembly(0x5D11F0, {[[
 		!jmp_dword >IEex_Helper_CInfinity_SetViewPositionOverride
@@ -309,10 +312,11 @@
 	--
 	-- Fix: MoveViewPoint's clamp is skipped outright, and MoveView's is replaced by
 	-- Export_ClampScriptViewDest, which uses the same range as our SetViewPosition override
-	-- ([-W/2, nAreaWidth - W/2] = "the authored point is somewhere on the map"). SetViewPosition
-	-- still has the last word: it re-centres a map narrower than the VISIBLE viewport, so zoom 1
-	-- keeps the vanilla framing and the authored framing returns as soon as the zoom makes the
-	-- visible span fit inside the map. No zoom lock needed for either.
+	-- ([-W/2, nAreaWidth - W/2] = "the authored point is somewhere on the map"), narrowed to the
+	-- VISIBLE rect so zoom 1 keeps the vanilla framing and the authored framing returns as the zoom
+	-- makes the visible span fit inside the map. That helper is the last word on scripted framing --
+	-- including the centring for maps smaller than the visible span, which SetViewPosition applies
+	-- only to absolute jumps now (a glide arrives through its incremental path). No zoom lock needed.
 	--
 	-- MoveView: the clamp block spans 0x45F305..0x45F36F (both the < 0 folds and the two max
 	-- clamps; the register loads inside it exist only to compute those maxima). ebp = dest.x and

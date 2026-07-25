@@ -1904,13 +1904,25 @@ function IEex_Extern_AutoScroll(CInfinity, targetViewX, targetViewY, speed)
 	local xLo, xHi = -slackX, nAreaWidth - resW + slackX
 	local yLo, yHi = -slackYTop, nAreaHeight - nViewportBottom + slackYBot
 
-	-- Maps smaller than the viewport invert the range; leave those to the engine
+	-- Maps smaller than the visible span invert the range. The engine used to fold those for us
+	-- (SetViewPosition centred anything narrower than the viewport, on EVERY call); that fold is
+	-- framing-only now -- it has to be, or the manual pan cannot leave the map at zoom 1 -- and a
+	-- glide lands through its incremental path, so state the centring here. Without it a dialog pan
+	-- on a small area parks the camera on the speaker and leaves all the off-map black on one side.
+	-- Same value the C++ side uses, full viewport on BOTH axes (not nViewportBottom): the target has
+	-- to be a fixed point of SetViewPosition or the glide never converges and only the stuck-hack
+	-- below ends it. ceil, not floor: the C++ (nArea - W)/2 truncates toward zero and this branch is
+	-- always negative, so a 1px disagreement would break that equality.
 	local clampedX, clampedY = targetViewX, targetViewY
 	if xLo <= xHi then
 		clampedX = math.max(xLo, math.min(xHi, targetViewX))
+	else
+		clampedX = math.ceil((nAreaWidth - resW) / 2)
 	end
 	if yLo <= yHi then
 		clampedY = math.max(yLo, math.min(yHi, targetViewY))
+	else
+		clampedY = math.ceil((nAreaHeight - resH) / 2)
 	end
 	if clampedX ~= targetViewX or clampedY ~= targetViewY then
 		-- Write back so every subsequent tick (the engine re-pushes m_ptScrollDest) sees it
@@ -1935,9 +1947,14 @@ function IEex_Extern_AutoScroll(CInfinity, targetViewX, targetViewY, speed)
 	local nNewX = IEex_ReadDword(CInfinity + 0x40)
 	local nNewY = IEex_ReadDword(CInfinity + 0x44)
 
-	-- Safety net for targets that still can't be reached (same bounds as the clamp above)
-	local xStuck = (targetViewX < nNewX and nNewX <= xLo) or (targetViewX > nNewX and nNewX >= xHi)
-	local yStuck = (targetViewY < nNewY and nNewY <= yLo) or (targetViewY > nNewY and nNewY >= yHi)
+	-- Safety net for targets that still can't be reached (same bounds as the clamp above). On an
+	-- inverted axis the bounds are meaningless -- and the centred target above IS reachable (it is a
+	-- fixed point of SetViewPosition), so that axis can never be stuck; testing it anyway reads any
+	-- mid-glide position as "past the bound" and aborts the scroll early.
+	local xStuck = (xLo <= xHi)
+		and ((targetViewX < nNewX and nNewX <= xLo) or (targetViewX > nNewX and nNewX >= xHi))
+	local yStuck = (yLo <= yHi)
+		and ((targetViewY < nNewY and nNewY <= yLo) or (targetViewY > nNewY and nNewY >= yHi))
 
 	if (xStuck and yStuck) or (xStuck and nNewY == targetViewY) or (yStuck and nNewX == targetViewX) then
 		IEex_WriteDword(CInfinity + 0x18E, -1) -- m_ptScrollDest.x

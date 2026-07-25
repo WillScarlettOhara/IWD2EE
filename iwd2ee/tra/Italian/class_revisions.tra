@@ -234,7 +234,7 @@ Vantaggi: mentre impugni due armi ottieni un secondo attacco per round con l'arm
 
 Speciale: Un personaggio con 9 livelli di ranger puo' prendere il primo grado in questo talento (e puo' prendere il secondo grado al livello 15) anche se non soddisfa i prerequisiti. Tuttavia se un ranger non soddisfa i prerequisiti non puo' usare il Combattimento con Due Armi Migliorato a meno che non indossi un'armatura leggera o nessuna.~
 @311=~Abilita' Senz'armi Migliorate~
-@312=~ABILITÃ€ SENZ'ARMI MIGLIORATE:
+@312=~ABILITÀ SENZ'ARMI MIGLIORATE:
 
 Le tue abilita' senz'armi sono particolarmente efficaci.
 
@@ -293,7 +293,7 @@ Questo talento puo' essere acquisito fino a tre volte. Ogni volta diventi in gra
 2 punti: fino a incantesimi di 2' livello
 3 punti: fino a incantesimi di 3' livello~
 @323=~Mobilita'~
-@324=~MOBILITÃ€:
+@324=~MOBILITÀ:
 
 Sei in grado di schivare gli attacchi molto abilmente mentre ti muovi.
 
@@ -535,7 +535,7 @@ Eccelli nel muoverti mentre combatti.
 Prerequisiti: Destrezza 13+ Schivare Mobilita' Bonus di Attacco Base +4 o superiore
 
 Vantaggi: Ogni volta che colpisci una creatura con un attacco in mischia ti muovi due volte piu' velocemente per 1 secondo. Durante questo periodo non si provoca un attacco di opportunita' uscendo dal raggio di mischia del nemico.~
-@372=~MOBILITÃ€:
+@372=~MOBILITÀ:
 
 Puoi schivare gli attacchi particolarmente bene mentre ti muovi.
 
@@ -576,7 +576,7 @@ Vantaggi: ottieni 3/- resistenza al danno fisico per ogni grado del talento.
 
 Speciale: questo talento puo' essere acquisito fino a tre volte.~
 @380=~Velocita' Accecante~
-@381=~VELOCITÃ€ ACCECANTE:
+@381=~VELOCITÀ ACCECANTE:
 
 Sei capace di brevi raffiche di grande velocita'.
 
@@ -584,7 +584,7 @@ Prerequisiti: Destrezza 23+
 
 Vantaggi: ottieni l'abilita' Velocita' Accecante che ti conferisce gli effetti della Velocita' Potenziata per 5 round. Ottieni +8 CA i tuoi attacchi per round sono raddoppiati e ti muovi molto piu' velocemente. I Attacco Base continueranno a diminuire per gli attacchi aggiuntivi.~
 @382=~Capacita' di Incantesimo Avanzato~
-@383=~CAPACITÃ€ DI INCANTESIMO AVANZATO:
+@383=~CAPACITÀ DI INCANTESIMO AVANZATO:
 
 Puoi lanciare incantesimi di livello superiore a quello normalmente consentito per la tua classe.
 
@@ -1188,7 +1188,7 @@ Speciale: puoi ottenere questo talento fino a 5 volte in Icewind Dale 2.~
 Il personaggio e' piu' resistente del normale.
 
 Vantaggi: Il personaggio riceve un bonus di +3 ai tiri salvezza sulla Tempra.~
-@672=~VOLONTÃ€ DI FERRO:
+@672=~VOLONTÀ DI FERRO:
 
 Il personaggio ha una volonta' piu' forte del normale.
 
@@ -1782,7 +1782,7 @@ Svantaggi:
 
 
 @801=~Gnomo delle Profondita'~
-@802=~GNOMO DELLE PROFONDITÃ€:
+@802=~GNOMO DELLE PROFONDITÀ:
 
 Conosciuti anche come svirfneblin gli gnomi delle profondita' dei Reami sono una razza misteriosa e sconosciuta. Si trovano nelle piu' profonde caverne del Sottosuolo e hanno costante timore della schiavitu' e distruzione per mano di elfi scuri mind flayer e duergar. Gli gnomi delle profondita' sono leggendari per la loro capacita' nel manipolare pietre e gemme. Hanno la pelle grigia e capelli grigi o bianchi. Sono tra i pochi abitanti del Sottosuolo che tendono a non essere malvagi.
 
@@ -2087,7 +2087,7 @@ Svantaggi:
 * -4 Carisma.
 * Sensibilita' alla luce: I duergar subiscono una penalita' di circostanza -2 ai tiri per colpire tiri salvezza e alle prove sotto una forte luce.~
 
-@835=~GNOMO DELLE PROFONDITÃ€:
+@835=~GNOMO DELLE PROFONDITÀ:
 
 Conosciuti anche come svirfneblin gli gnomi delle profondita' dei Reami sono una razza misteriosa e sconosciuta. Si trovano nelle piu' profonde caverne del Sottosuolo e hanno costante timore della schiavitu' e distruzione per mano di elfi scuri mind flayer e duergar. Gli gnomi delle profondita' sono leggendari per la loro capacita' nel manipolare pietre e gemme. Hanno la pelle grigia e capelli grigi o bianchi. Sono tra i pochi abitanti del Sottosuolo che tendono a non essere malvagi.
 
@@ -2170,7 +2170,7 @@ Svantaggi:
 * Cecita' alla Luce: penalita' di circostanza -1 a tutti i tiri per colpire tiri salvezza e prove di abilita' quando opera alla luce del sole.
 * -20% di penalita' all'esperienza: i drow sono leggermente piu' potenti e guadagnano il 20% di esperienza in meno rispetto alle altre razze.~
 
-@840=~GNOMO DELLE PROFONDITÃ€:
+@840=~GNOMO DELLE PROFONDITÀ:
 
 Conosciuti anche come svirfneblin gli gnomi delle profondita' dei Reami sono una razza misteriosa e sconosciuta. Si trovano nelle piu' profonde caverne del Sottosuolo e hanno costante timore della schiavitu' e distruzione per mano di elfi scuri mind flayer e duergar. Gli gnomi delle profondita' sono leggendari per la loro capacita' nel manipolare pietre e gemme. Hanno la pelle grigia e capelli grigi o bianchi. Sono tra i pochi abitanti del Sottosuolo che tendono a non essere malvagi.
 

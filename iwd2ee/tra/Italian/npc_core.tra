@@ -320,7 +320,7 @@ Usando questa abilita' Xhaan si teletrasporta in qualsiasi luogo in vista. Quest
 @40029=~Uccidi gli orchi. Uccidi i goblin. Tutto quello che si mette tra i piedi onestamente.~
 @40030=~Ottimo. Facci strada e potremo combattere insieme l'orda.~
 @40031=~Un modo strano di dirlo ma non sono estraneo al combattimento. Faro' tutto il necessario per tenere al sicuro questi abitanti del villaggio.~
-@40032=~SÃŒ. Sarebbe sbagliato per me restare qui e ignorare la loro situazione anche se non ho la lama lunare. Viaggero' con te.~
+@40032=~SÌ. Sarebbe sbagliato per me restare qui e ignorare la loro situazione anche se non ho la lama lunare. Viaggero' con te.~
 @40033=~Ottimo. Anche senza la mia lama lunare posso combattere. Andiamo.~
 @40034=~Sei tornato. Come posso... e' quello il troll che ha rubato la mia lama?~
 @40035=~Avevamo bisogno dell'aiuto del troll per affrontare l'orda. Mi dispiace ma la condizione di Vrek era che non potessimo consegnargli la lama. La spada e' una minaccia per lui e non possiamo abbandonarla.~
@@ -361,10 +361,10 @@ Usando questa abilita' Xhaan si teletrasporta in qualsiasi luogo in vista. Quest
 @40070=~Vrek... Vrek dice di si'. Ma se l'umano da' la spada al guaritore Vrek uccide l'umano.~
 @40071=~A me va bene cosi'. Vieni... abbiamo degli orchi da uccidere.~
 @40072=~Voglio che te ne vada proprio come tutti gli altri goblin. Puoi andartene senza combattere oppure puoi unirti ai cadaveri che ho lasciato sparsi dietro di me.~
-@40073=~SÃŒ. Non sembrare cosi' sorpreso solo perche' sono un goblin non significa che non penso. Sono Vunarg il capo del clan Vunarg e ho la responsabilita' nei loro confronti. Dobbiamo mangiare cacciare e combattere. Qui non abbiamo nessuna di queste cose. Ebbene ancora nessuno; aspettiamo per ora.~
+@40073=~SÌ. Non sembrare cosi' sorpreso solo perche' sono un goblin non significa che non penso. Sono Vunarg il capo del clan Vunarg e ho la responsabilita' nei loro confronti. Dobbiamo mangiare cacciare e combattere. Qui non abbiamo nessuna di queste cose. Ebbene ancora nessuno; aspettiamo per ora.~
 @40074=~Interessante. Muori feccia !~
 @40075=~Ho sentito abbastanza. Muori feccia!~
-@40076=~SÃŒ. Elimineremo quest'orda. Siamo gia' a meta'.~
+@40076=~SÌ. Elimineremo quest'orda. Siamo gia' a meta'.~
 @40077=~Se sei venuto qui per spargere sangue e guadagnare oro perche' non unirti alla squadra vincente? Chiaramente non devi alcuna lealta' all'orda l'orda non ha lealta' nei tuoi confronti e non ho obiezioni a lavorare con un goblin.~
 @40078=~Eh. In qualsiasi altra situazione ti farei a pezzi. Ma e' da molto tempo che sto pensando di lasciare questo posto. Ti lascero' lottare con gli orchi e i bugbear: la mia gente sarebbe comunque piu' felice altrove. Addio feccia cittadina.~
 @40079=~La squadra vincente? Credi davvero di poter abbattere l'orda?~
@@ -373,7 +373,7 @@ Usando questa abilita' Xhaan si teletrasporta in qualsiasi luogo in vista. Quest
 @40082=~Devi essere un deluso o almeno stupidamente coraggioso. Dubito che tu possa fermare Guthma e non rischiero' la vita aiutando un cittadino mezzo scemo a combattere per una causa morente.~
 @40083=~E ti aspetti che ti aiuti a combattere l'orda quando sei gia' disperatamente in inferiorita' numerica?~
 @40084=~E' vero che siamo in inferiorita' numerica. Ma siamo molto *meno* in inferiorita' numerica rispetto a quando siamo arrivati qui.~
-@40085=~SÃŒ. Preferiresti invece combatterci? Perche' molti altri goblin hanno gia' commesso lo stesso errore.~
+@40085=~SÌ. Preferiresti invece combatterci? Perche' molti altri goblin hanno gia' commesso lo stesso errore.~
 @40086=~Cosa mi stai offrendo esattamente? Cosa succede se riesci a uccidere Guthma?~
 @40087=~Se ti unisci alla lotta ottieni una parte dell'oro. Semplice come quella.~
 @40088=~Cosa ti impedira' di uccidermi dopo che Guthma sara' morta? Targos non e' impegnato a uccidere ogni goblin in vista?~
@@ -438,7 +438,7 @@ Usando questa abilita' Xhaan si teletrasporta in qualsiasi luogo in vista. Quest
 @40147=~Mi porteresti con te? Non so cosa dire: e' cosi' emozionante!~
 @40148=~Di' solo di si'.~
 @40149=~Potrebbe essere pericoloso. Impareresti molto ma correresti anche molti rischi. Sei sicuro di essere all'altezza?~
-@40150=~SÃŒ! Si' lo faro'! Non vedo l'ora di iniziare. Tutti i posti in cui andremo tutte le cose che vedremo...~
+@40150=~SÌ! Si' lo faro'! Non vedo l'ora di iniziare. Tutti i posti in cui andremo tutte le cose che vedremo...~
 @40151=~Benvenuto nel gruppo Pairi. Ora sei uno degli eroi di Targos.~
 @40152=~Mettiti in fila Pairi. Abbiamo una lunga marcia davanti a noi.~
 @40153=~Posso insegnarti di piu' se vuoi. Ho messo in pratica le mie abilita' in tutta la Valle del Vento Gelido e ho imparato molto di piu' rispetto a quando mi allenavo in una piccola stanza angusta. Ci farebbe bene un monaco devoto ed energico come te.~
@@ -881,7 +881,7 @@ Dato che Xhaan non e' stato evocato tramite la magia convenzionale non c'e' limi
 @40583=~Non mettere alla prova nemmeno la *mia* pazienza Geoffrey. Senti abbiamo del lavoro da fare.~
 @40584=~Bene. Non vale la pena parlare con te comunque.~
 @40585=~Non subiro' una minaccia per Ulbrec mercenario. Guarda le tue parole.~
-@40586=~Bene. Â«Inoltre non voglio stare qui tutto il giorno.~
+@40586=~Bene. «Inoltre non voglio stare qui tutto il giorno.~
 @40587=~Si'. Si' ci spetta un tesoro enorme per un lavoro come questo. Se mai ne usciremo vivi.~
 @40588=~Ah il cagnolino sta cercando di abbaiare. Continua cosi' <PRO_BOYGIRL>. Scommetto che il tuo padrone sara' molto felice con te... se mai lo ribatteremo.~
 @40589=~*sputa* Gia'. Si potrebbe anche dare un'occhiata in giro. Se dobbiamo accamparci in quel mucchio di schegge e' meglio assicurarci di non essere a tre metri dalla tana di un lupo.~
@@ -1278,7 +1278,7 @@ Dato che Xhaan non e' stato evocato tramite la magia convenzionale non c'e' limi
 @40929=~Parla umano.~
 @40930=~Non ho niente da dirti *diavolo*.~
 @40931=~Eppure mi fissi. C'e' qualcosa nella tua mente.~
-@40932=~SÃŒ. Ma non ho niente da dirti.~
+@40932=~SÌ. Ma non ho niente da dirti.~
 @40933=~Saggio.~
 @40934=~Hoo-*hoo!* Wow! E' stato orribile. Non lo facciamo mai piu'.~
 @40935=~Questa e' stata un'esperienza davvero affascinante! Questo posto e' pieno di *cosi'* tanti strani aggeggi magici sotto il ghiaccio! E' una meraviglia...~
@@ -1531,7 +1531,7 @@ Dato che Xhaan non e' stato evocato tramite la magia convenzionale non c'e' limi
 @41161=~Non sono sicuro che tu possa. Sono *in parte* umano ma non e' questa la parola che la gente usa per me.~
 @41162=~Veramente? Mi e' sempre sembrato facile. Una gamba o due un po' di pelle meno di sette occhi. A volte vengono con i baffi.~
 @41163=~Sono i mezzosangue qui. Sono tutti per meta' umani. Anche loro sono yuan-ti lo so ma cio' non significa che i loro antenati umani siano meno reali. Le loro madri erano tutte di Kuldahar; sono nati sotto lo stesso albero. Ma eccoli qui a Occhio di Drago allevati da altri yuan-ti e istruiti ad adorare un malvagio dio serpente.~
-@41164=~SÃŒ. Sono tutti per meta' umani. Anche loro sono yuan-ti lo so ma cio' non significa che i loro antenati umani siano meno reali. Le loro madri erano tutte di Kuldahar; sono nati sotto lo stesso albero. Ma eccoli qui a Occhio di Drago allevati da altri yuan-ti e istruiti ad adorare un malvagio dio serpente.~
+@41164=~SÌ. Sono tutti per meta' umani. Anche loro sono yuan-ti lo so ma cio' non significa che i loro antenati umani siano meno reali. Le loro madri erano tutte di Kuldahar; sono nati sotto lo stesso albero. Ma eccoli qui a Occhio di Drago allevati da altri yuan-ti e istruiti ad adorare un malvagio dio serpente.~
 @41165=~Questa e' la cosa strana non e' vero? Anche tutti questi mezzosangue sono in parte umani. Le loro madri erano tutte di Kuldahar; sono nati sotto lo stesso albero. Ma eccoli qui a Occhio del Drago allevati da altri yuan-ti e istruiti ad adorare un malvagio dio serpente.~
 @41166=~Dico sul serio. Sta iniziando a darmi fastidio perche' non ho una vera risposta.~
 @41167=~Immagina che uno di loro sia stato portato a Targos da bambino. La pelle verde li avrebbe contrassegnati come diversi e probabilmente sarebbero stati presi in giro molto per questo ma sarebbero potuti crescere insieme a me e ai miei amici. Avrei potuto avere un mezzosangue yuan-ti come migliore amico ... o addirittura innamorarsene. Avrei potuto anche avere un figlio yuan-ti con la pelle verde e tutto il resto.~
@@ -1641,7 +1641,7 @@ Dato che Xhaan non e' stato evocato tramite la magia convenzionale non c'e' limi
 @41268=~Sai che odore ha il drago?~
 @41269=~Penso tu abbia ragione. Quella grotta piu' avanti deve essere il loro luogo di nidificazione... ma non vedo altra via d'uscita. Dovremo solo prepararci.~
 @41270=~Presumo un drago bianco. Sono i piu' comuni nella Valle del Vento Gelido. Sono piu' piccoli della maggior parte dei draghi ma dobbiamo comunque stare attenti.~
-@41271=~SÃŒ. Vrek conosce l'odore del drago. Vrek ha rubato dal nido del drago molto tempo fa. Anche qui il nido del drago.~
+@41271=~SÌ. Vrek conosce l'odore del drago. Vrek ha rubato dal nido del drago molto tempo fa. Anche qui il nido del drago.~
 @41272=~Vrek ruba dal nido del drago molto tempo fa impara l'odore del drago. Anche qui il nido del drago.~
 @41273=~Vrek pensa a piu' di un drago. Qui c'e' piu' d'un odore; piu' di un drago.~
 @41274=~Un'intera scuola per addestrare le persone a combattere senza armi. Dev'essere l'idea piu' stupida che abbia mai sentito.~
@@ -1684,7 +1684,7 @@ Dato che Xhaan non e' stato evocato tramite la magia convenzionale non c'e' limi
 @41311=~Dovresti stare alla larga dagli umani Vrek. E' un buon modo per darsi fuoco.~
 @41312=~Forse Vrek costruira' una legione; forse no. Vrek non ha deciso. Un giorno Vrek lo sapra'.~
 @41313=~Non mentire a Vrek... Vrek sa che il Mestogelo e' freddo e vuoto. Vrek andra' in un posto caldo umido e ricco e si costruira' una nuova casa.~
-@41314=~SÃŒ. Forse Vrek trovera' un altro posto... un posto caldo umido ricco e sicuro.~
+@41314=~SÌ. Forse Vrek trovera' un altro posto... un posto caldo umido ricco e sicuro.~
 @41315=~Buona idea. Vrek ha avuto una bella vita on the road. Vrek vorrebbe andare avanti.~
 @41316=~Mm. Buona idea. Agli umani non piacera' Vrek ma apprezzeranno il suo oro.~
 @41317=~Vrek ti dispiace se do un'occhiata a quella strana crescita sulla tua pelle?~
@@ -1969,7 +1969,7 @@ Dato che Xhaan non e' stato evocato tramite la magia convenzionale non c'e' limi
 @41510=~Precisamente. Ma vedere tutte quelle persone finalmente libere... mi da' forza e speranza. La nostra lotta contro la Legione non e' infinita e le nostre azioni stanno facendo la differenza.~
 @41511=~Questo e' tutto cio' che ho sempre desiderato davvero. Per rendere il mondo un posto migliore.~
 @41512=~Suppongo di si'. Mi sento cosi' sollevato nel vedere i frutti del nostro lavoro. Non ho provato alcun piacere nel vedere un nemico cadere ma sapere che queste persone sono finalmente libere... mi da' forza e speranza. Non stiamo solo combattendo la Legione. Stiamo facendo la differenza.~
-@41513=~SÃŒ. Non passera' molto tempo prima che il nostro lavoro finisca... sostituito da qualche altro compito qualcosa di piu' piccolo e silenzioso. Non vedo l'ora di vivere una vita dopo la Legione. Sara' piu' semplice come la vita che conoscevo prima.~
+@41513=~SÌ. Non passera' molto tempo prima che il nostro lavoro finisca... sostituito da qualche altro compito qualcosa di piu' piccolo e silenzioso. Non vedo l'ora di vivere una vita dopo la Legione. Sara' piu' semplice come la vita che conoscevo prima.~
 @41514=~Eh... mi sembra che sia passato tanto tempo la mia vita prima del nostro primo incontro. Ma sembra che siano passati anni in queste brevi settimane. Non avrei mai potuto prevedere quanto lontano saremmo andati o quanto avremmo fatto.~
 @41515=~Ma ora vedo i frutti del lavoro. Tutte queste persone sono finalmente libere. Le nostre azioni stanno facendo la differenza.~
 @41516=~Liberta'. Una parola piu' perfetta che non ho mai trovato.~
@@ -2082,7 +2082,7 @@ La camera finale e' apparentemente la piu' difficile dove dovremo combattere i n
 @41610=~Non ho *mai* sentito parlare un lemure prima. Normalmente sono silenziosi e obbediscono ai comandi telepatici di diavoli piu' potenti. Ma questo non risponde al mio. E ho la sensazione che sia *molto* piu' potente della maggior parte dei lemuri. Ascoltiamo cosa ha da dire.~
 @41611=~CHE COSA!? Isair e Madae sono mezzi diavoli eppure impiegano *tanar'ri* qui?~
 @41612=~Troveremo un modo per uccidere questo Glabrezu. Mi importa poco di questi patetici schiavi ma i tanar'ri devono morire.~
-@41613=~SÃŒ. La magia che mi lega mi costringe a combattere solo se vengono soddisfatte determinate condizioni. Se non fosse per quello ti ucciderei a vista baatezu.~
+@41613=~SÌ. La magia che mi lega mi costringe a combattere solo se vengono soddisfatte determinate condizioni. Se non fosse per quello ti ucciderei a vista baatezu.~
 @41614=~OH! Mi sono appena ricordato che mentre siamo qui dovremmo cercare Ormis Dohor il vecchio archimandrita del monastero. Quando Dolon arrivo' al monastero chiese che Ormis venisse qui dalla Mano Mozzata. E Ormis ha accettato di andare... ma non abbiamo mai avuto sue notizie.~
 @41615=~Ora che ci penso e' possibile che gli sia successo qualcosa di veramente brutto. Se fosse venuto qui avrebbe visto la schiavitu' e gli altri orrori che stanno accadendo qui. Avrebbe reagito... e' stato ucciso? O imprigionato?~
 @41616=~Dovremmo cercarlo. Se fosse ancora vivo sarebbe un ottimo alleato.~

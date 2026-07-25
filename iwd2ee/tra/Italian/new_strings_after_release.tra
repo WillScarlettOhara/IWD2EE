@@ -1254,7 +1254,7 @@ Tiro Salvezza: Speciale
 
 Lancia un incantesimo arcano casuale sulla creatura bersaglio, che potrebbe essere un incantesimo di qualsiasi livello compreso tra 5 e 8. La natura dell'incantesimo dipende dal bersaglio. Se il bersaglio e' un nemico, ricevera' un incantesimo dannoso, mentre se e' un alleato ricevera' un incantesimo benefico. Le restrizioni sul bersaglio vengono rispettate (un incantesimo che ha effetto solo sull'incantatore non viene lanciato a meno che il bersaglio non sia l'incantatore).
 
-Il vantaggio principale del Lancio del Caos e' che l'incantesimo casuale sara' superiore al 4¬∞ livello. Lo svantaggio e' che l'incantesimo potrebbe non essere utile nella situazione attuale.~
+Il vantaggio principale del Lancio del Caos e' che l'incantesimo casuale sara' superiore al 4∞ livello. Lo svantaggio e' che l'incantesimo potrebbe non essere utile nella situazione attuale.~
 @30365=~Protetto da Assorbimento Elementale~
 @35958     = ~Assorbimento Elementale~
 @36958     = ~Assorbimento Elementale
@@ -1293,20 +1293,20 @@ Vantaggi:
 * Competente con tutte le armi semplici, armature leggere, armature medie e scudi. Il bardo e' competente anche con le spade grandi.
 * Guadagna un punto in Incantesimi in Armatura, riducendo il fallimento degli incantesimi arcani del 35%.
 * +1 ad Alchimia, Conoscenze (Arcane) e Sapienza Magica.
-* 2¬∞ livello: Incantesimi. I bardi acquisiscono la capacita' di lanciare incantesimi arcani.
-* 7¬∞ livello: Il bardo puo' sostituire uno dei suoi incantesimi conosciuti con un altro dello stesso livello. Puo' farlo ancora una volta ogni 3 livelli dopo il livello 7. Il bardo puo' sostituire solo incantesimi almeno due livelli di incantesimo sotto il livello di incantesimo piu' alto che puo' lanciare (ad esempio, solo un incantesimo di 1¬∞ livello quando il bardo raggiunge il 7¬∞ livello), anche se puo' sostituire gli incantesimi di 7¬∞ livello a partire dal livello 25, e gli incantesimi di 8¬∞ livello a partire dal livello 28.
+* 2∞ livello: Incantesimi. I bardi acquisiscono la capacita' di lanciare incantesimi arcani.
+* 7∞ livello: Il bardo puo' sostituire uno dei suoi incantesimi conosciuti con un altro dello stesso livello. Puo' farlo ancora una volta ogni 3 livelli dopo il livello 7. Il bardo puo' sostituire solo incantesimi almeno due livelli di incantesimo sotto il livello di incantesimo piu' alto che puo' lanciare (ad esempio, solo un incantesimo di 1∞ livello quando il bardo raggiunge il 7∞ livello), anche se puo' sostituire gli incantesimi di 7∞ livello a partire dal livello 25, e gli incantesimi di 8∞ livello a partire dal livello 28.
 * Molte abilita' da ladro sono abilita' di classe del Bardo.
 *Canzone del Bardo. I bardi hanno la capacita' di cantare melodie che hanno effetti magici sulle creature entro dieci metri. Man mano che avanzano di livello, ottengono brani aggiuntivi. Le canzoni sono descritte in dettaglio di seguito.
-* 1¬∞ livello: La storia di Curran Cuoresaldo. Quando viene suonata, tutti gli alleati del bardo ottengono +1 Bonus d'Attacco, +1 danno e immunita' alla paura e alla disperazione. Bonus d'Attacco e danno aumentano di 1 ai livelli 10, 25 e 40.
-* 3¬∞ livello: La Canzone di Kaudies. Quando viene suonata, gli alleati del bardo sono immuni agli incantesimi e alle abilita' dannosi basati sul suono, tra cui Comando, Silenzio, Comando Superiore, Parola Sacra, Blasfemia, Parola del Potere: Dormire, Esplosione Sonora, Grido, Parola del Potere: Silenzio, Parola del Potere: Stordire, Parola del potere: Accecare, Grido Potente, Lamento della banshee, Parola del potere: uccisione, Canto dell'arpia e gli effetti riservati ai nemici di Canto, Preghiera e Recitazione.
-* 5¬∞ livello: Melodia di Tymora. Quando viene suonata, la Melodia di Tymora da' agli alleati del bardo +1 fortuna, +1 tiri salvezza e +2 alle loro Conoscenze (arcane), Alchimia e Abilita' da Ladro. Ai livelli 15 e 35, questa canzone garantisce un ulteriore +1 alla fortuna e ai tiri salvezza e un +2 alle prove di abilita'.
-* 9¬∞ livello: Lo Struggimento della Sirena. Quando viene suonata, ogni creatura che ascolta la canzone subisce una penalita' cumulativa di -1 ai tiri salvezza sulla Volonta' per 10 round e deve effettuare un tiro salvezza sulla Volonta' o verra' intrappolata, incapace di agire per un round o finche non subisce danni. La CD del tiro salvezza sulla Volonta' e' pari al livello del bardo. Quindi, il canto di un bardo di livello 15 ha una CD di 15.
-* 13¬∞ livello: Il Canto di Guerra di Sith. Quando viene suonata, gli alleati del bardo ottengono un bonus di armatura generico +2, una resistenza al danno fisico di 3/- e rigenerano 3 punti di danno per round in combattimento. Ai livelli 28 e 45, questa canzone garantisce un ulteriore +2 alla CA, 3/- resistenza ai danni fisici, 3 punti ferita curati per round.
-* 20¬∞ livello: La Ballata dei Tre Eroi. Gli alleati del bardo ottengono +5 resistenza agli incantesimi, 5/- resistenza a tutte le forme di danno magico e gli effetti del Racconto di Curran Cuoresaldo, della Melodia di Tymora e del Canto di Guerra di Sith. Ai livelli 30 e 50, questa canzone garantisce +5 resistenza agli incantesimi aggiuntiva e resistenza 5/- ai danni magici.
+* 1∞ livello: La storia di Curran Cuoresaldo. Quando viene suonata, tutti gli alleati del bardo ottengono +1 Bonus d'Attacco, +1 danno e immunita' alla paura e alla disperazione. Bonus d'Attacco e danno aumentano di 1 ai livelli 10, 25 e 40.
+* 3∞ livello: La Canzone di Kaudies. Quando viene suonata, gli alleati del bardo sono immuni agli incantesimi e alle abilita' dannosi basati sul suono, tra cui Comando, Silenzio, Comando Superiore, Parola Sacra, Blasfemia, Parola del Potere: Dormire, Esplosione Sonora, Grido, Parola del Potere: Silenzio, Parola del Potere: Stordire, Parola del potere: Accecare, Grido Potente, Lamento della banshee, Parola del potere: uccisione, Canto dell'arpia e gli effetti riservati ai nemici di Canto, Preghiera e Recitazione.
+* 5∞ livello: Melodia di Tymora. Quando viene suonata, la Melodia di Tymora da' agli alleati del bardo +1 fortuna, +1 tiri salvezza e +2 alle loro Conoscenze (arcane), Alchimia e Abilita' da Ladro. Ai livelli 15 e 35, questa canzone garantisce un ulteriore +1 alla fortuna e ai tiri salvezza e un +2 alle prove di abilita'.
+* 9∞ livello: Lo Struggimento della Sirena. Quando viene suonata, ogni creatura che ascolta la canzone subisce una penalita' cumulativa di -1 ai tiri salvezza sulla Volonta' per 10 round e deve effettuare un tiro salvezza sulla Volonta' o verra' intrappolata, incapace di agire per un round o finche non subisce danni. La CD del tiro salvezza sulla Volonta' e' pari al livello del bardo. Quindi, il canto di un bardo di livello 15 ha una CD di 15.
+* 13∞ livello: Il Canto di Guerra di Sith. Quando viene suonata, gli alleati del bardo ottengono un bonus di armatura generico +2, una resistenza al danno fisico di 3/- e rigenerano 3 punti di danno per round in combattimento. Ai livelli 28 e 45, questa canzone garantisce un ulteriore +2 alla CA, 3/- resistenza ai danni fisici, 3 punti ferita curati per round.
+* 20∞ livello: La Ballata dei Tre Eroi. Gli alleati del bardo ottengono +5 resistenza agli incantesimi, 5/- resistenza a tutte le forme di danno magico e gli effetti del Racconto di Curran Cuoresaldo, della Melodia di Tymora e del Canto di Guerra di Sith. Ai livelli 30 e 50, questa canzone garantisce +5 resistenza agli incantesimi aggiuntiva e resistenza 5/- ai danni magici.
 
 Un bardo non puo' avvantaggiare il gruppo con piu' di una canzone alla volta. Ma se il gruppo ha piu' bardi, gli effetti della canzone di ciascun bardo si accumuleranno. Le creature evocate non beneficiano della Canzone del Bardo.
 
-* 30¬∞ livello: Il bardo ora puo' compiere altre azioni mentre canta una Canzone del Bardo.
+* 30∞ livello: Il bardo ora puo' compiere altre azioni mentre canta una Canzone del Bardo.
 
 Svantaggi:
 * I bardi non sono altrettanto abili in combattimento corpo a corpo come i combattenti o i sacerdoti.
@@ -1340,16 +1340,16 @@ Punti ferita per livello: 1-12
 
 Vantaggi:
 * Competente con tutte le armi semplici e marziali, le armature leggere, le armature medie e gli scudi.
-* Furia barbarica: puo infuriarsi una volta al giorno ogni 4 livelli (inizia al 1¬∞ livello con un uso). La furia gli conferisce +4 alla Forza e alla Costituzione (che si sommano ad altri bonus alla Forza e alla Costituzione), oltre a una penalita di -2 alla CA, +2 ai tiri salvezza di Volonta e immunita a paura, stordimento, sonno, incantesimo, dominazione, confusione, incoscienza, paralisi, debolezza mentale e disperazione. La rabbia dura un numero di round pari a 3 piu il bonus di Costituzione (recentemente migliorato) del barbaro. Dopo aver dato sfogo alla rabbia, il barbaro sara affaticato per tre round, con una penalita di -2 alla Forza e alla Destrezza.
+* Furia barbarica: puo infuriarsi una volta al giorno ogni 4 livelli (inizia al 1∞ livello con un uso). La furia gli conferisce +4 alla Forza e alla Costituzione (che si sommano ad altri bonus alla Forza e alla Costituzione), oltre a una penalita di -2 alla CA, +2 ai tiri salvezza di Volonta e immunita a paura, stordimento, sonno, incantesimo, dominazione, confusione, incoscienza, paralisi, debolezza mentale e disperazione. La rabbia dura un numero di round pari a 3 piu il bonus di Costituzione (recentemente migliorato) del barbaro. Dopo aver dato sfogo alla rabbia, il barbaro sara affaticato per tre round, con una penalita di -2 alla Forza e alla Destrezza.
 * Movimento veloce: i barbari possono muoversi 10 piedi piu velocemente di un personaggio standard, a condizione che non siano appesantiti o indossino armature pesanti.
-* 2¬∞ livello: Riduzione del danno. Il barbaro ottiene 1/- punto di resistenza ai danni da taglio, da perforazione e da contusione. Ottiene 1/- punto di resistenza aggiuntivo ai livelli 5, 8, 11 e ogni 3 livelli successivi. Se il barbaro indossa un'armatura media, la riduzione del danno concessa da questa caratteristica e raddoppiata.
-* 2¬∞ livello: Schivata prodigiosa. I barbari mantengono il loro bonus di Destrezza alla Classe Armatura se vengono attaccati da nemici invisibili.
-* 5¬∞ livello: Schivata prodigiosa migliorata. I barbari non possono essere attaccati di sorpresa dai ladri a meno che l'attaccante non abbia almeno quattro livelli in piu rispetto al barbaro.
-* 15¬∞ livello: Furia Maggiore. Tutte le furie del barbaro diventano furie maggiori, che aumentano i bonus di Forza e Costituzione a +6 e il bonus ai tiri salvezza a +3. Continua comunque a ricevere la penalita di -2 alla Classe Armatura.
-* 20¬∞ livello: Rabbia instancabile. Il barbaro non e piu affaticato dopo una rabbia.
-* 21¬∞ livello: Rabbia potente. L'abilita rabbia del barbaro ora garantisce +8 alla Forza e alla Costituzione e +4 ai tiri salvezza di Volonta.
-* 25¬∞ livello: La rabbia barbarica ora garantisce +10 alla Forza e alla Costituzione e +5 ai tiri salvezza di Volonta.
-* 29¬∞ livello: la rabbia del barbaro ora garantisce +12 alla Forza e alla Costituzione e +6 ai tiri salvezza di Volonta.
+* 2∞ livello: Riduzione del danno. Il barbaro ottiene 1/- punto di resistenza ai danni da taglio, da perforazione e da contusione. Ottiene 1/- punto di resistenza aggiuntivo ai livelli 5, 8, 11 e ogni 3 livelli successivi. Se il barbaro indossa un'armatura media, la riduzione del danno concessa da questa caratteristica e raddoppiata.
+* 2∞ livello: Schivata prodigiosa. I barbari mantengono il loro bonus di Destrezza alla Classe Armatura se vengono attaccati da nemici invisibili.
+* 5∞ livello: Schivata prodigiosa migliorata. I barbari non possono essere attaccati di sorpresa dai ladri a meno che l'attaccante non abbia almeno quattro livelli in piu rispetto al barbaro.
+* 15∞ livello: Furia Maggiore. Tutte le furie del barbaro diventano furie maggiori, che aumentano i bonus di Forza e Costituzione a +6 e il bonus ai tiri salvezza a +3. Continua comunque a ricevere la penalita di -2 alla Classe Armatura.
+* 20∞ livello: Rabbia instancabile. Il barbaro non e piu affaticato dopo una rabbia.
+* 21∞ livello: Rabbia potente. L'abilita rabbia del barbaro ora garantisce +8 alla Forza e alla Costituzione e +4 ai tiri salvezza di Volonta.
+* 25∞ livello: La rabbia barbarica ora garantisce +10 alla Forza e alla Costituzione e +5 ai tiri salvezza di Volonta.
+* 29∞ livello: la rabbia del barbaro ora garantisce +12 alla Forza e alla Costituzione e +6 ai tiri salvezza di Volonta.
 
 Svantaggi:
 * I barbari ottengono talenti a un ritmo piu lento rispetto ai combattenti.
@@ -1363,9 +1363,9 @@ Entrando in uno stato di rabbia, il barbaro ottiene +6 alla Forza e alla Costitu
 
 I bonus aumentano ai livelli piu alti:
 
-21¬∞ livello: +8 alla Forza e alla Costituzione e +4 ai tiri salvezza sulla Volonta.
-25¬∞ livello: +10 alla Forza e alla Costituzione e +5 ai tiri salvezza sulla Volonta.
-29¬∞ livello: +12 alla Forza e alla Costituzione e +6 ai tiri salvezza sulla Volonta.~
+21∞ livello: +8 alla Forza e alla Costituzione e +4 ai tiri salvezza sulla Volonta.
+25∞ livello: +10 alla Forza e alla Costituzione e +5 ai tiri salvezza sulla Volonta.
+29∞ livello: +12 alla Forza e alla Costituzione e +6 ai tiri salvezza sulla Volonta.~
 @4008 = ~Questa alta roccia potrebbe essere abbattuta, sia con la forza bruta che con un incantesimo Scassinare.~
 @55350=~Danni resistiti da armi con incantesimo inferiore a +<EXDRENLV>~
 @565    = ~MONACO DELLA LUNA OSCURA:
@@ -1373,8 +1373,8 @@ I bonus aumentano ai livelli piu alti:
 I membri dell'Ordine della Luna Oscura venerano Shar, dea dell'oscurita e della perdita. Usano il loro addestramento monastico come percorso verso il potere personale e spirituale.
 
 Vantaggi:
-* 2¬∞ livello: il monaco ottiene un uso di Oscurita al giorno. Qualsiasi livello che darebbe al monaco un uso di Integrita Fisica gli conferisce invece un altro uso di Oscurita. La CD e pari a 15 + bonus di Saggezza + meta del livello monaco del personaggio. Il monaco aggiunge anche meta del proprio livello monaco alla CD di qualsiasi altro incantesimo o abilita di Oscurita che lancia. Il monaco puo vedere perfettamente anche nell'oscurita magica.
-* 10¬∞ livello: il monaco ottiene +1 ai danni contro qualsiasi nemico accecato o con la vista compromessa da un effetto Oscurita. Per ogni 8 livelli di monaco dopo il 10¬∞, il monaco ottiene un altro +1 ai danni contro i nemici in queste situazioni.~
+* 2∞ livello: il monaco ottiene un uso di Oscurita al giorno. Qualsiasi livello che darebbe al monaco un uso di Integrita Fisica gli conferisce invece un altro uso di Oscurita. La CD e pari a 15 + bonus di Saggezza + meta del livello monaco del personaggio. Il monaco aggiunge anche meta del proprio livello monaco alla CD di qualsiasi altro incantesimo o abilita di Oscurita che lancia. Il monaco puo vedere perfettamente anche nell'oscurita magica.
+* 10∞ livello: il monaco ottiene +1 ai danni contro qualsiasi nemico accecato o con la vista compromessa da un effetto Oscurita. Per ogni 8 livelli di monaco dopo il 10∞, il monaco ottiene un altro +1 ai danni contro i nemici in queste situazioni.~
 @984    = ~Oscurita
 
 Questa abilita crea un'oscurita magica nell'area d'effetto. Le creature prive di visione nel buio devono superare un tiro salvezza di Costituzione o saranno effettivamente accecate. Le creature con visione nel buio non vengono accecate, ma anche loro hanno una capacita limitata di vedere attraverso l'oscurita magica, subendo una penalita di -4 agli attacchi in caso di fallimento del tiro salvezza. Le creature con una visione nel buio superiore a 120 piedi (ad esempio drow, nani grigi o gnomi profondi) subiscono solo una penalita di -2 agli attacchi. I diavoli e le creature immuni alla cecita non sono influenzati.
@@ -1663,7 +1663,7 @@ Tempo di lancio: 1
 Area d'effetto: Incantatore
 Tiro salvezza: Nessuno
 
-Versione piu debole dell'incantesimo di 6¬∞ livello Scudo divino, questo incantesimo crea un campo magico attorno all'incantatore che ha il 20% di probabilita di deviare gli attacchi a distanza diretti contro di lui. Cio include non solo gli attacchi con armi a distanza, ma anche alcuni incantesimi, tra cui Sfera cromatica, Missile magico, Freccia acida di Melf, Freccia di fuoco, Lancia alicorno, Lancia di ghiaccio, Lancia di distruzione, Dardi di forza di Mordenkainen, Sfera al vetriolo, Sfera congelante di Otiluke e Sfera incandescente di Sol.~
+Versione piu debole dell'incantesimo di 6∞ livello Scudo divino, questo incantesimo crea un campo magico attorno all'incantatore che ha il 20% di probabilita di deviare gli attacchi a distanza diretti contro di lui. Cio include non solo gli attacchi con armi a distanza, ma anche alcuni incantesimi, tra cui Sfera cromatica, Missile magico, Freccia acida di Melf, Freccia di fuoco, Lancia alicorno, Lancia di ghiaccio, Lancia di distruzione, Dardi di forza di Mordenkainen, Sfera al vetriolo, Sfera congelante di Otiluke e Sfera incandescente di Sol.~
 @37867     = ~Muro Prismatico~
 @38867     = ~Muro prismatico
 (Abiurazione)
@@ -1679,7 +1679,7 @@ Uno dei pochi incantesimi di abiurazione in grado di causare danni, questo incan
 Gli effetti dei sette strati colorati sono simili a quelli dell'incantesimo Spruzzo prismatico: rosso (infligge 10d6 punti ferita di danno da fuoco, Riflessi per meta), arancione (10d6 punti ferita di danno da acido, Riflessi per meta), giallo (10d6  punti ferita di danni da elettricita, Reflex per meta), verde (salvezza di Costituzione o morte - i sopravvissuti subiscono comunque 20 punti ferita di danni da veleno), blu (Constituzione o trasformazione in pietra), indaco (salvezza di Volonta o follia), o viola (salvezza di Volonta o teletrasporto istantaneo in un altro piano e ritorno con effetti permanenti pari a 5 livelli persi). Tutti i tiri salvezza effettuati contro questo incantesimo hanno un DC di -8.
 
 Una creatura che attraversa uno strato del muro non puo essere influenzata nuovamente da quello strato per 10 round. Solo un muro prismatico puo essere attivo alla volta.~
-@56023=~Questa lettera e scritta su pergamena consumata dal tempo e sigillata con ceralacca. All'esterno e riportato il seguente testo, scritto con mano tremante: ‚ÄúDa Garradun Tanner, alla mia amata Raina, presso il Capitano Mariner, Neverwinter‚Äù.
+@56023=~Questa lettera e scritta su pergamena consumata dal tempo e sigillata con ceralacca. All'esterno e riportato il seguente testo, scritto con mano tremante: ìDa Garradun Tanner, alla mia amata Raina, presso il Capitano Mariner, Neverwinterî.
 
 Potresti aprire la lettera e leggerne il contenuto, anche se leggere la lettera d'amore di qualcun altro sarebbe molto scortese.
 
@@ -1716,7 +1716,7 @@ Resistenza:  20/- Resistenza ai danni magici
 Tutti i danni magici inflitti dal personaggio aumentano del 20%
 Peso:  3~
 @12919    = ~Irrilevanza +3~
-@12920    = ~Questo martello e stato realizzato da un sedicente profeta del rifiuto provvidenziale. Il suo nome era Phellep e credeva che le azioni dell'individuo non avessero alcuna importanza per il destino dell'umanita nel suo complesso. Di conseguenza, rifiutava i concetti di bene e male, adottando invece un atteggiamento di indifferenza forzata e di astensione dall'attivita sociale, morale e politica. Il martello che portava con se era usato per battere sulle porte delle chiese, che lui chiamava ‚Äúi covi degli stolti e degli uomini senza cervello‚Äù.
+@12920    = ~Questo martello e stato realizzato da un sedicente profeta del rifiuto provvidenziale. Il suo nome era Phellep e credeva che le azioni dell'individuo non avessero alcuna importanza per il destino dell'umanita nel suo complesso. Di conseguenza, rifiutava i concetti di bene e male, adottando invece un atteggiamento di indifferenza forzata e di astensione dall'attivita sociale, morale e politica. Il martello che portava con se era usato per battere sulle porte delle chiese, che lui chiamava ìi covi degli stolti e degli uomini senza cervelloî.
 
 STATISTICHE:
 
@@ -1732,7 +1732,7 @@ Peso: 4.
 Requisiti:  Arma marziale, Martello.
 Tipo:  A una mano~
 @12921    = ~Irrilevante +5~
-@12922    = ~Questo martello e stato realizzato da un sedicente profeta del rifiuto provvidenziale. Il suo nome era Phellep e credeva che le azioni dei singoli individui non avessero alcuna influenza sul destino dell'umanita nel suo complesso. Di conseguenza, rifiutava i concetti di bene e male, adottando invece un atteggiamento di indifferenza forzata e astensione dall'attivita sociale, morale e politica. Il martello che portava con se era usato per colpire le porte delle chiese, che lui chiamava ‚Äúi covi degli stolti e degli uomini senza cervello‚Äù.
+@12922    = ~Questo martello e stato realizzato da un sedicente profeta del rifiuto provvidenziale. Il suo nome era Phellep e credeva che le azioni dei singoli individui non avessero alcuna influenza sul destino dell'umanita nel suo complesso. Di conseguenza, rifiutava i concetti di bene e male, adottando invece un atteggiamento di indifferenza forzata e astensione dall'attivita sociale, morale e politica. Il martello che portava con se era usato per colpire le porte delle chiese, che lui chiamava ìi covi degli stolti e degli uomini senza cervelloî.
 
 STATISTICHE:
 
@@ -3556,18 +3556,18 @@ Type:  One-handed~
 @56059 = ~2x UI (interfaccia ad alta risoluzione) - font non pixelati~
 
 // #126 bard song descriptions (per-song text from the @527 bard writeup, which matches the actual USSTBS song data; @570 was stale). EN placeholder where untranslated.
-@56061 = ~Quando viene suonata, tutti gli alleati del bardo ottengono +1 ai tiri per colpire, +1 ai danni e l'immunit√† a paura e disperazione. I bonus di attacco e danno aumentano di 1 al livello 5 e ogni 5 livelli successivi.~
-@56062 = ~Quando viene suonata, gli alleati del bardo sono immuni a incantesimi e capacit√† sonore nocive, tra cui Comando, Silenzio, Comando Superiore, Parola Sacra, Blasfemia, Parola del Potere: Sonno, Deflagrazione Sonora, Urlo, Parola del Potere: Silenzio, Parola del Potere: Stordimento, Parola del Potere: Cecit√†, Grande Urlo, Lamento della Banshee, Parola del Potere: Morte, lamenti di arpia, e gli effetti riservati ai nemici di Cantico, Preghiera e Recitazione.~
-@56063 = ~Quando viene suonata, gli alleati del bardo ottengono +1 alla fortuna e +2 alle prove di abilit√† (oltre al +1 alle prove di abilit√† concesso dalla fortuna). Al livello 15 e ogni 10 livelli successivi, questo canto concede un ulteriore +1 alla fortuna e +2 alle prove di abilit√†.~
-@56064 = ~Quando viene suonata, ogni nemico che ode il canto deve superare un tiro salvezza su Volont√† o essere ammaliato, incapace di agire per un round o finch√© non subisce danni. La Classe Difficolt√† del tiro salvezza su Volont√† √® pari a 10 + met√† del livello del bardo + bonus di Carisma.~
+@56061 = ~Quando viene suonata, tutti gli alleati del bardo ottengono +1 ai tiri per colpire, +1 ai danni e l'immunit‡ a paura e disperazione. I bonus di attacco e danno aumentano di 1 al livello 5 e ogni 5 livelli successivi.~
+@56062 = ~Quando viene suonata, gli alleati del bardo sono immuni a incantesimi e capacit‡ sonore nocive, tra cui Comando, Silenzio, Comando Superiore, Parola Sacra, Blasfemia, Parola del Potere: Sonno, Deflagrazione Sonora, Urlo, Parola del Potere: Silenzio, Parola del Potere: Stordimento, Parola del Potere: Cecit‡, Grande Urlo, Lamento della Banshee, Parola del Potere: Morte, lamenti di arpia, e gli effetti riservati ai nemici di Cantico, Preghiera e Recitazione.~
+@56063 = ~Quando viene suonata, gli alleati del bardo ottengono +1 alla fortuna e +2 alle prove di abilit‡ (oltre al +1 alle prove di abilit‡ concesso dalla fortuna). Al livello 15 e ogni 10 livelli successivi, questo canto concede un ulteriore +1 alla fortuna e +2 alle prove di abilit‡.~
+@56064 = ~Quando viene suonata, ogni nemico che ode il canto deve superare un tiro salvezza su Volont‡ o essere ammaliato, incapace di agire per un round o finchÈ non subisce danni. La Classe Difficolt‡ del tiro salvezza su Volont‡ Ë pari a 10 + met‡ del livello del bardo + bonus di Carisma.~
 @56065 = ~Quando viene suonata, gli alleati del bardo ottengono un bonus di +2 alla classe armatura, una resistenza ai danni fisici di 3/- e rigenerano 3 punti danno per round in combattimento. Al livello 18 e ogni 10 livelli successivi, questo canto concede un ulteriore +2 alla classe armatura, 3/- di resistenza ai danni fisici e 3 punti ferita curati per round.~
 @56066 = ~Quando viene suonata, gli alleati del bardo ottengono 10/- di resistenza a tutte le forme di danno magico, una resistenza alla magia fissata a 35 se inferiore, e gli effetti della storia di Curran Cuoresaldo, della Melodia di Tymora e del Canto di Guerra di Sith. Al livello 50, questo canto fissa la resistenza alla magia a 40 se inferiore e concede un ulteriore 10/- di resistenza ai danni magici.~
 
 // #126 bard song descriptions - Set 1 (ORIGINAL game songs, from vanilla dialog.tlk @9562; used when class_revisions is NOT installed). EN placeholder; translate later.
 @56067 = ~Quando viene suonata, tutti gli effetti di paura sugli alleati del bardo vengono rimossi, e questi diventano immuni alla paura per tutta la durata del canto.~
-@56068 = ~Quando viene suonata, gli alleati del bardo ottengono +1 alla fortuna, +3 ai tiri salvezza e +2 alle loro abilit√† di Conoscenza (arcana), Alchimia e da ladro.~
-@56069 = ~Quando viene suonata, gli alleati del bardo hanno il 50% di probabilit√† di ignorare gli effetti di incantesimi come Silenzio, Urlo, Grande Urlo, Comando, o qualsiasi altro attacco sonoro.~
-@56070 = ~Quando viene suonata, i nemici del bardo devono superare un tiro salvezza su Volont√† o essere ammaliati, incapaci di agire finch√© non passano dieci round o non subiscono danni.~
+@56068 = ~Quando viene suonata, gli alleati del bardo ottengono +1 alla fortuna, +3 ai tiri salvezza e +2 alle loro abilit‡ di Conoscenza (arcana), Alchimia e da ladro.~
+@56069 = ~Quando viene suonata, gli alleati del bardo hanno il 50% di probabilit‡ di ignorare gli effetti di incantesimi come Silenzio, Urlo, Grande Urlo, Comando, o qualsiasi altro attacco sonoro.~
+@56070 = ~Quando viene suonata, i nemici del bardo devono superare un tiro salvezza su Volont‡ o essere ammaliati, incapaci di agire finchÈ non passano dieci round o non subiscono danni.~
 @56071 = ~Quando viene suonata, gli alleati del bardo ottengono un bonus di +2 alla classe armatura, una resistenza ai danni di 2/- e rigenerano 3 punti danno per round in combattimento.~
 @56072 = ~Quando viene suonata, tutti gli alleati del bardo ottengono +1 ai tiri per colpire, +1 ai danni e +1 ai tiri salvezza.~
 @56073 = ~World HUD Refonte (PoE-style floating HUD: portrait busts bottom-right, action/command bars bottom-centre, resizable combat log bottom-left)~

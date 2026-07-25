@@ -3515,14 +3515,14 @@ function IEex_SetOptionDescription(labelId)
 		[7]  = ex_tra_55906,
 		[9]  = ex_tra_55908,
 		[11] = ex_tra_55932,
-		[13] = "Stretches the interface to fill the entire screen. When off, the UI renders at its native size with letterboxed black borders (crisper); when on, it is scaled up to fill the display (larger, but slightly softer).",
-		[15] = "Displays an on-screen counter showing the render framerate, the AI (game-logic) update rate, and the VRAM pool usage.",
-		[17] = "Synchronizes frame presentation with your monitor's refresh rate to eliminate screen tearing.",
-		[19] = "Adds decorative stone borders around the interface: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty margins at the screen edges (for example on widescreen displays). When off, the world shows through those margins. Requires a restart to take effect.",
-		[21] = "GemRB-inspired pathfinding improvements: characters wait for walkers instead of shuffling, stop cleanly next to occupied destinations, no longer stop short of their goal, and enemies unclog doorways by shoving their own allies (never party members). Chasing a moving target keeps its path while the new one is computed, instead of standing still for the whole search -- that is what made a run to melee stop and start. Idle non-hostile NPCs can be shoved aside instead of walling off a corridor. Fine-tuning keys (IP *) live in icewind2.ini under [IEex Options]. Requires a restart to fully take effect.",
+		[13] = IEex_OptionText(ex_tra_56080, "Stretches the interface to fill the entire screen. When off, the UI renders at its native size with letterboxed black borders (crisper); when on, it is scaled up to fill the display (larger, but slightly softer)."),
+		[15] = IEex_OptionText(ex_tra_56082, "Displays an on-screen counter showing the render framerate, the AI (game-logic) update rate, and the VRAM pool usage."),
+		[17] = IEex_OptionText(ex_tra_56084, "Synchronizes frame presentation with your monitor's refresh rate to eliminate screen tearing."),
+		[19] = IEex_OptionText(ex_tra_56086, "Adds decorative stone borders around the interface: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty margins at the screen edges (for example on widescreen displays). When off, the world shows through those margins. Requires a restart to take effect."),
+		[21] = IEex_OptionText(ex_tra_56088, "GemRB-inspired pathfinding improvements: characters wait for walkers instead of shuffling, stop cleanly next to occupied destinations, no longer stop short of their goal, and enemies unclog doorways by shoving their own allies (never party members). Chasing a moving target keeps its path while the new one is computed, instead of standing still for the whole search -- that is what made a run to melee stop and start. Idle non-hostile NPCs can be shoved aside instead of walling off a corridor. Fine-tuning keys (IP *) live in icewind2.ini under [IEex Options]. Requires a restart to fully take effect."),
 		[23] = IEex_OptionText(ex_tra_56078, "Tints the selection frame around each party portrait with that character's own secondary (minor clothing) color, matching the circle under their feet. Off by default, since BG2EE colors the ground circles and not the portrait frames. Requires \"Colored selection circles\" and switches it on with this option. The frame is a 1-pixel hairline unless \"Portrait Frame Thickness\" under [IEex Options] in Icewind2.ini says otherwise (1 to 4 pixels, or 0 to follow the selection circles); it never covers the portrait itself."),
-		[25] = "Limits the framerate to your display's refresh rate to reduce GPU and CPU load. Requires a restart to take effect.",
-				[27] = IEex_OptionText(ex_tra_56076, "Tints each party member's selection circle and move-destination marker with that character's own secondary (minor clothing) color instead of the vanilla green, the way BG2EE colors its party circles. On by default. Enemies stay red and neutrals cyan; a character who is talking stays white and a panicking one stays yellow. The party portraits keep their vanilla green frame unless \"Colored portrait frames\" is also on. Stroke widths are set under [IEex Options] in Icewind2.ini with \"Selection Circle Thickness\" (0 = automatic by resolution, the default, or 1 to 4 pixels) and \"Destination Marker Thickness\" (0 = one step lighter than the circles, the default); OpenGL only."),
+		[25] = IEex_OptionText(ex_tra_56090, "Limits the framerate to your display's refresh rate to reduce GPU and CPU load. Requires a restart to take effect."),
+		[27] = IEex_OptionText(ex_tra_56076, "Tints each party member's selection circle and move-destination marker with that character's own secondary (minor clothing) color instead of the vanilla green, the way BG2EE colors its party circles. On by default. Enemies stay red and neutrals cyan; a character who is talking stays white and a panicking one stays yellow. The party portraits keep their vanilla green frame unless \"Colored portrait frames\" is also on. Stroke widths are set under [IEex Options] in Icewind2.ini with \"Selection Circle Thickness\" (0 = automatic by resolution, the default, or 1 to 4 pixels) and \"Destination Marker Thickness\" (0 = one step lighter than the circles, the default); OpenGL only."),
 	}
 	local d = descriptions[labelId]
 	if d == nil then return end
@@ -4652,9 +4652,9 @@ function IEex_InstallIEexOptions()
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 5,
-		["x"] = 74,
+		["x"] = 24,
 		["y"] = IEex_OptionRowY(5),
-		["width"] = 308,
+		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
@@ -4682,9 +4682,9 @@ function IEex_InstallIEexOptions()
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 7,
-		["x"] = 74,
+		["x"] = 24,
 		["y"] = IEex_OptionRowY(7),
-		["width"] = 308,
+		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
@@ -4710,9 +4710,9 @@ function IEex_InstallIEexOptions()
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 9,
-		["x"] = 74,
+		["x"] = 24,
 		["y"] = IEex_OptionRowY(9),
-		["width"] = 308,
+		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
@@ -4738,9 +4738,9 @@ function IEex_InstallIEexOptions()
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 11,
-		["x"] = 74,
+		["x"] = 24,
 		["y"] = IEex_OptionRowY(11),
-		["width"] = 308,
+		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
@@ -4768,14 +4768,15 @@ function IEex_InstallIEexOptions()
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 13,
-		["x"] = 74,
+		["x"] = 24,
 		["y"] = IEex_OptionRowY(13),
-		["width"] = 308,
+		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
 	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 13), "Stretch UI to Screen")
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 13),
+		IEex_OptionText(ex_tra_56079, "Stretch UI to Screen"))
 
 	-- "Stretch UI to Screen" Toggle - ID 14
 	IEex_AddControlOverride("GUIOPT", 14, 14, "IEex_UI_Button")
@@ -4798,14 +4799,15 @@ function IEex_InstallIEexOptions()
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 15,
-		["x"] = 74,
+		["x"] = 24,
 		["y"] = IEex_OptionRowY(15),
-		["width"] = 308,
+		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
 	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 15), "Show FPS")
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 15),
+		IEex_OptionText(ex_tra_56081, "Show FPS"))
 
 	-- "Show FPS" Toggle - ID 16
 	IEex_AddControlOverride("GUIOPT", 14, 16, "IEex_UI_Button")
@@ -4828,14 +4830,15 @@ function IEex_InstallIEexOptions()
 	IEex_AddControlToPanel(newOptionsPanel, {
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 17,
-		["x"] = 74,
+		["x"] = 24,
 		["y"] = IEex_OptionRowY(17),
-		["width"] = 308,
+		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
 	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 17), "Vsync")
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 17),
+		IEex_OptionText(ex_tra_56083, "Vsync"))
 
 	-- "Vsync" Toggle - ID 18
 	IEex_AddControlOverride("GUIOPT", 14, 18, "IEex_UI_Button")
@@ -4865,7 +4868,8 @@ function IEex_InstallIEexOptions()
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
 	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 19), "Decorative UI & HUD Borders (restart required)")
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 19),
+		IEex_OptionText(ex_tra_56085, "Decorative UI & HUD Borders (restart required)"))
 
 	-- "UI Borders" Toggle - ID 20
 	IEex_AddControlOverride("GUIOPT", 14, 20, "IEex_UI_Button")
@@ -4895,7 +4899,8 @@ function IEex_InstallIEexOptions()
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
 	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 21), "Improved Pathfinding (restart required)")
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 21),
+		IEex_OptionText(ex_tra_56087, "Improved Pathfinding (restart required)"))
 
 	-- "Improved Pathfinding" Toggle - ID 22
 	IEex_AddControlOverride("GUIOPT", 14, 22, "IEex_UI_Button")
@@ -4958,7 +4963,8 @@ function IEex_InstallIEexOptions()
 		["fontBam"] = "NORMAL",
 		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
 	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 25), "Cap FPS to Display Refresh (restart required)")
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 25),
+		IEex_OptionText(ex_tra_56089, "Cap FPS to Display Refresh (restart required)"))
 
 	-- "Cap FPS to Refresh" Toggle - ID 26
 	IEex_AddControlOverride("GUIOPT", 14, 26, "IEex_UI_Button")

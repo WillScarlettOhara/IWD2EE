@@ -1570,6 +1570,19 @@
 			{[[ !jmp_dword ]], {porCellStub, 4, 4}},
 		}))
 
+		-- Clip the engine's DISABLED-panel dim to the rects the HUD layer actually composites.
+		-- CUIPanel::Render paints a 50% black quad over its whole dirty rect when the panel is
+		-- disabled (CheckPanelInputMode does that to panel 1 for the length of a cutscene --
+		-- m_mode 0x142 misses its 0x20 input-mode bit -- and that dim is the intended vanilla
+		-- look). But the refonte widens panel 1 from x 896 to the right screen edge while only
+		-- its content rects (portrait slots, action bar) are composited, so inside the shared
+		-- layer FBO the dim also covered texels owned by panel 0: the right ~20% of the combat
+		-- log box (log x 16..1118) stayed veiled for the whole cutscene, and the same band
+		-- showed under the dialogue panel between its frames. The helper re-issues the dim once
+		-- per registered content rect instead; a panel with no rects keeps the single vanilla
+		-- call. __thiscall at the callsite (ecx = panel, &rDirty already pushed) -> __fastcall.
+		IEex_WriteAssembly(0x4D34ED, {[[ !call >IEex_Helper_HudPanelRenderDither ]]})
+
 	end
 
 	-- The MOVEMENT right-click path is PARALLEL to the UI walk: CScreenWorld's

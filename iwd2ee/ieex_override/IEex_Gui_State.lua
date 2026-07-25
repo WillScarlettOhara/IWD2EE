@@ -173,13 +173,14 @@ IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration",
 --   GL-only, and that has no row: [IEex Options] "Selection Circle Thickness" in Icewind2.ini.
 --   (Row 27 was 'Tile Atlas', now hardwired via its ini key only -- nobody turns it off.)
 --   Integer Zoom (29) is GL-only (the camera zoom is a GL matrix; the software renderer never
---   leaves 1.0) -> hidden in software. It shares its slot in the layout with the software-only
---   Transparent Fog of War (5): exactly one of the two is ever built, so the visible row count
---   is unchanged in both renderers and the last row still lands above the Done/Cancel buttons.
+--   leaves 1.0) -> hidden in software. It took the list to 12 rows under GL, which no longer fits
+--   the authored 27px step -- IEex_OptionRowStep tightens the step to 25px at that count so the
+--   bottom row still clears the Done/Cancel bar (every shorter list keeps 27px exactly).
 --   Improved Pathfinding (21) is renderer-independent -> always visible. (Row 21 was 'UI Single
 --   Buffer', now hardwired via its ini key only: =0 is never correct with the GL present FBO --
 --   RENDER_COUNT=2 on a single buffer truncates dialog/UI text until an alt-tab FBO rebuild.)
--- IEex_OptionRowShift repacks the visible rows (27px step) so a hidden row leaves no gap.
+-- IEex_OptionRowY packs the VISIBLE rows so a hidden one leaves no gap, on a step that is 27px
+-- whenever the list fits and tightens just enough when it does not (IEex_OptionRowStep).
 --
 -- ORDER = what the player sees, top to bottom, grouped by what the option is about:
 --   rules            11 armour-in-combat, 21 pathfinding
@@ -210,23 +211,41 @@ function IEex_OptionText(traId, fallback)
 	return (traId or 0) ~= 0 and IEex_FetchString(traId) or fallback
 end
 
--- Y of a row's LABEL, straight from its position in IEEX_OPTION_ROW_ORDER: the rows are a
--- 27px grid starting at 70, minus the repack for any hidden row above (IEex_OptionRowShift).
--- Toggles sit 3px higher. Deriving both means the menu order lives in exactly one place.
-function IEex_OptionRowY(labelId)
-	for i, id in ipairs(IEEX_OPTION_ROW_ORDER) do
-		if id == labelId then return 70 + (i - 1) * 27 - IEex_OptionRowShift(labelId) end
+function IEex_OptionRowCount()
+	local n = 0
+	for _, id in ipairs(IEEX_OPTION_ROW_ORDER) do
+		if IEex_OptionRowVisible(id) then n = n + 1 end
 	end
-	return 70
+	return n
 end
 
-function IEex_OptionRowShift(labelId)
-	local hiddenAbove = 0
+-- Vertical step between rows. 27px is the authored spacing and stays exact for any list that
+-- fits; it only tightens when the visible rows would otherwise run into the Done/Cancel bar at
+-- y=375 (labels are 18px tall and toggles sit 3px higher and are 24px tall, so the LAST label
+-- must start by IEEX_OPTION_ROW_LAST_Y). The row list grew to 12 under GL when "Pixel-perfect
+-- zoom" was added, which at 27px put the bottom row's toggle in the button strip.
+IEEX_OPTION_ROW_FIRST_Y = 70
+IEEX_OPTION_ROW_LAST_Y  = 345
+function IEex_OptionRowStep()
+	local n = IEex_OptionRowCount()
+	if n < 2 then return 27 end
+	local step = math.floor((IEEX_OPTION_ROW_LAST_Y - IEEX_OPTION_ROW_FIRST_Y) / (n - 1))
+	if step > 27 then step = 27 end
+	return step
+end
+
+-- Y of a row's LABEL, straight from its position in IEEX_OPTION_ROW_ORDER: hidden rows are
+-- skipped (no gap) and the remaining ones are packed on the step above, starting at
+-- IEEX_OPTION_ROW_FIRST_Y. Toggles sit 3px higher. Deriving both means the menu order lives in
+-- exactly one place.
+function IEex_OptionRowY(labelId)
+	local step = IEex_OptionRowStep()
+	local visibleAbove = 0
 	for _, id in ipairs(IEEX_OPTION_ROW_ORDER) do
-		if id == labelId then break end
-		if not IEex_OptionRowVisible(id) then hiddenAbove = hiddenAbove + 1 end
+		if id == labelId then return IEEX_OPTION_ROW_FIRST_Y + visibleAbove * step end
+		if IEex_OptionRowVisible(id) then visibleAbove = visibleAbove + 1 end
 	end
-	return hiddenAbove * 27
+	return IEEX_OPTION_ROW_FIRST_Y
 end
 
 -- Which options-screen panel opened the IEex options panel (14): 2 = in-game main options panel,

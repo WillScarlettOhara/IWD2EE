@@ -52,12 +52,18 @@
 	--------------------------------------------------------------------------------
 	-- FOG-OF-WAR -> TEXTURE -- the 4K perf fix (~47.7% of frame -> a few GL calls).
 	-- Stock fog draws the visibility grid as ~8000 per-cell quads/fans via FillRect3d
-	-- (0x7BD140) + RenderFan (0x7BD740) (only callers = CVisibility). SKIP both, and at
-	-- the tiles->sprites boundary in CGameArea::Render (0x47785b, esi=CGameArea) read
-	-- CVisibilityMap::m_pMap directly, decode to a tiny (W+1)x(H+1) corner texture, and
-	-- draw ONE bilinear quad over the map rect + hard-black off-map margins. Inline hook
-	-- passes esi; pushad/popad preserves eax for the displaced RENDER_MESSAGESCREEN cmp.
-	-- FogSkip = __cdecl ret 0 (binary ABI, both callers).
+	-- (0x7BD140) + RenderFan (0x7BD740) (only callers = CVisibility). SKIP both and read
+	-- CVisibilityMap::m_pMap directly, decoding it to a tiny WxH corner texture drawn as
+	-- ONE bilinear quad over the map rect + hard-black off-map margins.
+	-- The pass is SPLIT over two hooks. Here, at the tiles->sprites boundary in
+	-- CGameArea::Render (0x47785b, esi=CGameArea): flush the tile atlas, paint the margins
+	-- (before the sprites, so edge-overhanging sprites draw over them as in software) and
+	-- restore GL_TEXTURE_ENV_MODE=MODULATE for the sprite pass. The quad itself is drawn by
+	-- IEex_Helper_FogTexDrawLate from the PostRender call at 0x477B61 (IEex_Render_Patch),
+	-- i.e. AFTER the object passes, where stock 3D drew fog -- otherwise corpses/statics/
+	-- doors/piles escape fog entirely and stay full-bright on explored ground.
+	-- Inline hook passes esi; pushad/popad preserves eax for the displaced
+	-- RENDER_MESSAGESCREEN cmp. FogSkip = __cdecl ret 0 (binary ABI, both callers).
 	--------------------------------------------------------------------------------
 	IEex_WriteAssembly(0x7BD140, {[[
 		!jmp_dword >IEex_Helper_FogSkip

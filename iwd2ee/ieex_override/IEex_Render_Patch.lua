@@ -298,6 +298,8 @@
 
 	if not IEex_Vanilla then
 
+		local is3D = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini") ~= 0
+
 		local optionsStr = IEex_WriteStringAuto("IEex_Options")
 
 		local getFogTypePtr = IEex_WriteAssemblyAuto({[[
@@ -321,8 +323,28 @@
 			!jnz_dword >IEex_Helper_RenderFoWSolid
 		]]})
 
-		-- Install new transparent FoW rendering
-		IEex_HookBeforeCall(0x477B61, {[[
+		-- Install new transparent FoW rendering.
+		--
+		-- Under GL the same site also draws the LATE half of the fog-of-war pass. 0x477B61 is
+		-- the CInfinity::PostRender call in CGameArea::Render (esi = CGameArea), i.e. after all
+		-- four object passes and before weather -- which is where stock 3D put fog (its
+		-- CInfTileSet::RenderFogOfWar call sits 0x17 bytes later, at 0x477B78). IEex's
+		-- fog-to-texture rewrite had been drawing the whole thing at the tiles->sprites boundary
+		-- (0x47785B, IEex_HDTiles_Patch), so every object drawn after the tiles escaped fog and
+		-- stayed full-bright on explored-but-not-visible ground; corpses showed it worst, being
+		-- the only creatures that keep rendering there (STATE_DEAD bypasses the m_canBeSeen gate
+		-- in CGameSprite::Render). The early hook still runs -- it flushes the tile atlas, paints
+		-- the off-map margins and restores GL_TEXTURE_ENV_MODE for the sprite pass -- and hands
+		-- the frame over. Same single upload + single quad per frame, just later.
+		-- ecx is preserved because the hooked call is __thiscall and its `this` is already loaded.
+		IEex_HookBeforeCall(0x477B61, IEex_FlattenTable({
+			is3D and {[[
+				!push_ecx
+				!push_esi
+				!call >IEex_Helper_FogTexDrawLate
+				!pop_ecx
+			]]} or {},
+			{[[
 			!call ]], {getFogTypePtr, 4, 4}, [[
 			!cmp_[eax]_byte 00
 			!jz_dword >no_hook
@@ -331,7 +353,7 @@
 			!call >IEex_Helper_RenderFoW
 			!pop_ecx
 			@no_hook
-		]]})
+		]]}}))
 
 		-- Toggle common FoW interlacing for sprites
 		local spriteInterlaceHook = IEex_WriteAssemblyAuto({[[
@@ -384,6 +406,19 @@
 			!mov_al_[esp+byte] 12
 			!test_al_al
 		]]})
+
+		-- Ground piles: drop the engine's own 3D fog dim, now that the fog quad covers objects.
+		-- CGameContainer::Render (0x47F580) halves every channel of the pile's tint itself when
+		-- 3d-accelerated and the tile isn't currently visible -- Bioware's stand-in for a fog pass
+		-- that handled objects badly (software takes the other branch at 0x47F8A7 and dithers
+		-- instead). With Export_FogTexDrawLate darkening the pile too, the two stack and piles in
+		-- fog read ~2x too dark. Jump the 3D halve (0x47F871..0x47F8A1) straight to its join at
+		-- 0x47F8AC; the software branch is untouched.
+		if is3D then
+			IEex_WriteAssembly(0x47F871, {[[
+				EB 39 90 90
+			]]})
+		end
 	end
 
 	--------------------------------------------------------------

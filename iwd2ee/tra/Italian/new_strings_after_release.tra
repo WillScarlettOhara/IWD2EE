@@ -3570,8 +3570,8 @@ Type:  One-handed~
 @56070 = ~Quando viene suonata, i nemici del bardo devono superare un tiro salvezza su Volontà o essere ammaliati, incapaci di agire finché non passano dieci round o non subiscono danni.~
 @56071 = ~Quando viene suonata, gli alleati del bardo ottengono un bonus di +2 alla classe armatura, una resistenza ai danni di 2/- e rigenerano 3 punti danno per round in combattimento.~
 @56072 = ~Quando viene suonata, tutti gli alleati del bardo ottengono +1 ai tiri per colpire, +1 ai danni e +1 ai tiri salvezza.~
-@56073 = ~World HUD Refonte (PoE-style floating HUD: portrait busts bottom-right, action/command bars bottom-centre, resizable combat log bottom-left)~
-@56074 = ~The World HUD Refonte is not yet compatible with the "2x UI" component -- install one or the other (2x support for the refonte is in progress).~
+@56073 = ~HUD flottante (stile PoE): busti dei ritratti in basso a destra, barre azioni/comandi in basso al centro, registro di combattimento ridimensionabile in basso a sinistra~
+@56074 = ~World HUD Refonte non e' ancora compatibile con il componente "2x UI" -- installa l'uno o l'altro (il supporto 2x per la refonte e' in corso).~
 @56075 = ~Cerchi di selezione colorati~
 @56076 = ~Colora il cerchio di selezione e l'indicatore di destinazione di ogni personaggio con il colore secondario (vestiti) del personaggio stesso, invece del verde originale, come fa BG2EE con i cerchi del gruppo. Attivo per impostazione predefinita. I nemici restano rossi e i neutrali ciano; un personaggio che parla resta bianco e uno in preda al panico resta giallo. I ritratti mantengono la cornice verde originale, a meno che non sia attivo anche "Cornici dei ritratti colorate". Gli spessori si regolano nella sezione [IEex Options] di Icewind2.ini con "Selection Circle Thickness" (0 = automatico in base alla risoluzione, valore predefinito, oppure da 1 a 4 pixel) e "Destination Marker Thickness" (0 = un grado piu' sottile dei cerchi, valore predefinito); solo OpenGL.~
 @56077 = ~Cornici dei ritratti colorate~

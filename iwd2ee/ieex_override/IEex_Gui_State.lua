@@ -173,9 +173,11 @@ IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration",
 --   GL-only, and that has no row: [IEex Options] "Selection Circle Thickness" in Icewind2.ini.
 --   (Row 27 was 'Tile Atlas', now hardwired via its ini key only -- nobody turns it off.)
 --   Integer Zoom (29) is GL-only (the camera zoom is a GL matrix; the software renderer never
---   leaves 1.0) -> hidden in software. It took the list to 12 rows under GL, which no longer fits
---   the authored 27px step -- IEex_OptionRowStep tightens the step to 25px at that count so the
---   bottom row still clears the Done/Cancel bar (every shorter list keeps 27px exactly).
+--   leaves 1.0) -> hidden in software. It took its slot from 'Cap FPS to Display Refresh' (25),
+--   now hardwired via its ini key only ([IEex Options] "Max FPS"): that cap needs a restart to
+--   take effect, so the row was worth less than one that applies live.
+--   The panel fits 11 rows at the authored 27px step; IEex_OptionRowStep tightens the step only
+--   if a longer list would run the bottom row into the Done/Cancel bar.
 --   Improved Pathfinding (21) is renderer-independent -> always visible. (Row 21 was 'UI Single
 --   Buffer', now hardwired via its ini key only: =0 is never correct with the GL present FBO --
 --   RENDER_COUNT=2 on a single buffer truncates dialog/UI text until an alt-tab FBO rebuild.)
@@ -187,10 +189,10 @@ IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration",
 --   world readability 7 action indicators, 9 empty containers, 27 selection circles,
 --                    23 portrait frames, 5 transparent fog
 --   interface        19 UI borders, 13 stretch UI, 29 integer zoom
---   display          17 vsync, 25 FPS cap, 15 FPS counter
+--   display          17 vsync, 15 FPS counter
 -- Every row coordinate is DERIVED from this table (IEex_OptionRowY), so reordering the menu
 -- is a one-line edit here -- it used to mean hand-editing 24 hardcoded y values in lockstep.
-IEEX_OPTION_ROW_ORDER = {11, 21, 7, 9, 27, 23, 5, 19, 13, 29, 17, 25, 15}
+IEEX_OPTION_ROW_ORDER = {11, 21, 7, 9, 27, 23, 5, 19, 13, 29, 17, 15}
 
 function IEex_OptionRowVisible(labelId)
 	if labelId == 5 then return not IEEX_GL_ACTIVE end
@@ -3257,17 +3259,6 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 						end
 					end
 				end,
-				-- "Cap FPS to Refresh" Toggle: on (!=9999) -> 9999 (uncapped); off -> 0 (auto = refresh-2).
-				[26] = function()
-					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "maxFps") ~= 9999 then
-						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "maxFps", 9999)
-					else
-						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "maxFps", 0)
-					end
-				end,
 				-- "Colored Selection Circles" Toggle
 				[28] = function()
 					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
@@ -3556,7 +3547,6 @@ function IEex_SetOptionDescription(labelId)
 		[19] = IEex_OptionText(ex_tra_56086, "Adds decorative stone borders around the interface: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty margins at the screen edges (for example on widescreen displays). When off, the world shows through those margins. Requires a restart to take effect."),
 		[21] = IEex_OptionText(ex_tra_56088, "GemRB-inspired pathfinding improvements: characters wait for walkers instead of shuffling, stop cleanly next to occupied destinations, no longer stop short of their goal, and enemies unclog doorways by shoving their own allies (never party members). Chasing a moving target keeps its path while the new one is computed, instead of standing still for the whole search -- that is what made a run to melee stop and start. Idle non-hostile NPCs can be shoved aside instead of walling off a corridor. Fine-tuning keys (IP *) live in icewind2.ini under [IEex Options]. Requires a restart to fully take effect."),
 		[23] = IEex_OptionText(ex_tra_56078, "Tints the selection frame around each party portrait with that character's own secondary (minor clothing) color, matching the circle under their feet. Off by default, since BG2EE colors the ground circles and not the portrait frames. Requires \"Colored selection circles\" and switches it on with this option. The frame is a 1-pixel hairline unless \"Portrait Frame Thickness\" under [IEex Options] in Icewind2.ini says otherwise (1 to 4 pixels, or 0 to follow the selection circles); it never covers the portrait itself."),
-		[25] = IEex_OptionText(ex_tra_56090, "Limits the framerate to your display's refresh rate to reduce GPU and CPU load. Requires a restart to take effect."),
 		[29] = IEex_OptionText(ex_tra_56092, "Restricts the mouse-wheel zoom to whole-number levels (1x, 2x, 3x...), where every map pixel becomes an exact square block of screen pixels and the artwork stays as sharp as the original game. In between those levels the map is enlarged by a fraction, so some pixels are stretched wider than others and the image shimmers slightly while the camera moves. Fully zoomed out is always 1x, the original 1:1 presentation. The trade-off is coarser steps: with this on the wheel jumps straight from one whole level to the next instead of easing through the range. OpenGL only."),
 		[27] = IEex_OptionText(ex_tra_56076, "Tints each party member's selection circle and move-destination marker with that character's own secondary (minor clothing) color instead of the vanilla green, the way BG2EE colors its party circles. On by default. Enemies stay red and neutrals cyan; a character who is talking stays white and a panicking one stays yellow. The party portraits keep their vanilla green frame unless \"Colored portrait frames\" is also on. Stroke widths are set under [IEex Options] in Icewind2.ini with \"Selection Circle Thickness\" (0 = automatic by resolution, the default, or 1 to 4 pixels) and \"Destination Marker Thickness\" (0 = one step lighter than the circles, the default); OpenGL only."),
 	}
@@ -5023,34 +5013,9 @@ function IEex_InstallIEexOptions()
 
 	end
 
-	-- "Cap FPS to Refresh" Label - ID 25
-	IEex_AddControlOverride("GUIOPT", 14, 25, "IEex_UI_Label")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.LABEL,
-		["id"] = 25,
-		["x"] = 24,
-		["y"] = IEex_OptionRowY(25),
-		["width"] = 358,
-		["height"] = 18,
-		["fontBam"] = "NORMAL",
-		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
-	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 25),
-		IEex_OptionText(ex_tra_56089, "Cap FPS to Display Refresh (restart required)"))
-
-	-- "Cap FPS to Refresh" Toggle - ID 26
-	IEex_AddControlOverride("GUIOPT", 14, 26, "IEex_UI_Button")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.BUTTON,
-		["id"] = 26,
-		["x"] = 394,
-		["y"] = IEex_OptionRowY(25) - 3,
-		["width"] = 23,
-		["height"] = 24,
-		["bam"] = "GBTNOPT3",
-		["frameUnpressed"] = 1,
-		["framePressed"] = 2,
-	})
+	-- (Row 25/26 was 'Cap FPS to Display Refresh', now hardwired via its ini key only: the cap needs
+	-- a restart to take effect anyway, so [IEex Options] "Max FPS" in Icewind2.ini is enough and the
+	-- slot goes to an option that applies live.)
 
 	if IEex_OptionRowVisible(27) then
 
@@ -5857,11 +5822,8 @@ function IEex_LoadOptions()
 	IEex_Helper_SetBridge(options, "coloredPortraitFrames",
 		IEex_GetPrivateProfileInt("IEex Options", "Colored Portrait Frames", 0, ".\\Icewind2.ini") ~= 0 and true or false)
 
-	-- "Cap FPS to Refresh" stores the actual Max FPS integer so an explicit value (e.g. 144) is PRESERVED:
-	-- the toggle only flips between capped (0 = auto, display refresh - 2) and 9999 (uncapped). On = any
-	-- value != 9999.
-	IEex_Helper_SetBridge(options, "maxFps",
-		IEex_GetPrivateProfileInt("IEex Options", "Max FPS", 0, ".\\Icewind2.ini"))
+	-- ("Max FPS" has no bridge entry: the frame cap is read straight from the ini by the DLL
+	-- (thread_hooks.cpp) and needs a restart anyway, so it has no menu row to drive.)
 
 	-- No bridge entry for keys that lost their row (Tile Atlas, Smooth Cursor): the bridge is
 	-- only the panel's edit buffer, and IEex_WriteOptions rewrites every key it holds on each
@@ -5909,9 +5871,6 @@ function IEex_WriteOptions()
 
 	IEex_WritePrivateProfileString("IEex Options", "Improved Pathfinding",
 		IEex_Helper_GetBridge(options, "improvedPathfinding") and "1" or "0", ".\\Icewind2.ini")
-
-	IEex_WritePrivateProfileString("IEex Options", "Max FPS",
-		tostring(IEex_Helper_GetBridge(options, "maxFps")), ".\\Icewind2.ini")
 
 	IEex_WritePrivateProfileString("IEex Options", "Colored Selection Circles",
 		IEex_Helper_GetBridge(options, "coloredCircles") and "1" or "0", ".\\Icewind2.ini")
@@ -5972,9 +5931,6 @@ function IEex_InitOptionButtons()
 		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 24),
 			IEex_Helper_GetBridge(options, "coloredPortraitFrames") and 3 or 1)
 	end
-
-	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 26),
-		IEex_Helper_GetBridge(options, "maxFps") ~= 9999 and 3 or 1)
 
 	if IEex_OptionRowVisible(27) then
 		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 28),
@@ -6042,7 +5998,7 @@ function IEex_InjectOptionIniComments()
 		["UI Borders"]                            = "Decorative stone borders: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty screen-edge margins. Restart required.",
 		["UI Single Buffer"]                      = "Single persistent UI buffer to reduce flicker of dynamic elements. Restart required. OpenGL only.",
 		["Smooth Cursor"]                         = "Sample the mouse at the render framerate for smoother cursor motion. Restart required. OpenGL only. (No longer in the options menu -- ini only.)",
-		["Max FPS"]                               = "Frame cap: 0 = auto (just under display refresh), 9999 = uncapped. The 'Cap FPS to Display Refresh' menu toggle flips 0/9999.",
+		["Max FPS"]                               = "Frame cap: 0 = auto (just under display refresh), 9999 = uncapped, or an explicit ceiling (e.g. 144). Restart required. (No longer in the options menu -- ini only.)",
 		["Fill Screen"]                           = "OpenGL: 1 = fit the game image to the desktop via an FBO; 0 = raw direct present (native resolution only).",
 		["Software Renderer"]                     = "1 = force the stock software (DirectDraw) renderer; 0 = OpenGL (default). [Program Options] '3D Acceleration' is rewritten from this every launch.",
 		["Gamma Normalized"]                      = "(internal) 1 = the one-time reset of [Program Options] 'Gamma Correction' to 0 already ran (the GOG-shipped 2 is tuned for the unmodded renderer). Delete this key to run the reset once more.",

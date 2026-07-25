@@ -17,6 +17,43 @@
 
 	IEex_DisableCodeProtection()
 
+	-----------------------------------------------------------------------------
+	-- SAVE-GAME PORTRAIT THUMBNAILS: always 21x21, whatever the UI scale ------ --
+	-----------------------------------------------------------------------------
+	-- CInfGame::SynchronousUpdate (0x5BE900) writes MPSave/<slot>/PORTRTn.BMP by rendering
+	-- the sprite's _S portrait to CVIDINF_SURFACE_2 at its NATIVE dims and calling
+	-- PrintSurfaceToBmp(&data, surface, rPortrait, &size, nScale) -- where nScale is a
+	-- box-DOWNSAMPLE divisor (CVidInf::PrintSurfaceToBmp emits w/nScale x h/nScale), hardcoded
+	-- 2 because the stock _S is 42x42 -> the vanilla 21x21 thumbnail. The 2x UI component ships
+	-- 84x84 _S portraits, so that same hardcoded 2 writes a 42x42 BMP into the save. Harmless
+	-- on a 2x install (the keyless-42x42 de-double further down fixes the DISPLAY), but the save
+	-- is now non-vanilla: read back on ANY 1x install (core-only, or after uninstalling the 2x
+	-- component) the Load/Save list blits it 1:1 into a 21x21 slot -> cropped, 2x-too-large
+	-- portraits. Pick the divisor from the source dims instead so the WRITTEN BMP is always
+	-- 21x21 = vanilla-compatible in both directions. Ungated on purpose -- gated on the bitmap's
+	-- own size, so it is a no-op with stock 42x42 art, and it must also run in the software
+	-- branch below (the 2x component copies its 84x84 _S regardless of the renderer key).
+	--
+	-- Site 0x5BF141 `push 2` (nScale) + the following `lea ecx,[esp+0x74]` (&size) = 6 bytes.
+	-- At 0x5BF141 esp == frame base: portraitSize.cx @[esp+0x74], .cy @[esp+0x78] (the same
+	-- slots the engine reads at 0x5BF0F8 to build rPortrait). eax = pVidMode `this` (consumed
+	-- at 0x5BF157) and edx = its vtable (0x5BF159) are both LIVE -> save/restore around the
+	-- test; ecx is dead (reloaded by the restored lea). NB the OTHER `push 2` at 0x5BF150 is
+	-- nSurface (CVIDINF_SURFACE_2), not a scale -- untouched.
+	IEex_AttemptHook(0x5BF141,
+		{[[
+			!push(eax) !push(edx)
+			!mov(eax,[esp+0x80]) ; portraitSize.cy, 0x78 + 8 for the two pushes ;
+			!cmp_eax_dword #00000054 !jne_dword >savescale_stock ; 84 -> HD _S ;
+			!mov(eax,[esp+0x7C]) ; portraitSize.cx, 0x74 + 8 ;
+			!cmp_eax_dword #00000054 !jne_dword >savescale_stock
+			!pop(edx) !pop(eax) !push_byte 04 !jmp_dword >savescale_done
+			@savescale_stock !pop(edx) !pop(eax) !push_byte 02
+			@savescale_done
+		]]},
+		{"8D 4C 24 74 !jmp_dword :5BF147"},
+		{0x6A, 0x02, 0x8D, 0x4C, 0x24, 0x74})
+
 	-- Software-renderer opt-out (stock ini key [Program Options] "3D Acceleration" = 0): every hook
 	-- below is a GL-rendering feature (menu + world UI scale, hit-test remap, cursor + font sizing,
 	-- torch pivot) and is meaningless / mis-aligning without the GL canvas. Force HD UI off and install

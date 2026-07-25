@@ -1502,17 +1502,11 @@
 	-- these same 7 prologue bytes (force bDoubleSize) -- IEEX_HD_UI and the
 	-- refonte are mutually exclusive until that forcing moves into the DLL.
 	--------------------------------------------------------------------------------
+	-- (The "Colored portrait frames" options row is gated on this same condition, captured at
+	-- load into IEEX_PORTRAIT_FRAMES_AVAILABLE next to IEex_PortraitGridEnabled in
+	-- IEex_Gui_State.lua -- it has to be a STATE global, since the options panel reads it from
+	-- the Async thread too.)
 	if IEex_PortraitGridEnabled then
-
-		-- The "Colored portrait frames" options row (label 23) exists iff THIS override is
-		-- installed -- it is the only code path that can tint or thicken the frame. The row
-		-- builder must NOT read IEex_PortraitGridEnabled itself: IEex_InstallPortraitGrid's
-		-- runtime veto (software renderer / non-GUIW10) flips that global false at GAME LOAD,
-		-- long after these bytes were written and after GUIOPT's panel was built -- and
-		-- IEex_InitOptionButtons re-tests row visibility on every panel open, so the toggle
-		-- would stop being initialised while its control was still on screen. The export runs
-		-- regardless of the veto, and its DrawLine fallback covers the software renderer.
-		IEEX_PORTRAIT_FRAMES_AVAILABLE = true
 
 		IEex_WriteAssembly(0x704D40, {[[
 			!mark_esp

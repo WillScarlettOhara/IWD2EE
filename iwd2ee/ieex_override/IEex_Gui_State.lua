@@ -189,13 +189,10 @@ IEEX_OPTION_ROW_ORDER = {11, 21, 7, 9, 27, 23, 5, 19, 13, 17, 25, 15}
 function IEex_OptionRowVisible(labelId)
 	if labelId == 5 then return not IEEX_GL_ACTIVE end
 	if labelId == 13 or labelId == 17 then return IEEX_GL_ACTIVE end
-	-- Set by IEex_Gui_Patch.lua at the moment it writes the RenderPortrait override. NOT
-	-- IEex_PortraitGridEnabled: IEex_InstallPortraitGrid's runtime veto flips that global false
-	-- at GAME LOAD, i.e. after this panel was built at startup but before later opens -- and
-	-- IEex_InitOptionButtons re-tests visibility on every open, so the toggle would stop being
-	-- initialised while its control was still on screen. The hook bytes are already written by
-	-- then, so the option keeps working regardless of the veto. `== true` keeps an undefined
-	-- global falsy-safe on a core-only install.
+	-- Captured from IEex_PortraitGridEnabled at load (see the declaration): read live it would
+	-- go false at game load via IEex_InstallPortraitGrid's veto, and read from a patch-file
+	-- global it would be missing on the Async thread, where IEex_InitOptionButtons runs.
+	-- `== true` keeps an undefined global falsy-safe on a core-only install.
 	if labelId == 23 then return IEEX_PORTRAIT_FRAMES_AVAILABLE == true end
 	return true
 end
@@ -870,6 +867,22 @@ IEex_ActionIndicatorsPanelID = 100
 -- pattern as IEEX_HD_UI). Runtime requirements enforced in IEex_InstallPortraitGrid:
 -- OpenGL renderer + GUIW10 (the installer flips this back off when unmet).
 IEex_PortraitGridEnabled = false
+
+-- Whether the "Colored portrait frames" options row (label 23) exists: that option is drawn by
+-- the RenderPortrait override, which only the refonte installs. Captured HERE, at load, for two
+-- independent reasons:
+--   * NOT read live, because IEex_InstallPortraitGrid's runtime veto (software renderer /
+--     non-GUIW10) flips IEex_PortraitGridEnabled false at GAME LOAD -- after the panel was built,
+--     and before later opens. The hook bytes are written by then and the override's DrawLine
+--     fallback covers software, so the option keeps working; only the flag would lie.
+--   * In a STATE file, because IEex_OptionRowVisible is called from BOTH threads: the row is
+--     built on Sync (CHU init) but IEex_InitOptionButtons runs on Async (the options button
+--     click, IEex_Extern_UI_ButtonLClick). A patch-file global exists in only one of those
+--     states, so the row built correctly and then its toggle silently kept the CHU default
+--     frame -- the checkbox read "off" while the bridge said on, so the first click only wrote
+--     "off" again and it took a second click to light up. Same reason IEEX_GL_ACTIVE lives here.
+IEEX_PORTRAIT_FRAMES_AVAILABLE = IEex_PortraitGridEnabled
+
 IEex_AllWorldScreenPanelIDs = {0, 1, 7, 8, 9, 6, 17, 19, 21, 22}
 if not IEex_Vanilla then
 	table.insert(IEex_AllWorldScreenPanelIDs, 23) -- Quickloot

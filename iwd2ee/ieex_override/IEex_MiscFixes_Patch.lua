@@ -94,6 +94,48 @@
 		{"!jmp_dword :621413"},
 		{0x6A, 0x00, 0x6A, 0x00, 0x50})
 
+	--------------------------------------------------------------------------------------------------------
+	-- The combat log / message window flickers during cutscenes and dialogues -- in single player only.    --
+	--                                                                                                      --
+	-- CScreenWorld::AsynchronousUpdate (0x68C3D0) applies eight CheckPanelInputMode(panelId, mask) rules    --
+	-- per AI tick, each of them "if (active || inactiveRender) panel->SetEnabled((m_mode & mask) != 0)".    --
+	-- Three of those rules resolve their panel through GetPanel_22_0 (mask 0x8), GetPanel_19_0 (0x100) and  --
+	-- GetPanel_21_0 (0x100) -- and all three return panel 0 unless a network session is open. So in single  --
+	-- player the message window gets three contradictory rules in the SAME tick: 0x8 fails in cutscene      --
+	-- (m_mode 0x142) and in dialogue (0x182 / 0x502) and disables the panel, then the two 0x100 rules pass  --
+	-- and re-enable it.                                                                                     --
+	--                                                                                                      --
+	-- Every edge runs the full body of CUIPanel::SetEnabled (0x4D29D0): SetActive over every control -- and --
+	-- CUIControlTextDisplay::SetActive unloads and re-registers the combat-log CVidFont, so the log's font  --
+	-- texture is destroyed and rebuilt once per tick -- plus SetInactiveRender and InvalidateRect(NULL).    --
+	-- CUIPanel::Render (0x4D3100) then draws RenderDither, a 50% black quad, over any frame that samples    --
+	-- the FALSE half of the toggle (the flip runs on the AI thread, Render reads m_bEnabled on the main     --
+	-- thread without the manager's critical section). That is the flicker. Original Black Isle bug: the     --
+	-- stock UI pulses too, it is simply small and low-contrast there, while the floating HUD puts the log   --
+	-- AND the whole command band on panel 0.                                                                --
+	--                                                                                                      --
+	-- Fix: skip the aliased 0x8 rule in single player. Both single-player branches of the inlined           --
+	-- GetPanel_22_0 jump to the "panel 0" xor eax,eax at 0x68C6D1; retarget them to the next rule at        --
+	-- 0x68C730 instead (both fit in rel8, so no length change).                                             --
+	--                                                                                                      --
+	-- End-of-tick state is unchanged in every mode. CheckPanelInputMode gates on (m_bActive ||              --
+	-- m_bInactiveRender), and SetEnabled(x) sets m_bActive = x and m_bInactiveRender = !x, so it can never  --
+	-- close that gate: within a tick the two 0x100 rules fire exactly when the removed 0x8 rule would have, --
+	-- and -- running last -- they already decided the final value. Only the intra-tick FALSE excursion is   --
+	-- gone. SetEnabled's unconditional tail (m_pManager->field_2E) keeps the same last writer, since the    --
+	-- 0x8 rule only ever wrote it when it passed TRUE, which is exactly when the 0x100 rules do too.        --
+	--                                                                                                      --
+	-- Multiplayer is untouched: there GetPanel_22_0/19_0/21_0 give 22 / 19 / 21, three distinct panels, and --
+	-- panel 22 keeps its own 0x8 rule.                                                                      --
+	--------------------------------------------------------------------------------------------------------
+
+	if IEex_ReadWord(0x68C6B5, 0) == 0x1A74 and IEex_ReadWord(0x68C6C8, 0) == 0x0774 then
+		IEex_WriteAssembly(0x68C6B5, {"!jz_byte", {0x68C730, 1, 1}})  -- je 0x68C6D1 -> je 0x68C730
+		IEex_WriteAssembly(0x68C6C8, {"!jz_byte", {0x68C730, 1, 1}})  -- je 0x68C6D1 -> je 0x68C730
+	else
+		print("[?] Unexpected bytes at 0x68C6B5 / 0x68C6C8 - cutscene panel-0 flap fix not applied.")
+	end
+
 	IEex_EnableCodeProtection()
 
 end)()

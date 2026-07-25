@@ -102,9 +102,11 @@ if not IEex_Vanilla then
 		{"Max FPS", 0},
 		{"Show FPS", 0},
 		{"Tile Atlas", 1},
-		{"Colored Selection Circles", 0},
+		{"Colored Selection Circles", 1},
 		{"Selection Circle Thickness", 0},
+		{"Destination Marker Thickness", 0},
 		{"Colored Portrait Frames", 0},
+		{"Portrait Frame Thickness", 1},
 		{"Smooth Cursor", 1},
 		{"Stretch UI to Screen", 0},
 		{"UI Borders", 1},
@@ -173,7 +175,16 @@ IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration",
 --   Buffer', now hardwired via its ini key only: =0 is never correct with the GL present FBO --
 --   RENDER_COUNT=2 on a single buffer truncates dialog/UI text until an alt-tab FBO rebuild.)
 -- IEex_OptionRowShift repacks the visible rows (27px step) so a hidden row leaves no gap.
-IEEX_OPTION_ROW_ORDER = {7, 9, 5, 11, 13, 15, 17, 19, 21, 23, 25, 27}
+--
+-- ORDER = what the player sees, top to bottom, grouped by what the option is about:
+--   rules            11 armour-in-combat, 21 pathfinding
+--   world readability 7 action indicators, 9 empty containers, 27 selection circles,
+--                    23 portrait frames, 5 transparent fog
+--   interface        19 UI borders, 13 stretch UI
+--   display          17 vsync, 25 FPS cap, 15 FPS counter
+-- Every row coordinate is DERIVED from this table (IEex_OptionRowY), so reordering the menu
+-- is a one-line edit here -- it used to mean hand-editing 24 hardcoded y values in lockstep.
+IEEX_OPTION_ROW_ORDER = {11, 21, 7, 9, 27, 23, 5, 19, 13, 17, 25, 15}
 
 function IEex_OptionRowVisible(labelId)
 	if labelId == 5 then return not IEEX_GL_ACTIVE end
@@ -195,6 +206,16 @@ end
 -- IEex_FetchString(0) would render strref 0.
 function IEex_OptionText(traId, fallback)
 	return (traId or 0) ~= 0 and IEex_FetchString(traId) or fallback
+end
+
+-- Y of a row's LABEL, straight from its position in IEEX_OPTION_ROW_ORDER: the rows are a
+-- 27px grid starting at 70, minus the repack for any hidden row above (IEex_OptionRowShift).
+-- Toggles sit 3px higher. Deriving both means the menu order lives in exactly one place.
+function IEex_OptionRowY(labelId)
+	for i, id in ipairs(IEEX_OPTION_ROW_ORDER) do
+		if id == labelId then return 70 + (i - 1) * 27 - IEex_OptionRowShift(labelId) end
+	end
+	return 70
 end
 
 function IEex_OptionRowShift(labelId)
@@ -3486,9 +3507,9 @@ function IEex_SetOptionDescription(labelId)
 		[17] = "Synchronizes frame presentation with your monitor's refresh rate to eliminate screen tearing.",
 		[19] = "Adds decorative stone borders around the interface: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty margins at the screen edges (for example on widescreen displays). When off, the world shows through those margins. Requires a restart to take effect.",
 		[21] = "GemRB-inspired pathfinding improvements: characters wait for walkers instead of shuffling, stop cleanly next to occupied destinations, no longer stop short of their goal, and enemies unclog doorways by shoving their own allies (never party members). Chasing a moving target keeps its path while the new one is computed, instead of standing still for the whole search -- that is what made a run to melee stop and start. Idle non-hostile NPCs can be shoved aside instead of walling off a corridor. Fine-tuning keys (IP *) live in icewind2.ini under [IEex Options]. Requires a restart to fully take effect.",
-		[23] = IEex_OptionText(ex_tra_56078, "Tints the selection frame around each party portrait with that character's own secondary (minor clothing) color, matching the circle under their feet. Requires \"Colored selection circles\" and switches it on with this option. The frame is as thick as the selection circles; \"Portrait Frame Thickness\" under [IEex Options] in Icewind2.ini overrides that (0 = follow the circles, or 1 to 4 pixels)."),
+		[23] = IEex_OptionText(ex_tra_56078, "Tints the selection frame around each party portrait with that character's own secondary (minor clothing) color, matching the circle under their feet. Off by default, since BG2EE colors the ground circles and not the portrait frames. Requires \"Colored selection circles\" and switches it on with this option. The frame is a 1-pixel hairline unless \"Portrait Frame Thickness\" under [IEex Options] in Icewind2.ini says otherwise (1 to 4 pixels, or 0 to follow the selection circles); it never covers the portrait itself."),
 		[25] = "Limits the framerate to your display's refresh rate to reduce GPU and CPU load. Requires a restart to take effect.",
-		[27] = IEex_OptionText(ex_tra_56076, "Tints each party member's selection circle and move-destination marker with that character's own secondary (minor clothing) color instead of the vanilla green. Enemies stay red and neutrals cyan; a character who is talking stays white and a panicking one stays yellow. The party portraits keep their vanilla green frame unless \"Colored portrait frames\" is also on. The thickness of the circles and markers is set with \"Selection Circle Thickness\" under [IEex Options] in Icewind2.ini (0 = automatic, or 1 to 4 pixels; OpenGL only)."),
+				[27] = IEex_OptionText(ex_tra_56076, "Tints each party member's selection circle and move-destination marker with that character's own secondary (minor clothing) color instead of the vanilla green, the way BG2EE colors its party circles. On by default. Enemies stay red and neutrals cyan; a character who is talking stays white and a panicking one stays yellow. The party portraits keep their vanilla green frame unless \"Colored portrait frames\" is also on. Stroke widths are set under [IEex Options] in Icewind2.ini with \"Selection Circle Thickness\" (0 = automatic by resolution, the default, or 1 to 4 pixels) and \"Destination Marker Thickness\" (0 = one step lighter than the circles, the default); OpenGL only."),
 	}
 	local d = descriptions[labelId]
 	if d == nil then return end
@@ -4619,7 +4640,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 5,
 		["x"] = 74,
-		["y"] = 124,
+		["y"] = IEex_OptionRowY(5),
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -4633,7 +4654,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 6,
 		["x"] = 394,
-		["y"] = 122,
+		["y"] = IEex_OptionRowY(5) - 3,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4649,7 +4670,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 7,
 		["x"] = 74,
-		["y"] = 70,
+		["y"] = IEex_OptionRowY(7),
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -4663,7 +4684,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 8,
 		["x"] = 394,
-		["y"] = 67,
+		["y"] = IEex_OptionRowY(7) - 3,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4677,7 +4698,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 9,
 		["x"] = 74,
-		["y"] = 97,
+		["y"] = IEex_OptionRowY(9),
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -4691,7 +4712,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 10,
 		["x"] = 394,
-		["y"] = 95,
+		["y"] = IEex_OptionRowY(9) - 3,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4705,7 +4726,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 11,
 		["x"] = 74,
-		["y"] = 151 - IEex_OptionRowShift(11),
+		["y"] = IEex_OptionRowY(11),
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -4719,7 +4740,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 12,
 		["x"] = 394,
-		["y"] = 150 - IEex_OptionRowShift(11),
+		["y"] = IEex_OptionRowY(11) - 3,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4735,7 +4756,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 13,
 		["x"] = 74,
-		["y"] = 178 - IEex_OptionRowShift(13),
+		["y"] = IEex_OptionRowY(13),
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -4749,7 +4770,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 14,
 		["x"] = 394,
-		["y"] = 175 - IEex_OptionRowShift(13),
+		["y"] = IEex_OptionRowY(13) - 3,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4765,7 +4786,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 15,
 		["x"] = 74,
-		["y"] = 205 - IEex_OptionRowShift(15),
+		["y"] = IEex_OptionRowY(15),
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -4779,7 +4800,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 16,
 		["x"] = 394,
-		["y"] = 202 - IEex_OptionRowShift(15),
+		["y"] = IEex_OptionRowY(15) - 3,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4795,7 +4816,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 17,
 		["x"] = 74,
-		["y"] = 232 - IEex_OptionRowShift(17),
+		["y"] = IEex_OptionRowY(17),
 		["width"] = 308,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -4809,7 +4830,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 18,
 		["x"] = 394,
-		["y"] = 229 - IEex_OptionRowShift(17),
+		["y"] = IEex_OptionRowY(17) - 3,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4825,7 +4846,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 19,
 		["x"] = 24,
-		["y"] = 259 - IEex_OptionRowShift(19),
+		["y"] = IEex_OptionRowY(19),
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -4839,7 +4860,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 20,
 		["x"] = 394,
-		["y"] = 256 - IEex_OptionRowShift(19),
+		["y"] = IEex_OptionRowY(19) - 3,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4855,7 +4876,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 21,
 		["x"] = 24,
-		["y"] = 286 - IEex_OptionRowShift(21),
+		["y"] = IEex_OptionRowY(21),
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -4869,7 +4890,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 22,
 		["x"] = 394,
-		["y"] = 283 - IEex_OptionRowShift(21),
+		["y"] = IEex_OptionRowY(21) - 3,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4887,7 +4908,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 23,
 		["x"] = 24,
-		["y"] = 313 - IEex_OptionRowShift(23),
+		["y"] = IEex_OptionRowY(23),
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -4902,7 +4923,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 24,
 		["x"] = 394,
-		["y"] = 310 - IEex_OptionRowShift(23),
+		["y"] = IEex_OptionRowY(23) - 3,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4918,7 +4939,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 25,
 		["x"] = 24,
-		["y"] = 340 - IEex_OptionRowShift(25),
+		["y"] = IEex_OptionRowY(25),
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -4932,7 +4953,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 26,
 		["x"] = 394,
-		["y"] = 337 - IEex_OptionRowShift(25),
+		["y"] = IEex_OptionRowY(25) - 3,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -4948,7 +4969,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.LABEL,
 		["id"] = 27,
 		["x"] = 24,
-		["y"] = 367 - IEex_OptionRowShift(27),
+		["y"] = IEex_OptionRowY(27),
 		["width"] = 358,
 		["height"] = 18,
 		["fontBam"] = "NORMAL",
@@ -4963,7 +4984,7 @@ function IEex_InstallIEexOptions()
 		["type"] = IEex_ControlStructType.BUTTON,
 		["id"] = 28,
 		["x"] = 394,
-		["y"] = 364 - IEex_OptionRowShift(27),
+		["y"] = IEex_OptionRowY(27) - 3,
 		["width"] = 23,
 		["height"] = 24,
 		["bam"] = "GBTNOPT3",
@@ -5752,7 +5773,7 @@ function IEex_LoadOptions()
 	-- Their consumers read the ini directly: IEex_HDTiles_Patch.lua for Tile Atlas, the
 	-- RenderPointer3d prologue in IEexHelper for Smooth Cursor.
 	IEex_Helper_SetBridge(options, "coloredCircles",
-		IEex_GetPrivateProfileInt("IEex Options", "Colored Selection Circles", 0, ".\\Icewind2.ini") ~= 0 and true or false)
+		IEex_GetPrivateProfileInt("IEex Options", "Colored Selection Circles", 1, ".\\Icewind2.ini") ~= 0 and true or false)
 end
 
 function IEex_WriteOptions()
@@ -5895,10 +5916,11 @@ function IEex_InjectOptionIniComments()
 		["IP Enemy Soft Block"]                   = "Improved Pathfinding sub-option: enemy searches soft-cost through bumpable allies instead of hard-blocking. Default off (enemies may path into the party line and grind).",
 		["IP Combat Slide"]                       = "Improved Pathfinding EXPERIMENTAL: melee allies may slide around their target to make room for more attackers instead of jamming corridors single-file. Party-only (enemies keep vanilla rules, so door/tunnel body-blocking gets STRONGER for the player); slides are short interpolated glides, ~2 cells max per burst. Default off.",
 		["Tile Atlas"]                            = "OpenGL: batch map tiles into an atlas texture for faster tile rendering. 1 = on. OpenGL only. (No longer in the options menu -- ini only.)",
-		["Colored Selection Circles"]             = "Tint each character's selection circle and move-destination marker with that character's own secondary (minor clothing) colour instead of the vanilla green. Enemies stay red, neutrals cyan, talking white, morale failure yellow. 0 = off (default); 1 = on. Colour only -- the stroke width is a separate key.",
-		["Selection Circle Thickness"]            = "Stroke width, in pixels, of the selection circles and move-destination markers (and of the party portrait frames, unless Portrait Frame Thickness overrides it). 0 = automatic (2 px, or 3 px above 1920 screen width), or force 1 to 4. 1 = the vanilla hairline. Thickness grows INWARD, so the outer edge -- and the click target -- never moves. OpenGL only.",
-		["Colored Portrait Frames"]               = "Tint the selection frame around each party portrait with that character's colour, matching the circle under their feet. 0 = vanilla green frames (default); 1 = tinted. In the options menu. Requires Colored Selection Circles = 1, and needs the World HUD Refonte component (that is what installs the portrait renderer this draws through).",
-		["Portrait Frame Thickness"]              = "Stroke width, in pixels, of the party portrait selection frames. 0 = follow Selection Circle Thickness (default), or force 1 to 4. 1 = the vanilla hairline. Grows inward. Under the software renderer, 0 means the vanilla hairline (the circle thickness is an OpenGL-only feature).",
+		["Colored Selection Circles"]             = "Tint each character's selection circle and move-destination marker with that character's own secondary (minor clothing) colour instead of the vanilla green, the way BG2EE colours its party circles. Enemies stay red, neutrals cyan, talking white, morale failure yellow. 1 = on (default); 0 = vanilla green. Colour only -- the stroke width is a separate key.",
+		["Selection Circle Thickness"]            = "Stroke width, in pixels, of the selection circles under characters. 0 = automatic (default: 2 px, or 3 px above 1920 screen width), or force 1 to 4. 1 = the vanilla hairline. Thickness grows INWARD, so the outer edge -- and the click target -- never moves. OpenGL only.",
+		["Destination Marker Thickness"]          = "Stroke width, in pixels, of the move-destination / target reticle. 0 = one step lighter than Selection Circle Thickness, never below 1 (default -- the BG2EE look, where the destination chevrons echo the circle rather than match it), or force 1 to 4. OpenGL only.",
+		["Colored Portrait Frames"]               = "Tint the selection frame around each party portrait with that character's colour, matching the circle under their feet. 0 = vanilla green frames (default -- BG2EE colours the ground circles, not the portrait frames); 1 = tinted. In the options menu. Requires Colored Selection Circles = 1, and needs the World HUD Refonte component (that is what installs the portrait renderer this draws through).",
+		["Portrait Frame Thickness"]              = "Stroke width, in pixels, of the party portrait selection frames. 1 = the vanilla hairline (default -- the slot is small and its frame sits right on the bust), up to 4, or 0 to follow Selection Circle Thickness. Grows inward but stops at the gap between the frame and the portrait art, so it never covers the face. Under the software renderer, 0 means the vanilla hairline (the circle thickness is an OpenGL-only feature).",
 		["Selection Circle Color Slot"]           = "Which creature colour drives the tint: 0 metal, 1 minor clothing (default -- the 'Couleur secondaire' swatch in the inventory), 2 major clothing, 3 skin, 4 leather, 5 armor, 6 hair.",
 		["Selection Circle Min Brightness"]       = "Legibility floor (0-255) for tinted circles, so a character in near-black clothing still gets a visible circle. The hue is preserved; only brightness is raised. Default 110; 0 disables.",
 		["UI Canvas Scale x10"]                   = "HD UI canvas scale x10: 10 = native 1.0x; >=11 enables the HD UI upscale (e.g. 20 = 2x). Written by the HD/2x UI component.",

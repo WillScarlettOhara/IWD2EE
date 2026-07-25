@@ -1548,6 +1548,28 @@
 			{[[ !jmp_dword ]], {rclickStub, 4, 4}},
 		}))
 
+		-- Drop the portrait BUTTON bitmap for the relocated slots. GUIRSPOR is authored for
+		-- the stock 46x46 square slot and its PRESSED frame has the green selection rectangle
+		-- baked into the ART (x/y 1 and 44; 2..3 and 88..89 on the HD 2x copy) -- that bitmap,
+		-- not any frame-drawing code, is most of the green border the stock HUD shows around a
+		-- selected portrait. In a 58x88 refonte slot the 46x46 art only covers the TOP-LEFT
+		-- corner, and RenderPortrait's bust rect (slot inset by 2*nScale) then covers the baked
+		-- green's right/bottom edges but never its top row / left column -> a green L stuck in
+		-- the corner, immune to "Portrait Frame Thickness" and to the marker fade because it is
+		-- a bitmap (Bubb, 2026-07-25); unselected, frame 0 leaves the same L in bezel grey.
+		-- The bust fills the slot and the frame quads draw the border, so the bitmap has no job
+		-- left here. Wraps the CVidCell blit in CUIControlButton::Render (ecx = the video mode,
+		-- esi = the control); the helper skips only CUIControlPortraitWorld.
+		local porCellStub = IEex_WriteAssemblyAuto({[[
+			51
+			!push(esi)
+			!call >IEex_Helper_PortraitButtonCellRender
+			!jmp_dword :4D522A
+		]]})
+		IEex_WriteAssembly(0x4D5225, IEex_FlattenTable({
+			{[[ !jmp_dword ]], {porCellStub, 4, 4}},
+		}))
+
 	end
 
 	-- The MOVEMENT right-click path is PARALLEL to the UI walk: CScreenWorld's

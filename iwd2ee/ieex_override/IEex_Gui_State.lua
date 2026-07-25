@@ -109,6 +109,7 @@ if not IEex_Vanilla then
 		{"Portrait Frame Thickness", 1},
 		{"Smooth Cursor", 1},
 		{"Stretch UI to Screen", 0},
+		{"Integer Zoom", 0},
 		{"UI Borders", 1},
 		{"Transparent Fog of War", 0},
 		{"Action Indicators", 1},
@@ -171,6 +172,10 @@ IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration",
 --   Update, not a draw call) -> always visible. Only the marker THICKNESS that ships with it is
 --   GL-only, and that has no row: [IEex Options] "Selection Circle Thickness" in Icewind2.ini.
 --   (Row 27 was 'Tile Atlas', now hardwired via its ini key only -- nobody turns it off.)
+--   Integer Zoom (29) is GL-only (the camera zoom is a GL matrix; the software renderer never
+--   leaves 1.0) -> hidden in software. It shares its slot in the layout with the software-only
+--   Transparent Fog of War (5): exactly one of the two is ever built, so the visible row count
+--   is unchanged in both renderers and the last row still lands above the Done/Cancel buttons.
 --   Improved Pathfinding (21) is renderer-independent -> always visible. (Row 21 was 'UI Single
 --   Buffer', now hardwired via its ini key only: =0 is never correct with the GL present FBO --
 --   RENDER_COUNT=2 on a single buffer truncates dialog/UI text until an alt-tab FBO rebuild.)
@@ -180,15 +185,15 @@ IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration",
 --   rules            11 armour-in-combat, 21 pathfinding
 --   world readability 7 action indicators, 9 empty containers, 27 selection circles,
 --                    23 portrait frames, 5 transparent fog
---   interface        19 UI borders, 13 stretch UI
+--   interface        19 UI borders, 13 stretch UI, 29 integer zoom
 --   display          17 vsync, 25 FPS cap, 15 FPS counter
 -- Every row coordinate is DERIVED from this table (IEex_OptionRowY), so reordering the menu
 -- is a one-line edit here -- it used to mean hand-editing 24 hardcoded y values in lockstep.
-IEEX_OPTION_ROW_ORDER = {11, 21, 7, 9, 27, 23, 5, 19, 13, 17, 25, 15}
+IEEX_OPTION_ROW_ORDER = {11, 21, 7, 9, 27, 23, 5, 19, 13, 29, 17, 25, 15}
 
 function IEex_OptionRowVisible(labelId)
 	if labelId == 5 then return not IEEX_GL_ACTIVE end
-	if labelId == 13 or labelId == 17 then return IEEX_GL_ACTIVE end
+	if labelId == 13 or labelId == 17 or labelId == 29 then return IEEX_GL_ACTIVE end
 	-- Captured from IEex_PortraitGridEnabled at load (see the declaration): read live it would
 	-- go false at game load via IEex_InstallPortraitGrid's veto, and read from a patch-file
 	-- global it would be missing on the Async thread, where IEex_InitOptionButtons runs.
@@ -3155,6 +3160,17 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 						IEex_Helper_SetBridge(workingOptions, "stretchUI", true)
 					end
 				end,
+				-- "Pixel-Perfect Zoom" Toggle
+				[30] = function()
+					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
+					if IEex_Helper_GetBridge(workingOptions, "integerZoom") then
+						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
+						IEex_Helper_SetBridge(workingOptions, "integerZoom", false)
+					else
+						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
+						IEex_Helper_SetBridge(workingOptions, "integerZoom", true)
+					end
+				end,
 				-- "Show FPS" Toggle
 				[16] = function()
 					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
@@ -3522,6 +3538,7 @@ function IEex_SetOptionDescription(labelId)
 		[21] = IEex_OptionText(ex_tra_56088, "GemRB-inspired pathfinding improvements: characters wait for walkers instead of shuffling, stop cleanly next to occupied destinations, no longer stop short of their goal, and enemies unclog doorways by shoving their own allies (never party members). Chasing a moving target keeps its path while the new one is computed, instead of standing still for the whole search -- that is what made a run to melee stop and start. Idle non-hostile NPCs can be shoved aside instead of walling off a corridor. Fine-tuning keys (IP *) live in icewind2.ini under [IEex Options]. Requires a restart to fully take effect."),
 		[23] = IEex_OptionText(ex_tra_56078, "Tints the selection frame around each party portrait with that character's own secondary (minor clothing) color, matching the circle under their feet. Off by default, since BG2EE colors the ground circles and not the portrait frames. Requires \"Colored selection circles\" and switches it on with this option. The frame is a 1-pixel hairline unless \"Portrait Frame Thickness\" under [IEex Options] in Icewind2.ini says otherwise (1 to 4 pixels, or 0 to follow the selection circles); it never covers the portrait itself."),
 		[25] = IEex_OptionText(ex_tra_56090, "Limits the framerate to your display's refresh rate to reduce GPU and CPU load. Requires a restart to take effect."),
+		[29] = IEex_OptionText(ex_tra_56092, "Restricts the mouse-wheel zoom to whole-number levels (1x, 2x, 3x...), where every map pixel becomes an exact square block of screen pixels and the artwork stays as sharp as the original game. In between those levels the map is enlarged by a fraction, so some pixels are stretched wider than others and the image shimmers slightly while the camera moves. Fully zoomed out is always 1x, the original 1:1 presentation. The trade-off is coarser steps: with this on the wheel jumps straight from one whole level to the next instead of easing through the range. OpenGL only."),
 		[27] = IEex_OptionText(ex_tra_56076, "Tints each party member's selection circle and move-destination marker with that character's own secondary (minor clothing) color instead of the vanilla green, the way BG2EE colors its party circles. On by default. Enemies stay red and neutrals cyan; a character who is talking stays white and a panicking one stays yellow. The party portraits keep their vanilla green frame unless \"Colored portrait frames\" is also on. Stroke widths are set under [IEex Options] in Icewind2.ini with \"Selection Circle Thickness\" (0 = automatic by resolution, the default, or 1 to 4 pixels) and \"Destination Marker Thickness\" (0 = one step lighter than the circles, the default); OpenGL only."),
 	}
 	local d = descriptions[labelId]
@@ -4794,6 +4811,42 @@ function IEex_InstallIEexOptions()
 
 	end
 
+	-- "Pixel-Perfect Zoom" Label + Toggle - ID 29 / 30. GL-only (the camera zoom is a GL matrix;
+	-- the software renderer stays at 1.0), so IEex_OptionRowVisible(29) hides it in software.
+	-- IEex_InitOptionButtons guards control 30 to match.
+	if IEex_OptionRowVisible(29) then
+
+	-- "Pixel-Perfect Zoom" Label - ID 29
+	IEex_AddControlOverride("GUIOPT", 14, 29, "IEex_UI_Label")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.LABEL,
+		["id"] = 29,
+		["x"] = 24,
+		["y"] = IEex_OptionRowY(29),
+		["width"] = 358,
+		["height"] = 18,
+		["fontBam"] = "NORMAL",
+		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
+	})
+	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 29),
+		IEex_OptionText(ex_tra_56091, "Pixel-perfect zoom"))
+
+	-- "Pixel-Perfect Zoom" Toggle - ID 30
+	IEex_AddControlOverride("GUIOPT", 14, 30, "IEex_UI_Button")
+	IEex_AddControlToPanel(newOptionsPanel, {
+		["type"] = IEex_ControlStructType.BUTTON,
+		["id"] = 30,
+		["x"] = 394,
+		["y"] = IEex_OptionRowY(29) - 3,
+		["width"] = 23,
+		["height"] = 24,
+		["bam"] = "GBTNOPT3",
+		["frameUnpressed"] = 1,
+		["framePressed"] = 2,
+	})
+
+	end
+
 	-- "Show FPS" Label - ID 15
 	IEex_AddControlOverride("GUIOPT", 14, 15, "IEex_UI_Label")
 	IEex_AddControlToPanel(newOptionsPanel, {
@@ -5765,6 +5818,11 @@ function IEex_LoadOptions()
 	IEex_Helper_SetBridge(options, "stretchUI",
 		IEex_GetPrivateProfileInt("IEex Options", "Stretch UI to Screen", 0, ".\\Icewind2.ini") ~= 0 and true or false)
 
+	-- Consumed by the DLL (ZoomApplyTicks re-reads the ini on each wheel event), not through the
+	-- bridge -- the bridge copy exists only to drive the menu row.
+	IEex_Helper_SetBridge(options, "integerZoom",
+		IEex_GetPrivateProfileInt("IEex Options", "Integer Zoom", 0, ".\\Icewind2.ini") ~= 0 and true or false)
+
 	IEex_Helper_SetBridge(options, "showFps",
 		IEex_GetPrivateProfileInt("IEex Options", "Show FPS", 0, ".\\Icewind2.ini") ~= 0 and true or false)
 
@@ -5818,6 +5876,9 @@ function IEex_WriteOptions()
 	IEex_WritePrivateProfileString("IEex Options", "Stretch UI to Screen",
 		IEex_Helper_GetBridge(options, "stretchUI") and "1" or "0", ".\\Icewind2.ini")
 
+	IEex_WritePrivateProfileString("IEex Options", "Integer Zoom",
+		IEex_Helper_GetBridge(options, "integerZoom") and "1" or "0", ".\\Icewind2.ini")
+
 	IEex_WritePrivateProfileString("IEex Options", "Show FPS",
 		IEex_Helper_GetBridge(options, "showFps") and "1" or "0", ".\\Icewind2.ini")
 
@@ -5865,6 +5926,11 @@ function IEex_InitOptionButtons()
 	if IEex_OptionRowVisible(13) then
 		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 14),
 			IEex_Helper_GetBridge(options, "stretchUI") and 3 or 1)
+	end
+
+	if IEex_OptionRowVisible(29) then -- control 30 ("Pixel-Perfect Zoom"): GL-only
+		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 30),
+			IEex_Helper_GetBridge(options, "integerZoom") and 3 or 1)
 	end
 
 	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 16),
@@ -5951,6 +6017,7 @@ function IEex_InjectOptionIniComments()
 		["Highlight Empty Containers in Gray"]    = "Highlight already-looted/empty containers in gray instead of green.",
 		["Prevent Equipping Armor During Combat"] = "Prevent party members from putting on armor while in combat.",
 		["Stretch UI to Screen"]                  = "1 = stretch the UI to fill the screen (larger, softer); 0 = native size, letterboxed (crisper). OpenGL only.",
+		["Integer Zoom"]                          = "1 = the mouse wheel only stops on whole-number zoom levels (1x, 2x, 3x ...), so one map pixel is always an exact square block of screen pixels; 0 = the default 0.15 steps, which land between whole levels and stretch some pixels wider than others. Fully zoomed out is 1x either way. OpenGL only.",
 		["Show FPS"]                              = "On-screen counter: render framerate, AI (game-logic) rate, and VRAM pool usage.",
 		["Vsync"]                                 = "Sync frame presentation to the display refresh to remove tearing. OpenGL only.",
 		["UI Borders"]                            = "Decorative stone borders: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty screen-edge margins. Restart required.",

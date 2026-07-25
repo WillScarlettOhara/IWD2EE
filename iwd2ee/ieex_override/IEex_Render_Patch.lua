@@ -355,18 +355,42 @@
 			@no_hook
 		]]}}))
 
-		-- Toggle common FoW interlacing for sprites
-		local spriteInterlaceHook = IEex_WriteAssemblyAuto({[[
+		-- Toggle common FoW interlacing for sprites: zero bFadeOut, arg 11 of
+		-- CGameAnimationType::Render (the vtable +0x90 call each hook site sits on), at
+		-- [esp+0x28] + 4 for this stub's own return address.
+		--
+		-- Under GL this is now UNCONDITIONAL, not option-gated. The engine expresses "in
+		-- explored-but-not-visible fog" on a sprite by punching a 50% checkerboard of colour
+		-- key through it (CVidInf::FXUnlock @0x79DB10, whose 3D branch dithers into
+		-- CVideo3d::texImageData just as the software one dithers into the back surface) so
+		-- the already-fogged ground shows through. That trick is resolution-dependent: at
+		-- 1024x768 it reads as a stippled but solid corpse, at 4K the 1px checkerboard is
+		-- below the eye's resolution and the corpse just looks semi-transparent -- measured on
+		-- a Targos goblin, the surviving pixels average [50,66,65] (snow bleeding through)
+		-- against software's saturated [25,31,21]. Since Export_FogTexDrawLate now darkens
+		-- sprites directly, the punch-out is redundant as well as wrong-looking: drop it and
+		-- the corpse renders solid, then takes the fog multiply like everything else.
+		-- Cost: creatures entering sight lose their fade-in stipple too (bFadeOut also covers
+		-- m_canBeSeen < VISIBLE_DELAY+1) -- the same trade the Transparent FoW option makes.
+		local spriteInterlaceHook = IEex_WriteAssemblyAuto(IEex_FlattenTable({
+			{[[
 			!mark_esp
 			!push(eax)
+			]]},
+			is3D and {[[
+			!marked_esp !mov([esp+2C],0)
+			]]} or {[[
 			!call ]], {getFogTypePtr, 4, 4}, [[
 			!cmp_[eax]_byte 00
 			!jz_dword >no_hook
 			!marked_esp !mov([esp+2C],0)
 			@no_hook
+			]]},
+			{[[
 			!pop(eax)
 			!ret
-		]]})
+		]]},
+		}))
 
 		for _, address in ipairs({0x56ECD3, 0x61DF8F, 0x62ED48, 0x7040AA, 0x704235, 0x70F4D9, 0x70FCDB, 0x710539}) do
 			IEex_HookRestore(address, 0, 6, {"!call", {spriteInterlaceHook, 4, 4}})

@@ -24,6 +24,10 @@ Unzip all files into your IWD2 folder. IWD2EE runs on both Windows and Linux, an
 - **Windows:** `iwd2ee-installer-windows-x86_64.exe` — run it.
 - **Linux:** `iwd2ee-installer-linux-x86_64` — `chmod +x` it, then run it from the IWD2 folder. It carries its own native WeiDU, so there is no Wine and nothing to set up.
 
+<img src="iwd2ee/png/IWD2Installers.png">
+
+On Linux the executable itself cannot carry an icon; run it once with `--install-desktop-entry` if you want it in your application menu and file manager with the icon above.
+
 ### Method 2 — WeiDU directly
 
 - **Windows:** double-click `Setup-iwd2ee.exe`.
@@ -34,7 +38,7 @@ Either way, the WeiDU prompts let you install, reinstall, or uninstall component
 ### After installing (both platforms)
 
 1. A new program appears in your IWD2 folder: `IWD2EE.exe`.
-<img src="https://github.com/RedChimera/semiOverhaul-v1.32/blob/master/iwd2ee/png/IWD2Programs.png">
+<img src="iwd2ee/png/IWD2Programs.png">
 2. You MUST start the game with `IWD2EE.exe` — on Linux, launch it through Wine / your usual launcher (Heroic, Lutris, etc.). If you start `IWD2.exe` instead, the game will crash during character creation or when you load a save game.
 
 If you are using any mods other than IWD2EE, you should also install the IWD2EE mod compatibility patch which comes with IWD2EE. Install the patch after IWD2EE and after all other mods.

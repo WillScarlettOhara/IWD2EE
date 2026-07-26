@@ -2,5 +2,29 @@ COPY ~%mod_folder%/bam/bam_new_gui~ ~override~
 
 COPY ~%mod_folder%/mos/mos_new_gui~ ~override~
 
+// --- 2x UI reverse-order hook. The two COPYs above lay this component's 1x art (bam_new_gui =
+//     MMTRCHA/MMTRCHB, mos_new_gui = START/STARTN/GUICHP0B-6B) over whatever is in override. If the
+//     2x UI (DESIGNATED 99/101) is ALREADY installed that overwrites its 2x MMTRCHB -- and MMTRCHB is
+//     resref-de-doubled in IEex_UIScale_Patch.lua, so the 1x art then renders HALF SIZE -- and leaves
+//     the New-GUI panels at 1x (NN-doubled, blurry). Mirror the DESIGNATED 37 block of
+//     components/2x_ui_resolution_gate.tpa, which covers the FORWARD order only. ---
+ACTION_IF (MOD_IS_INSTALLED ~iwd2ee.tp2~ ~99~) OR (MOD_IS_INSTALLED ~iwd2ee.tp2~ ~101~) BEGIN
+  ACTION_IF FILE_EXISTS ~%mod_folder%/mos/mos_2x_newgui/START.MOS~ BEGIN
+    PRINT ~[New GUI] 2x UI detected -- installing 2K versions of its panel MOS + disabling the menu torch.~
+    COPY ~%mod_folder%/mos/mos_2x_newgui~ ~override~
+    // re-lay the 2x torch art the bam_new_gui copy above just overwrote (kept correct for the case
+    // where this component is later uninstalled and the torch comes back on)
+    COPY ~%mod_folder%/bam/bam_2x_ui/MMTRCHB.BAM~ ~override~
+    // the New-GUI menu art has no torch holder -> ours would float
+    ACTION_IF FILE_EXISTS ~override/IEex_UIScale_Patch.lua~ BEGIN
+      COPY_EXISTING ~override/IEex_UIScale_Patch.lua~ ~override~
+        REPLACE_TEXTUALLY ~local IEEX_MENU_TORCH = true~ ~local IEEX_MENU_TORCH = false~
+      BUT_ONLY_IF_IT_CHANGES
+    END
+  END ELSE BEGIN
+    WARN ~[New GUI] 2x UI is installed but mos/mos_2x_newgui is missing -- its panels stay 1x.~
+  END
+END
+
 //COPY ~%mod_folder%/png/GUICHP0B.png~ ~override~
 //COPY ~%mod_folder%/png/GUICHP2B.png~ ~override~

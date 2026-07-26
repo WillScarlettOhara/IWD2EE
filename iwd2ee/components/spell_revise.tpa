@@ -1062,6 +1062,7 @@ COPY_EXISTING ~USSTIA1.spl~ ~override~
   SAY UNIDENTIFIED_DESC @1717
   SAY IDENTIFIED_DESC @1717
 COPY ~%mod_folder%/bam/USSTBIA.bam~ ~override~
+COPY ~%mod_folder%/bam/USSTBIA7.bam~ ~override~   // USSTIA1.spl's icon (0x3A + ability) -- was never copied
 COPY ~%mod_folder%/bam/USSTBIAB.bam~ ~override~
 COPY ~%mod_folder%/bam/USSTBIAC.bam~ ~override~
 COPY_EXISTING ~SPWI201.spl~ ~override~

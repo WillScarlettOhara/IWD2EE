@@ -170,6 +170,37 @@
 	IEex_Helper_DefineAddress("CVidCell::RenderTextureOriginal", IEex_Label("CVidCell::RenderTextureOriginal"))
 
 	--------------------------------------------------------------------------------
+	-- The OTHER two consumers of that same 512x512 scratch, for the same half-texel inset the
+	-- trampoline above carries (helper: FxTexelInsetBegin, ini key "FX Texel Inset"). Each binds
+	-- texture 2 itself, uploads glTexSubImage2D(0,0,W,H) and then draws a quad whose UVs run to
+	-- W/512 -- the border with whatever the PREVIOUS composite left there, so a fragment landing
+	-- on it samples one texel out of region:
+	--   0x7C56C0 CVidMosaic::RenderTexture  one MOS tile per call (nTileSize, normally 64) ->
+	--     the stale neighbour is the tile drawn just before, so the seam lands INSIDE a
+	--     background (menu / inventory / world map / HUD panels) rather than on its outline.
+	--     Highest exposure of the three: MOS draws through the NON-INTEGER Stage-1/Stage-2 UI
+	--     scale below 4K, exactly the case that puts a fragment on a texel border.
+	--   0x7C6800 CVidBitmap::RenderTexture  one <=512x512 chunk of a bitmap per call.
+	-- 7 displaced bytes each, verified with objdump against the live exe (NOT just the generated
+	-- IEex_Trace table): 83 EC 38 / DB 44 24 3C -> resume 0x7C56C7, and 83 EC 44 / DB 44 24 48 ->
+	-- resume 0x7C6807. That displaced `fild` reads an ARGUMENT through esp, which only stays
+	-- correct because the MaintainOriginal stub is entered with the real function's stack layout
+	-- (return address + args) -- same reason the 6-byte 81 EC 90 00 00 00 displacement works on
+	-- CVidInf::FXBltToBack. Do not pad or reorder the stub.
+	-- Both are ORDINARY __thiscall members (CVidCell::RenderTexture above is a STATIC = __cdecl),
+	-- so the helper bodies take the __fastcall pThis + edx-dummy shim.
+	--------------------------------------------------------------------------------
+	IEex_HookReplaceFunctionMaintainOriginal(0x7C56C0, 7, "CVidMosaic::RenderTextureOriginal", {[[
+		!jmp_dword >IEex_Helper_CVidMosaic_RenderTextureInset
+	]]})
+	IEex_Helper_DefineAddress("CVidMosaic::RenderTextureOriginal", IEex_Label("CVidMosaic::RenderTextureOriginal"))
+
+	IEex_HookReplaceFunctionMaintainOriginal(0x7C6800, 7, "CVidBitmap::RenderTextureOriginal", {[[
+		!jmp_dword >IEex_Helper_CVidBitmap_RenderTextureInset
+	]]})
+	IEex_Helper_DefineAddress("CVidBitmap::RenderTextureOriginal", IEex_Label("CVidBitmap::RenderTextureOriginal"))
+
+	--------------------------------------------------------------------------------
 	-- SHOW-FPS vs STRETCH. CVidInf::Flip (0x79C1E0) draws the Show-FPS counter via
 	-- DisplayFrameRate (vtable [edx+0x78]) AFTER the UI pass, at fixed top-centre coords
 	-- through the CURRENT MODELVIEW. On a full-screen UI engine Export_UIScaleRenderEndUI

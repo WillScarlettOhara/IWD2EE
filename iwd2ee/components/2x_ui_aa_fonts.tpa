@@ -42,9 +42,19 @@ END
 // Enable the supersample overlay: append the (core-shipped, inert) patch file to BOTH loader lists
 // in the deployed IEex_IWD2_Patch.lua, right after IEex_UIScale_Patch.lua. Reinstalls are safe:
 // WeiDU uninstalls (restores the backed-up file) before re-running this.
+//
+// The count guard is what keeps this component the SINGLE owner of the entry. Listing the file in
+// the core baseline as well looks harmless and is not: both lists would then carry it twice, the
+// loader dofile()s it twice, and every hook in it is installed twice -- the second
+// IEex_HookReplaceFunctionMaintainOriginal captures the FIRST one's jmp as its "original" prologue
+// and hands that trampoline to the DLL. The first CVidFont::GetFontHeight call (chargen button
+// construction, at startup) then runs off into unmapped memory. Cost one crash already.
 ACTION_IF FILE_EXISTS ~override/IEex_SupersampleFont_Patch.lua~ BEGIN
   COPY_EXISTING ~override/IEex_IWD2_Patch.lua~ ~override~
-    REPLACE_TEXTUALLY ~"override/IEex_UIScale_Patch.lua",~ ~"override/IEex_UIScale_Patch.lua",%WNL%	"override/IEex_SupersampleFont_Patch.lua",~
+    COUNT_REGEXP_INSTANCES ~IEex_SupersampleFont_Patch\.lua~ already_listed
+    PATCH_IF (already_listed = 0) BEGIN
+      REPLACE_TEXTUALLY ~"override/IEex_UIScale_Patch.lua",~ ~"override/IEex_UIScale_Patch.lua",%WNL%	"override/IEex_SupersampleFont_Patch.lua",~
+    END
   BUT_ONLY_IF_IT_CHANGES
 END ELSE BEGIN
   WARN ~[2x UI] override/IEex_SupersampleFont_Patch.lua not found (install the IWD2EE core first) -- floating world text stays stock.~

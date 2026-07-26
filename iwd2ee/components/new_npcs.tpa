@@ -189,6 +189,14 @@ COPY ~%mod_folder%/spl/spl_new_npcs~ ~override~
 
 COPY ~%mod_folder%/bam/bam_new_npcs~ ~override~
 
+// Vrek's portraits used to ship as VREK1S/VREK1L -- the only new NPC not following the
+// <base>_S / <base>_L convention, which is what both the 2x-UI upscale and the Floating
+// HUD's bust derivation (_S -> _B) key on, so he was the one NPC with no HD portrait and
+// no bust. Renamed to USVREK_*; these two aliases keep the OLD resrefs resolving for
+// saves whose party CRE was written before the rename (a saved CRE carries its own copy).
+COPY ~%mod_folder%/bam/bam_new_npcs/USVREK_S.BMP~ ~override/VREK1S.BMP~
+COPY ~%mod_folder%/bam/bam_new_npcs/USVREK_L.BMP~ ~override/VREK1L.BMP~
+
 /*
 COPY_EXISTING ~LISTINNT.2da~ ~override~
 	COUNT_2DA_ROWS 2 numrows
@@ -920,8 +928,8 @@ COPY_EXISTING ~20VREK.cre~ ~override~
 	LPF SET_CLASS_LEVELS_IWD2 INT_VAR newlevelbarbarian=6 STR_VAR updatehp=~max~ END
 	WRITE_LONG xp 9468
 	WRITE_SHORT armorclass 10
-	WRITE_ASCII smallportrait ~VREK1S~ #8
-	WRITE_ASCII largeportrait ~VREK1L~ #8
+	WRITE_ASCII smallportrait ~USVREK_S~ #8
+	WRITE_ASCII largeportrait ~USVREK_L~ #8
 	WRITE_BYTE fortitudesave 8
 	WRITE_BYTE reflexsave 4
 	WRITE_BYTE willsave 2

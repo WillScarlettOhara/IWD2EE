@@ -276,12 +276,16 @@
 	-- the wrong way). Export_DialogPanCompensateY retargets ptScroll.y to speakerWorldY - vpHeight/2
 	-- (dead-centre on the pivot -> zoom-invariant like the horizontal axis), identity at z<=1.
 	-- Hook @0x484b88, right after the GetViewPosition() call: esi = ptScroll.y (vanilla target), edi =
-	-- pSprite (m_pos.y @edi+0x0A = speaker world Y). Pass BOTH: push edi (arg2 = pSprite) then esi
-	-- (arg1 = ptScrollY). NB [esp+0x1c] here is nCurrentY -- the GetViewPosition result for the
-	-- dx^2+dy^2 jump-cut test, NOT the speaker (the old bug read it as speakerY). Displaces 8 bytes
-	-- (mov ecx,[esp+0x18]; mov eax,[esp+0x1c]); stub re-runs them, resumes 0x484b90. __stdcall callee
-	-- cleans its 8 bytes so esp is restored for the displaced [esp+0x18]/[esp+0x1c] reads.
+	-- pSprite (m_pos.y @edi+0x0A = speaker world Y), ebp = ptScroll.x (the sub at 0x484b90 and the
+	-- push at 0x484bb7 both use it). Push all three in reverse order: ebp (arg3 = ptScrollX), edi
+	-- (arg2 = pSprite), esi (arg1 = ptScrollY). arg3 is carried purely so the helper can CACHE this
+	-- line's whole target and re-issue it if the zoom changes later (Export_DialogZoomTick below).
+	-- NB [esp+0x1c] here is nCurrentY -- the GetViewPosition result for the dx^2+dy^2 jump-cut test,
+	-- NOT the speaker (the old bug read it as speakerY). Displaces 8 bytes (mov ecx,[esp+0x18]; mov
+	-- eax,[esp+0x1c]); stub re-runs them, resumes 0x484b90. __stdcall callee cleans its 12 bytes so
+	-- esp is restored for the displaced [esp+0x18]/[esp+0x1c] reads.
 	local dialogPanStub = IEex_WriteAssemblyAuto({[[
+		55
 		57
 		56
 		!call >IEex_Helper_DialogPanCompensateY
@@ -294,6 +298,28 @@
 		{[[ !jmp_dword ]], {dialogPanStub, 4, 4}},
 		{[[ 90 90 90 ]]},
 	}))
+
+	-- ---------------------------------------------------------------------------
+	-- Dialog re-centre on zoom change. Bubb asked for the zoom to be either disabled during dialog or
+	-- adjusted "for the centering of the speaker"; this is the second. The line's scroll target above
+	-- is computed once and is zoom-dependent twice over (the pivot-row branch, and the K/z HUD-strip
+	-- offset AdjustAutoScrollY adds inside StartScroll), so a wheel notch afterwards leaves the
+	-- speaker drifting -- or, when the target was clamped at a map edge, scaled clean off the screen.
+	-- Export_DialogZoomTick re-issues the cached line once the zoom ease settles.
+	--
+	-- Hook @0x483F00 = CGameDialogSprite::AsynchronousUpdate entry, which CScreenWorld::Asynchronous-
+	-- Update calls unconditionally every tick: the async thread, i.e. the same one that runs the
+	-- engine's own dialog scroll, so nothing writes m_ptScrollDest concurrently. NOT hooked on
+	-- CScreenWorld::AsynchronousUpdate itself (0x68C3D0) even though that is the natural site --
+	-- IEex baseline already HookRestores its first 7 bytes for IEex_Extern_CScreenWorld_Asynchronous-
+	-- Update (IEex_Gui_Patch.lua), and a second HookRestore on the same address would capture that
+	-- hook's own jmp as its "restore" bytes and loop. Displaces 6 bytes (mov eax,fs:0x0), re-run by
+	-- the stub before the SEH frame is built.
+	IEex_HookRestore(0x483F00, 0, 6, {[[
+		!push_all_registers_iwd2
+		!call >IEex_Helper_DialogZoomTick
+		!pop_all_registers_iwd2
+	]]})
 
 	-- ---------------------------------------------------------------------------
 	-- Scripted camera framing (cutscenes). A script's MoveViewPoint/MoveViewObject asks for a world

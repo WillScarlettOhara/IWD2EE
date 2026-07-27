@@ -114,6 +114,7 @@ if not IEex_Vanilla then
 		{"Cutscene Zoom", 1},
 		{"UI Borders", 1},
 		{"Transparent Fog of War", 0},
+		{"Floating HUD Size", 100},
 		{"Action Indicators", 1},
 		{"Highlight Empty Containers in Gray", 1},
 		{"Improved Pathfinding", 1},
@@ -3861,6 +3862,37 @@ end)
 -- the controls IN PLACE and WIDEN panel 1's rect so its IsOver test still covers the relocated row.
 -- Panel 1 also composites REPLACE in the HUD layer, so the portraits stay opaque (no garbage-alpha
 -- blend that turned the new-panel version transparent).
+-- Floating HUD VIRTUAL-CANVAS width: the width the refonte HUD is laid out on (log bottom-left,
+-- bars centre, portraits bottom-right OF THE CANVAS) before the DLL fits it to the real screen from
+-- the bottom-LEFT pivot (s = resW / canvas). Two ini keys:
+--   "Floating HUD Ref Width" (default 3840) = the width the layout is AUTHORED for -- where the full
+--      spread fits. Only meaningful at the engine 2x tier and only above resW: a narrower screen
+--      then shows the 4K layout SIZED DOWN, not an intermediate-res compaction.
+--   "Floating HUD Size" (default 100 = percent) = the player's size knob, and the only lever that
+--      grows the HUD past native: the canvas is divided by it, so >100 narrows the canvas below the
+--      screen (s > 1, bigger HUD, upscaled past the 2x art) and <100 widens it (smaller HUD). 100
+--      leaves the canvas exactly where it always was, at both tiers.
+-- nMult = the engine UI tier (2 = m_bUseNewGui / the 2x UI, else 1).
+-- MUST match the DLL's GetRefonteHudCanvasWidth (render.cpp) EXACTLY -- same integer division, same
+-- clamps, same order: the DLL scales + hit-tests against its own copy of this number, so any drift
+-- puts the clickable rects somewhere other than the drawn HUD.
+function IEex_Refonte_CanvasWidth(nResW, nMult)
+
+	local refW = IEex_GetPrivateProfileInt("IEex Options", "Floating HUD Ref Width", 3840, ".\\Icewind2.ini")
+	if refW < 2560 then refW = 2560 end
+	if refW > 7680 then refW = 7680 end
+
+	local pct = IEex_GetPrivateProfileInt("IEex Options", "Floating HUD Size", 100, ".\\Icewind2.ini")
+	if pct < 50 then pct = 50 end
+	if pct > 200 then pct = 200 end
+
+	local canvas = nResW
+	if nMult == 2 and refW > nResW then canvas = refW end
+	canvas = math.floor(canvas * 100 / pct)
+	if canvas < 800 then canvas = 800 end
+	return canvas
+end
+
 function IEex_InstallPortraitGrid(chuResref)
 
 	-- Refonte hard requirements -- unmet: leave the stock HUD and flip the flag so every
@@ -3897,20 +3929,16 @@ function IEex_InstallPortraitGrid(chuResref)
 	local s = (mgr ~= 0 and IEex_ReadDword(mgr + 0xAA) ~= 0) and 2 or 1
 	local resW, resH = IEex_GetResolution()
 
-	-- Virtual layout WIDTH (horizontal anchoring only). At 2x, lay the HUD out on a reference-width
-	-- canvas (default 4K) -- the width where the full spread fits (log bottom-left FULL, bars centre,
-	-- portraits bottom-right) -- and the DLL (Export_UIScale*, bottom-LEFT pivot) scales it to the
-	-- real screen. So a narrower 2x screen shows the 4K layout SIZED DOWN: big correct-shape log,
-	-- no compaction. At/above the reference, or without the 2x UI (s==1), layoutW == resW (native).
-	-- Must match the DLL's "Floating HUD Ref Width" (same key + default). Vertical stays resH-based
-	-- (the DLL scale pivots on the bottom edge, so bottom-anchoring is preserved automatically).
-	local layoutW = resW
-	if s == 2 then
-		local refW = IEex_GetPrivateProfileInt("IEex Options", "Floating HUD Ref Width", 3840, ".\\Icewind2.ini")
-		if refW < 2560 then refW = 2560 end
-		if refW > 7680 then refW = 7680 end
-		layoutW = math.max(resW, refW)
-	end
+	-- Virtual layout WIDTH (horizontal anchoring only) -- see IEex_Refonte_CanvasWidth. At 2x the HUD
+	-- is laid out on the authored reference-width canvas (default 4K) -- the width where the full
+	-- spread fits (log bottom-left FULL, bars centre, portraits bottom-right) -- and the DLL
+	-- (Export_UIScale*, bottom-LEFT pivot) scales it to the real screen, so a narrower 2x screen
+	-- shows the 4K layout SIZED DOWN: big correct-shape log, no compaction. "Floating HUD Size"
+	-- then scales that canvas either way (>100 = canvas narrower than the screen = a HUD bigger than
+	-- native), at BOTH tiers -- at the default 100 on a 1x install this is still just resW.
+	-- Vertical stays resH-based (the DLL scale pivots on the bottom edge, so bottom-anchoring is
+	-- preserved automatically).
+	local layoutW = IEex_Refonte_CanvasWidth(resW, s)
 
 	local panel1 = IEex_GetPanelFromEngine(worldScreen, 1)
 	local x1, y1, w1, h1 = IEex_GetPanelArea(panel1)
@@ -5108,25 +5136,23 @@ function IEex_OnCHUInitialized(chuResref)
 		-- Horizontal centring width for the dialog-family panels below (6 console / 7 SP-dialog /
 		-- 8 container / 9 button / 17 death). Under the Floating HUD (refonte) the DLL's Stage-2 GL
 		-- transform scales the whole world HUD about the bottom-LEFT (Export_UIScaleRenderBegin, cx=0)
-		-- over a virtual reference-width canvas Wv = max(resW, "Floating HUD Ref Width"), so a panel
-		-- centred on the PHYSICAL width lands at screen-x = ((resW-w)/2)*s -- left-of-centre and
-		-- undersized whenever resW < RefWidth (identity only at the author's 4K == RefWidth). Centre
-		-- these on the SAME canvas the refonte lays its own panels on: (centerW - w)/2 maps back to a
-		-- true screen-centre of resW/2. Gate = IEex_InstallPortraitGrid's own hard requirements
-		-- (GUIW10 + GL) so the stock/classic HUD (bottom-CENTRE pivot, where resW-centred is correct)
-		-- is untouched; and the canvas only diverges from resW under the engine 2x tier (m_bUseNewGui
-		-- @0x8CF6DC+0x4A28, == the DLL's UIMult) -- at 1x GetRefonteHudRefWidth returns resW, so
-		-- centerW == resW and nothing changes. (MP dialog = panel 21, never re-centred here: separate.)
+		-- over the virtual canvas IEex_Refonte_CanvasWidth describes, so a panel centred on the
+		-- PHYSICAL width lands at screen-x = ((resW-w)/2)*s -- left-of-centre and undersized whenever
+		-- the canvas is wider than the screen (identity only where canvas == resW). Centre these on
+		-- the SAME canvas the refonte lays its own panels on: (centerW - w)/2 maps back to a true
+		-- screen-centre of resW/2. Gate = IEex_InstallPortraitGrid's own hard requirements (GUIW10 +
+		-- GL) so the stock/classic HUD (bottom-CENTRE pivot, where resW-centred is correct) is
+		-- untouched; the UI tier (m_bUseNewGui @0x8CF6DC+0x4A28, == the DLL's UIMult) is now an
+		-- ARGUMENT rather than a gate, because "Floating HUD Size" moves the canvas at 1x too -- at
+		-- the default size the helper returns resW there and nothing changes.
+		-- (MP dialog = panel 21, never re-centred here: separate.)
 		local centerW = resW
 		local refonteChitin = IEex_ReadDword(0x8CF6D8)
 		if not IEex_Vanilla and IEex_PortraitGridEnabled and chuResref == "GUIW10"
 			and refonteChitin ~= 0x0 and IEex_ReadDword(refonteChitin + 0x91C) ~= 0x0
-			and IEex_ReadByte(IEex_ReadDword(0x8CF6DC) + 0x4A28, 0) ~= 0
 		then
-			local refW = IEex_GetPrivateProfileInt("IEex Options", "Floating HUD Ref Width", 3840, ".\\Icewind2.ini")
-			if refW < 2560 then refW = 2560 end
-			if refW > 7680 then refW = 7680 end
-			centerW = math.max(resW, refW)
+			local mult = IEex_ReadByte(IEex_ReadDword(0x8CF6DC) + 0x4A28, 0) ~= 0 and 2 or 1
+			centerW = IEex_Refonte_CanvasWidth(resW, mult)
 		end
 
 		-- Debug console (cheat bar, panel 6): every other panel here re-centres with its
@@ -5988,6 +6014,8 @@ function IEex_InjectOptionIniComments()
 		["UI Canvas Scale x10"]                   = "HD UI canvas scale x10: 10 = native 1.0x; >=11 enables the HD UI upscale (e.g. 20 = 2x). Written by the HD/2x UI component.",
 		["Windowed"]                              = "1 = run in a window -- a normal titlebar window whose client area is exactly the launch resolution, so pick a custom resolution in the launch dialog to size it (any size is safe there: a windowed run never switches the display mode, on Windows or Wine alike); 0 = fullscreen (default).",
 		["Run In Background"]                     = "Keep the game simulating, rendering and playing its audio while another window has the focus (alt-tab). 1 = on (default); 0 = the classic pause, which also mutes the game. Presents are skipped only while the window is minimised. Native Windows + OpenGL; Wine and the software renderer keep the stock behavior.",
+		["Floating HUD Size"]                     = "Size of the Floating HUD (World HUD Refonte), in percent. 100 = the shipped size, which is the SAME fraction of the screen at every resolution -- the HUD is laid out on a virtual canvas and scaled to fit, so a bigger screen does not make it smaller. Above 100 makes it bigger than that (150 = half again as large; past the native size the 2x art is upscaled, so it softens), below 100 smaller (down to 50). Takes effect on the next launch. Applies with or without the 2x UI component.",
+		["Floating HUD Ref Width"]                = "(advanced) Screen width the Floating HUD layout is AUTHORED for -- the width at which the full spread fits: full-size combat log bottom-left, bars centred, portrait busts bottom-right. Default 3840 (4K); 2560..7680. Any narrower screen shows that same layout scaled down rather than a rearranged one, so this is what keeps the HUD's proportions identical across resolutions. To change how BIG the HUD is, use Floating HUD Size instead. 2x UI only. Next launch.",
 		["Last Resolution"]                       = "(internal) last resolution the game ran at. May hold a custom size typed in the launch dialog rather than one of the display's own modes -- it comes back pre-filled and ticked on the next launch.",
 		["Transparent Fog of War"]                = "Transparent fog of war instead of the interlaced version. Software renderer only; ignored under OpenGL.",
 		["Action Indicators"]                     = "Action indicators above character portraits showing each character's current action(s).",

@@ -3952,30 +3952,6 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- 6x1 row anchored to the (virtual) bottom-right; control coords are panel-1-relative device px.
 	local rowLeft = layoutW - rowW - inset
 	local rowTop  = resH - slotH - inset
-	for i = 0, 5 do
-		local ctrl = IEex_GetControlFromPanel(panel1, i)
-		IEex_SetControlArea(ctrl, (rowLeft - x1) + i * (slotW + gap), rowTop - y1, slotW, slotH)
-	end
-
-	-- Hide the stock HP-bar strips (ctrl 50-55 = CUIControlButtonPortraitHealthBar, the 45x4 bars
-	-- the CHU parks under the stock portraits) so they don't orphan over the new bar block.
-	--
-	-- Clearing m_active alone did NOT hold -- the bars came back. Their Render gate is
-	-- `if (!m_active && !m_bInactiveRender) return` (0x77DE10), an OR, so kill BOTH flags. And
-	-- because something outside the decompiled source evidently flips one back on, ALSO zero the
-	-- size: CUIPanel::Render intersects the dirty rect with the control rect and only calls
-	-- Render() on a non-empty result, so a 0x0 control can never draw whatever the flags say.
-	-- Geometry is safe to own -- the bars' async update only writes their fill width (+0x666)
-	-- and BAM sequence, never m_size. Leave m_position alone (negative panel-relative coords
-	-- wrap 16-bit -- see the panel-0 origin note below).
-	for i = 50, 55 do
-		local strip = IEex_GetControlFromPanel(panel1, i)
-		if strip ~= 0x0 then
-			IEex_SetControlActive(strip, false)
-			IEex_SetControlInactiveRender(strip, false)
-			IEex_SetControlArea(strip, nil, nil, 0, 0)
-		end
-	end
 
 	-- Bottom-centre bar block = user art IEEXBARB.BMP (572x107): a plain top band (the
 	-- action bar), a dark recessed command band below it, and a STATUE at the right that
@@ -3984,6 +3960,8 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- OnCHUInitialized -- reads IEex_Refonte_CmdSlots[10] then) in a 10-slot grid (47x40,
 	-- pitch 49.7) on the dark band; pause (ctrl 10 = CGEAR orb) + party AI (ctrl 14)
 	-- leave the row and sit on the statue instead.
+	-- Computed HERE, before anything is placed, because the panel-1 origin below depends on the
+	-- block's left edge.
 	local btnW, btnH, btnGap = 38 * s, 38 * s, 3 * s
 	local blockW, blockH = 572 * s, 107 * s
 	-- Bottom row on the VIRTUAL canvas (layoutW): log bottom-left, bar block centred, portrait row
@@ -4006,10 +3984,47 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- Exposed for IEex_Refonte_RepositionQuickloot (panel 23 re-anchors above this block).
 	IEex_Refonte_BarBlock = { ["left"] = blockLeft, ["top"] = blockTop, ["w"] = blockW, ["h"] = blockH }
 
-	-- Action bar (ctrl 6-17, panel 1, in-place like the portraits).
+	-- PANEL 1 ORIGIN. The engine centres panel 1 on the PHYSICAL width, but the refonte lays its
+	-- controls out on the VIRTUAL canvas -- so the moment "Floating HUD Size" makes that canvas
+	-- narrower than the screen, the centred bar block starts LEFT of the stock origin and the action
+	-- bar's panel-relative x goes negative. Negative control coords wrap 16-bit (the same failure the
+	-- panel-0 re-origin below documents), which threw the leftmost action-bar buttons off screen.
+	-- Extend the origin left to cover the leftmost content when that happens; a canvas at least as
+	-- wide as the screen -- every install at the default size -- keeps the stock origin untouched.
+	-- Everything else in panel 1 is placed relative to THIS value, and the widened rect is written
+	-- from it below. Vertical is unaffected: the canvas only changes width, and panel 1's top is the
+	-- world viewport floor, which must not move.
+	local p1x = math.min(x1, abLeft - 2 * s)
+
+	for i = 0, 5 do
+		local ctrl = IEex_GetControlFromPanel(panel1, i)
+		IEex_SetControlArea(ctrl, (rowLeft - p1x) + i * (slotW + gap), rowTop - y1, slotW, slotH)
+	end
+
+	-- Hide the stock HP-bar strips (ctrl 50-55 = CUIControlButtonPortraitHealthBar, the 45x4 bars
+	-- the CHU parks under the stock portraits) so they don't orphan over the new bar block.
+	--
+	-- Clearing m_active alone did NOT hold -- the bars came back. Their Render gate is
+	-- `if (!m_active && !m_bInactiveRender) return` (0x77DE10), an OR, so kill BOTH flags. And
+	-- because something outside the decompiled source evidently flips one back on, ALSO zero the
+	-- size: CUIPanel::Render intersects the dirty rect with the control rect and only calls
+	-- Render() on a non-empty result, so a 0x0 control can never draw whatever the flags say.
+	-- Geometry is safe to own -- the bars' async update only writes their fill width (+0x666)
+	-- and BAM sequence, never m_size. Leave m_position alone (negative panel-relative coords
+	-- wrap 16-bit -- see the panel-0 origin note below).
+	for i = 50, 55 do
+		local strip = IEex_GetControlFromPanel(panel1, i)
+		if strip ~= 0x0 then
+			IEex_SetControlActive(strip, false)
+			IEex_SetControlInactiveRender(strip, false)
+			IEex_SetControlArea(strip, nil, nil, 0, 0)
+		end
+	end
+
+	-- Action bar (ctrl 6-17, panel 1, in-place like the portraits). Block geometry above.
 	for i = 6, 17 do
 		local ctrl = IEex_GetControlFromPanel(panel1, i)
-		IEex_SetControlArea(ctrl, (abLeft - x1) + (i - 6) * (btnW + btnGap), abTop - y1, btnW, btnH)
+		IEex_SetControlArea(ctrl, (abLeft - p1x) + (i - 6) * (btnW + btnGap), abTop - y1, btnW, btnH)
 	end
 
 	-- Combat log: bottom-left box skinned with IEEXLOGB.BMP (user art, 551x107: thin
@@ -4136,8 +4151,12 @@ function IEex_InstallPortraitGrid(chuResref)
 	IEex_Refonte_ApplyLogHeight(IEex_Refonte_LogHeightIdx)
 
 	-- Widen panel 1's rect so IsOver (portrait hover / targeting) still covers the relocated row.
-	-- Origin unchanged -> viewport floor (panel-1 top) unchanged; only extend down/right.
-	IEex_SetPanelArea(panel1, x1, y1, math.max(w1, layoutW - inset - x1), math.max(h1, resH - inset - y1))
+	-- TOP unchanged -> viewport floor (panel-1 top) unchanged; extend down/right, and left as far as
+	-- p1x when the canvas is narrower than the screen (see the origin note above). The width keeps
+	-- the old right edge (w1 + the leftward shift) as its floor, so the panel never shrinks.
+	IEex_SetPanelArea(panel1, p1x, y1,
+		math.max(w1 + (x1 - p1x), layoutW - inset - p1x),
+		math.max(h1, resH - inset - y1))
 
 	-- Register panel 1's REAL content sub-rects for the HUD-layer composite so the widened rect's
 	-- transparent gap shows the world instead of opaque black (the composite REPLACEs a MOS panel's

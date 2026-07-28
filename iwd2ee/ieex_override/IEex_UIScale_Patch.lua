@@ -491,6 +491,39 @@
 		IEex_AttemptHook(0x7AE46E,  -- CVidCell::StoreBackground: grow save-under to cover the cursor stack number
 			{"83 C2 30 83 C1 60"},  -- right += 0x30, bottom += 0x60 (clamped to screen by the following code)
 			{"8B 5C 24 34 8B E8 !jmp_dword :7AE474"}, {0x8B, 0x5C, 0x24, 0x34, 0x8B, 0xE8})
+		-- Cursor stack-number TRUNCATION: mid-drag the count renders as a cut-off top-left fragment,
+		-- and stays cut with the mouse held still. CVidInf::RenderPointerImage (0x79FBA0) places it
+		-- with constants sized for the stock 6x7 NUMBER, and carries NO scale register at all --
+		-- unlike CIcon::RenderIcon, which does the same job as 5*scale (4E69C7 lea eax,[ebx+ebx*4]):
+		--     79FE93  lea eax,[ecx-0x7]     X anchor = (item frameSize.cx - ptCenter.x) - 7
+		--     79FEB4  add eax,0xFFFFFFF9    Y anchor = (item frameSize.cy - ptCenter.y) - 7
+		--     79FF60  sub edi,0x5           per-digit X advance
+		--     79FE96/79FE9B, 79FEB7/79FEBC  the two max(...,9) floors
+		-- The -7 is really "one glyph height in from the item's bottom-right corner", so the stock
+		-- 6x7 glyph lands flush: X ends 1px inside the item frame, Y exactly on its edge. Ours is
+		-- 12x14, so the same inset overshoots by exactly 5px right and 7px down.
+		--
+		-- Under OpenGL that overshoot is CUT, which is why the bug is 2x-only and renderer-specific:
+		-- CVidInf::RenderPointer3d (0x7BE300) hands RenderPointerImage a COPY of m_rPointerStorage as
+		-- its rClip -- 7BE424 fills the rect, then 7BE42E..7BE445 copies the 16 bytes onto the stack
+		-- for the call at 7BE457 -- so the save-under rect IS the hard clip. StoreBackground sizes it
+		-- to the ITEM frame (left = x - cx, right = max(left + W, left + cx + 16)), so the digit is
+		-- geometrically clipped. The 2D path passes a full-screen CRect instead, where the same
+		-- overshoot would only have trailed. Note this also means the rStorage inflate above never
+		-- runs here: that hook is on CVidCell vftable +0x14 (0x7AE3F0, DirectDraw), while the GL
+		-- pointer path takes +0x10 (0x7C4120).
+		--
+		-- Fix: scale the constants to the glyph we ship -- 7 -> 14, 5 -> 10, 9 -> 18. Reproduces the
+		-- stock geometry (X ends 2px inside, Y flush) and restores the digit overlap ratio so
+		-- multi-digit counts stop mashing together. Gated on IEEX_HD_UI because it tracks the GLYPH,
+		-- not the item art: an item icon that was never upscaled still lands correctly.
+		IEex_WriteByte(0x79FE95, 0xF2)   -- lea eax,[ecx-0x7]  -> [ecx-0x0E]  (X anchor inset)
+		IEex_WriteByte(0x79FEB6, 0xF2)   -- add eax,-7         -> add eax,-14 (Y anchor inset)
+		IEex_WriteByte(0x79FF62, 0x0A)   -- sub edi,5          -> sub edi,10  (digit pitch)
+		IEex_WriteByte(0x79FE98, 0x12)   -- cmp eax,9          -> cmp eax,18  (X floor test)
+		IEex_WriteDword(0x79FE9C, 18)    -- mov eax,9          -> mov eax,18  (X floor value)
+		IEex_WriteByte(0x79FEB9, 0x12)   -- cmp eax,9          -> cmp eax,18  (Y floor test)
+		IEex_WriteDword(0x79FEBD, 18)    -- mov eax,9          -> mov eax,18  (Y floor value)
 		IEex_AttemptHook(0x77F520,  -- CResCell::GetFrame (metrics); bDoubleSize arg @[esp+0x0C] (->+0x10 after push)
 			{hd_match .. "!mov([esp+10],0) @skip !pop(eax)"},
 			{"8B 51 64 56 85 D2 !jmp_dword :77F526"}, {0x8B, 0x51, 0x64, 0x56, 0x85, 0xD2})

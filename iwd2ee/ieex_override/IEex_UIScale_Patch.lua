@@ -473,24 +473,30 @@
 		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) !cmp_eax_dword #4F464E49 !jne_dword >notinfo !mov(eax,[ecx+0x10]) !mov(eax,[eax+0x4]) !cmp_eax_dword #544E4F46 !jz_dword >skip @notinfo "
 		hd_match = hd_match .. "!mov(eax,[ecx+0x10]) !mov(eax,[eax]) 25 FF 00 00 00 !cmp_eax_dword #00000049 !jz_dword >hit "
 		hd_match = hd_match .. "!jmp_dword >skip @hit "
-		-- === HD cursor save-under: enlarge the pointer backup surfaces (height 64 -> 256) ===
-		-- The dragged-item cursor draws the de-doubled item icon (~128px tall) + its stack number.
-		-- The cursor save-under backup (CVidInf SURFACE_4/5) is hardcoded 256x64 in THREE spots --
-		-- a 2x item overflows the 64px height -> StoreBackground/RestoreBackground (and the
-		-- SURFACE_4->5 double-buffer sync) can't save/restore the bottom -> trailing smear. Patch
-		-- all three heights to 256 (width stays 256 -> uniform, no desync). 256x256 covers a 2x
-		-- item + number (and a future 2x cursor).
-		IEex_WriteDword(0x79B7C6, 0x100)  -- CreateSurfaces: SURFACE_4/5 dwHeight  64 -> 256
-		IEex_WriteDword(0x79C282, 0x100)  -- Flip3d sync-blit src rect bottom      64 -> 256
-		IEex_WriteDword(0x79C59A, 0x100)  -- cursor-surface dims getter height     64 -> 256
-		-- Cursor stack-number trail: on the dragged cursor the number is positioned from the ITEM's
-		-- frameSize (CVidInf::RenderPointerImage), drawn at the item's lower-right corner = at/just
-		-- past the save-under rect, regardless of NUMBER.BAM's own cx/cy. Extend rStorage right+bottom
-		-- BEFORE the rClip clamp so the number region is saved/restored each frame.
-		-- At 0x7AE46E the rect is in regs: eax=left esi=top edx=right ecx=bottom (pre-clamp).
-		IEex_AttemptHook(0x7AE46E,  -- CVidCell::StoreBackground: grow save-under to cover the cursor stack number
-			{"83 C2 30 83 C1 60"},  -- right += 0x30, bottom += 0x60 (clamped to screen by the following code)
-			{"8B 5C 24 34 8B E8 !jmp_dword :7AE474"}, {0x8B, 0x5C, 0x24, 0x34, 0x8B, 0xE8})
+		-- REMOVED: the dragged-item cursor save-under fixes that used to live here -- three
+		-- IEex_WriteDword(0x79B7C6 / 0x79C282 / 0x79C59A, 0x100) growing the pointer backup surfaces
+		-- 256x64 -> 256x256, and an IEex_AttemptHook(0x7AE46E) inflating rStorage right += 0x30,
+		-- bottom += 0x60. They were correct when written, and they are unreachable now: every one of
+		-- them is on the DirectDraw path, and this file returns before any of it when the software
+		-- renderer is selected -- so they only ever installed under GL, where none of them can run.
+		--   0x79B7C6 is in CVidInf::CreateSurfaces (0x79B4A0), which ActivateVideoMode (0x79B100)
+		--     never reaches under GL: it opens with `if (m_bIs3dAccelerated) return ActivateVideoMode3d`.
+		--     So pSurfaces[CVIDINF_SURFACE_4] is never allocated.
+		--   0x79C59A is in GetCursorSurfaceSize (0x79C580), on its `SURFACE_4 != NULL` branch -- dead
+		--     per the above, and nothing calls it anyway.
+		--   0x79C282 is in the DirectDraw body of FullScreenFlip (79C245 je 0x79C25B; the 3D branch
+		--     calls WindowedFlip3d and returns at 79C258). The old comment called it a "Flip3d" rect,
+		--     which was simply wrong.
+		--   0x7AE46E is in the 7-arg CVidCell::StoreBackground (0x7AE3F0, vftable +0x14). Its only two
+		--     callers are RenderPointer() 0x79F6A0 -- which IEex_Gui_Patch.lua stubs to `mov eax,0/ret`
+		--     -- and the DirectDraw body of RenderPointer(UINT) 0x79F950. RenderPointer3d calls the
+		--     FIVE-arg overload at vftable +0x10 (0x7C4120), a different function.
+		-- They were authored 2026-06-21 (9983810f) while installs still ran 3D Acceleration=0, and were
+		-- orphaned on 2026-07-02 by 8200faf8, which normalizes that key to 1 every launch. Nothing needs
+		-- porting to the GL path: there is no save-under blit there at all (0x7C4120 only computes the
+		-- rect), and that rect already spans the whole item frame, which covers both the icon and -- since
+		-- the anchor fix below -- the stack digit.
+		--
 		-- Cursor stack-number TRUNCATION: mid-drag the count renders as a cut-off top-left fragment,
 		-- and stays cut with the mouse held still. CVidInf::RenderPointerImage (0x79FBA0) places it
 		-- with constants sized for the stock 6x7 NUMBER, and carries NO scale register at all --
@@ -509,9 +515,8 @@
 		-- for the call at 7BE457 -- so the save-under rect IS the hard clip. StoreBackground sizes it
 		-- to the ITEM frame (left = x - cx, right = max(left + W, left + cx + 16)), so the digit is
 		-- geometrically clipped. The 2D path passes a full-screen CRect instead, where the same
-		-- overshoot would only have trailed. Note this also means the rStorage inflate above never
-		-- runs here: that hook is on CVidCell vftable +0x14 (0x7AE3F0, DirectDraw), while the GL
-		-- pointer path takes +0x10 (0x7C4120).
+		-- overshoot would only have trailed -- which is why the DirectDraw-side rStorage inflate
+		-- removed above could never have helped here.
 		--
 		-- Fix: scale the constants to the glyph we ship -- 7 -> 14, 5 -> 10, 9 -> 18. Reproduces the
 		-- stock geometry (X ends 2px inside, Y flush) and restores the digit overlap ratio so

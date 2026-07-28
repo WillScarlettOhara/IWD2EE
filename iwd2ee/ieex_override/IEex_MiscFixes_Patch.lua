@@ -95,6 +95,51 @@
 		{0x6A, 0x00, 0x6A, 0x00, 0x50})
 
 	--------------------------------------------------------------------------------------------------------
+	-- Action bar: the uses-remaining digit sits in the MIDDLE of the button instead of its bottom-right    --
+	-- corner. Invisible at 1x; it only surfaces once the UI runs at the engine's 2x tier.                   --
+	--                                                                                                      --
+	-- CIcon::RenderIcon (0x4E66E0) anchors the count at icon_origin + LAST_DIGIT_OFFSET * scale, where      --
+	-- LAST_DIGIT_OFFSET = (25,25) @0x8D7E68/0x8D7E6C and scale = bDoubleSize ? 2 : 1. It has TWO count      --
+	-- branches and only one of them applies that scale:                                                     --
+	--     wCount > 0    4E693F  imul eax,[8D7E68]      4E698A  imul eax,[8D7E6C]     -- correct             --
+	--     bForceCount   4E6A67  mov  ecx,[8D7E6C]      4E6A6D  mov  eax,[8D7E68]     -- no imul, plain 25   --
+	-- So a forced digit always lands at +25,+25. Inside the 32px icon box of the 1x tier that IS the        --
+	-- bottom-right corner; at 2x the box is 64px and +25,+25 is its centre. Original Black Isle bug -- the  --
+	-- pristine pre-mod exe is byte-identical, and the sibling branch four hundred bytes earlier shows the   --
+	-- intent. The glyph itself is already right: NUMBER.BAM ships at 2x and is de-doubled, so only the      --
+	-- offset is stuck at 1x.                                                                                --
+	--                                                                                                      --
+	-- The action bar builds its own geometry rather than reading the CHU -- CInfButtonArray::RenderButton   --
+	-- (0x5950F0) passes size = ICON_SIZE_SM * nScale and ptIcon = pt + 3*nScale -- so RenderIcon's          --
+	-- centering step is a no-op there and the anchor is exactly pt + (3 + 25) * nScale once scaled: 28 at   --
+	-- 1x in a 38px button, 56 at 2x in a 76px one. The same 74% of the button either way.                    --
+	--                                                                                                      --
+	-- This cannot move the inventory stack count, which is what makes it different from the obvious fix.    --
+	-- Retuning NUMBER.BAM's cx/cy reaches every count in the game and drags the inventory and dragged-item  --
+	-- ones off their slots with it. This branch does not: 4E69E4 loads bForceCount and 4E69ED skips the     --
+	-- whole thing when it is zero, and of the fourteen RenderIcon call sites exactly one passes TRUE --     --
+	-- 0x595790, the spell/ability slot of the action bar, when the slot art is STONSPEL/STONSPEC. Inventory --
+	-- (0x62E30E), stores, ground containers (0x6963F8) and chargen all pass FALSE and take the already      --
+	-- correct wCount branch; the dragged-item cursor is not CIcon at all (CVidInf::RenderPointerImage,      --
+	-- 0x79FBA0, which carries its own 1x NUMBER and its own anchor).                                        --
+	--                                                                                                      --
+	-- Fix: mirror the wCount branch and scale both offsets by ebx, the scale register the function already  --
+	-- keeps (the sibling branch reads it identically, and 4E69C7 lea eax,[ebx+ebx*4] is its 5px digit       --
+	-- pitch). ebx is callee-saved across the intervening calls; eax and ecx are dead on entry here. imul's  --
+	-- flag writes are harmless -- 4E6A72 add ebp,ecx overwrites them before anything branches. Left         --
+	-- ungated: the bug is in the stock engine's own 1600/2048-width tiers too, and at 1x imul by 1 is a     --
+	-- no-op, so 1x behaviour stays bit-identical.                                                           --
+	--------------------------------------------------------------------------------------------------------
+
+	-- mov ecx,[8D7E6C] ; imul ecx,ebx ; mov eax,[8D7E68] ; imul eax,ebx
+	-- Both movs are replicated: the 5-byte jmp only covers the first, so resume past the second at 4E6A72.
+
+	IEex_AttemptHook(0x4E6A67,  -- CIcon::RenderIcon (0x4E66E0), bForceCount branch
+		{"8B 0D 6C 7E 8D 00 0F AF CB A1 68 7E 8D 00 0F AF C3"},
+		{"!jmp_dword :4E6A72"},
+		{0x8B, 0x0D, 0x6C, 0x7E, 0x8D})
+
+	--------------------------------------------------------------------------------------------------------
 	-- The combat log / message window flickers during cutscenes and dialogues -- in single player only.    --
 	--                                                                                                      --
 	-- CScreenWorld::AsynchronousUpdate (0x68C3D0) applies eight CheckPanelInputMode(panelId, mask) rules    --

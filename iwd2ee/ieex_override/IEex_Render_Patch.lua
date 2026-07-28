@@ -277,6 +277,38 @@
 		-- jg @0x703B4F, in CGameSprite::Render 0x703700 -- kept vanilla by user
 		-- choice.)
 		IEex_WriteAssembly(0x5CE2FA, {"!repeat(2,!nop)"})
+
+		-----------------------------------------------------------------------------
+		-- GREY-OUT (DISABLED UI) UNDER GL ------------------------------------- --
+		-----------------------------------------------------------------------------
+		-- Same bug class as the sprite tint above: a blit flag the software realize
+		-- honours and the GL realize silently drops. 0x80000 = "desaturate the palette"
+		-- (0x2000000 = its sepia twin). CVidPalette::RealizeResource (0x7C04B0) tests it
+		-- @0x7C0B80 and RealizeRange (0x7BF870) has the same block, but
+		-- CVidPalette::RealizeResource3d (0x7D6240) -- the GL path for every BAM/MOS/BMP
+		-- palette -- contains not one reference to either bit in 0x7D6240..0x7D6900.
+		-- (RealizeRange3d 0x7D6900 is fine: it just delegates to the software
+		-- RealizeRange.) So under GL:
+		--   * greyed action-bar slots (CInfButtonArray::RenderButton 0x5950F0 ->
+		--     CIcon::RenderIcon flag 2 -> 0xA0000 + tint RGB(180,180,180), and the bezel
+		--     cells via RenderButtonOverlay 0x5957C0) got the 0x20000 tint multiply ALONE:
+		--     0.703*L and still coloured, where software desaturates first --
+		--     v=(R+G+B)>>2 then *180>>8 = 0.527*L. A third too bright = the reported
+		--     "grey out is very light on the opengl fork".
+		--   * sites that pass 0x80000 with NO tint bit -- the HIGHLGHT weapon-set ring
+		--     (0x5951A5) and CUIControlButton's disabled text/BAM (0x80000 / 0x80001) --
+		--     rendered completely unchanged.
+		--   * the grey cursor (CInfCursor::SetGreyScale 0x597610 -> 0xA0000) likewise.
+		-- The helper pre-desaturates the SOURCE palette and calls the original, which is
+		-- exactly what software does (it greys the raw entry at the top of the per-entry
+		-- loop, before tint/add/light) while leaving every other stage in engine code.
+		-- 6 displaced bytes 55 8B EC 83 EC 58 (push ebp; mov ebp,esp; sub esp,0x58),
+		-- resume 0x7D6246 -- verified with objdump against the live exe.
+		-----------------------------------------------------------------------------
+		IEex_HookReplaceFunctionMaintainOriginal(0x7D6240, 6, "CVidPalette::RealizeResource3dOriginal", {[[
+			!jmp_dword >IEex_Helper_CVidPalette_RealizeResource3dGrey
+		]]})
+		IEex_Helper_DefineAddress("CVidPalette::RealizeResource3dOriginal", IEex_Label("CVidPalette::RealizeResource3dOriginal"))
 	end
 
 	--------------------------------------------------------------------------

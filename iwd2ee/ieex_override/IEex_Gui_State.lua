@@ -570,53 +570,59 @@ end
 -----------------------------------
 
 -- Column layout, in 1x-authored coordinates (IEex_AddControlToPanel / IEex_SetControlXY apply the
--- HD x2 themselves). Toggle rows keep the layout the panel was authored with -- a wide right-justified
--- label ending just short of the checkbox. Slider rows have to give the trough its 142px, so their
--- label is shorter and stops further left; that is why IEEX_OPTION_ROW_ORDER groups the sliders
--- together at the end, so a page is normally all one shape and the right-justified labels line up.
+-- HD x2 themselves). Toggle rows keep the layout the panel was authored with: a wide right-justified
+-- label ending just short of the checkbox, which sits on the round socket the background art has
+-- waiting for it at 394.
+--
+-- A slider row has three columns in the same space and no checkbox, so it runs on the IEEXOPTS
+-- background instead, where the socket column is painted over by the plank and the row is usable out
+-- to 423. That is what makes the widest label (214px, "Floating HUD size (restart required)") fit
+-- without clipping, and it only works because a page is never half checkboxes and half sliders --
+-- see the forced page break in optionLayout.
 IEEX_OPTION_LABEL_X        = 24
 IEEX_OPTION_LABEL_H        = 18
 IEEX_OPTION_TOGGLE_LABEL_W = 358
 IEEX_OPTION_TOGGLE_X       = 394
 IEEX_OPTION_TOGGLE_W       = 23
 IEEX_OPTION_TOGGLE_H       = 24
-IEEX_OPTION_SLIDER_LABEL_W = 176
-IEEX_OPTION_SLIDER_X       = 208
-IEEX_OPTION_SLIDER_W       = 142 -- GUISLDR's trough is authored for exactly this, do not stretch it
+IEEX_OPTION_SLIDER_LABEL_W = 216
+IEEX_OPTION_SLIDER_X       = 244
+IEEX_OPTION_SLIDER_W       = 110 -- IEEXSLDR's trough is authored for exactly this, do not stretch it
 IEEX_OPTION_SLIDER_H       = 25
-IEEX_OPTION_VALUE_X        = 354
-IEEX_OPTION_VALUE_W        = 63
+IEEX_OPTION_VALUE_X        = 358
+IEEX_OPTION_VALUE_W        = 60
 
 -- Where an off-page row is parked: past the right edge of an 800-wide panel by a wide margin, so
 -- CUIPanel::OnLButtonDown's rect test can never reach it and CUIPanel::Render never intersects it.
 -- Positive rather than off to the left because the coordinate goes through IEex_WriteDword.
 IEEX_OPTION_ROW_PARKED_X   = 2000
 
--- Page arrows and their counter, centred under the option column -- which is empty on the Done/Cancel
--- baseline, those two sitting far to the right. GUIBTACT frames 48/49 and 52/53 are the left/right
--- scroll arrows the quickloot bar already uses; they are authored 38x38 at 1x, and a button BAM draws
--- at its own size from the top-left of the control, so the rect has to be that size or the art spills
--- past what the player can actually click. 38 tall against Done's 25 is why the arrows sit 7px higher,
--- centred on the same band, with the counter's own baseline nudged back down to match.
-IEEX_OPTION_NAV_Y          = 368
+-- Page arrows and their counter, in the empty band on the RIGHT: below the description area (which
+-- ends at y=326, its scrollbar included) and above Done/Cancel (y=375), centred on the pair of them
+-- so the cluster reads as one column. GUIBTACT frames 48/49 and 52/53 are the left/right scroll arrows
+-- the quickloot bar already uses; they are authored 38x38 at 1x, and a button BAM draws at its own
+-- size from the top-left of the control, so the rect has to be that size or the art spills past what
+-- the player can actually click. The counter's baseline is nudged down to sit level with them.
+IEEX_OPTION_NAV_Y          = 331
 IEEX_OPTION_NAV_ARROW_W    = 38
 IEEX_OPTION_NAV_ARROW_H    = 38
 IEEX_OPTION_NAV_LABEL_DY   = 10
-IEEX_OPTION_NAV_PREV_X     = 124
-IEEX_OPTION_NAV_LABEL_X    = 170
+IEEX_OPTION_NAV_PREV_X     = 515
+IEEX_OPTION_NAV_LABEL_X    = 561
 IEEX_OPTION_NAV_LABEL_W    = 100
-IEEX_OPTION_NAV_NEXT_X     = 278
+IEEX_OPTION_NAV_NEXT_X     = 669
 
--- The knob's own geometry, in the same 1x space, mirroring what the vanilla GUIOPT volume sliders
--- carry in the CHU. The travel is expressed as a total sweep divided by the number of gaps, which is
--- how the stock sliders are authored too (11 stops -> 11px, 5 stops -> 27px).
+-- The knob's own geometry, in the same 1x space. The knob is the stock GUISLDR BAM (17x14 at 1x) and
+-- the groove it runs in, once the trough has been shortened, is x=11..96 -- so the far stop puts the
+-- knob's right edge exactly on the groove's end. The travel is expressed as a total sweep divided by
+-- the number of gaps, which is how the stock sliders are authored too.
 IEEX_OPTION_SLIDER_KNOB_X     = 11
 IEEX_OPTION_SLIDER_KNOB_Y     = 5
-IEEX_OPTION_SLIDER_SWEEP      = 110
-IEEX_OPTION_SLIDER_TRACK_MIN_X = 20
-IEEX_OPTION_SLIDER_TRACK_MAX_X = 120
-IEEX_OPTION_SLIDER_TRACK_MIN_Y = 9
-IEEX_OPTION_SLIDER_TRACK_MAX_Y = 30
+IEEX_OPTION_SLIDER_SWEEP      = 68
+IEEX_OPTION_SLIDER_TRACK_MIN_X = 11
+IEEX_OPTION_SLIDER_TRACK_MAX_X = 96
+IEEX_OPTION_SLIDER_TRACK_MIN_Y = 2
+IEEX_OPTION_SLIDER_TRACK_MAX_Y = 23
 
 function IEex_OptionSliderJumpWidth(stops)
 	if stops < 2 then return IEEX_OPTION_SLIDER_SWEEP end
@@ -638,47 +644,76 @@ IEEX_OPTION_ROWS_PER_PAGE =
 -- desync the panel exactly the way a patch-file row flag once did.
 IEEX_OPTION_PAGE = 1
 
-function IEex_OptionRowCount()
-	local n = 0
+-- Page and slot of every visible row, worked out once. Hidden rows are skipped rather than left as a
+-- gap, so a renderer-specific row missing from this install shifts everything below it up instead of
+-- stranding a hole -- which is also why the page count differs between installs.
+--
+-- A page NEVER mixes checkboxes and sliders: the two need different column widths, and a slider page
+-- runs on a background whose checkbox sockets have been painted over. So a change of kind forces a
+-- page break, at the cost of leaving the page before it short.
+--
+-- Derived from the descriptors, not recorded while the panel is built: the build runs on Sync and
+-- every handler on Async, and a table filled in during the build would not exist on the other side.
+local ieexOptionLayout, ieexOptionPageKind, ieexOptionPageCount
+
+local function optionLayout()
+
+	if ieexOptionLayout then return ieexOptionLayout end
+	ieexOptionLayout, ieexOptionPageKind = {}, {}
+
+	-- Runs of one kind, in menu order.
+	local runs, run = {}, nil
 	for _, id in ipairs(IEEX_OPTION_ROW_ORDER) do
-		if IEex_OptionRowVisible(id) then n = n + 1 end
+		local row = IEex_OptionRow(id)
+		if row and IEex_OptionRowVisible(id) then
+			if not run or run.kind ~= row.kind then
+				run = {["kind"] = row.kind, ["ids"] = {}}
+				runs[#runs + 1] = run
+			end
+			run.ids[#run.ids + 1] = id
+		end
 	end
-	return n
+
+	local page = 0
+	for _, r in ipairs(runs) do
+		-- Spread the run evenly over the pages it needs instead of filling each to the brim: 24
+		-- checkboxes is three pages either way, and 8/8/8 reads better than 11/11/2.
+		local pages = math.max(1, math.ceil(#r.ids / IEEX_OPTION_ROWS_PER_PAGE))
+		local perPage = math.ceil(#r.ids / pages)
+		for i, id in ipairs(r.ids) do
+			local slot = (i - 1) % perPage
+			if slot == 0 then page = page + 1 end
+			ieexOptionLayout[id] = {page, slot}
+			ieexOptionPageKind[page] = r.kind
+		end
+	end
+	ieexOptionPageCount = math.max(1, page)
+
+	return ieexOptionLayout
 end
 
 function IEex_OptionPageCount()
-	local n = IEex_OptionRowCount()
-	if n < 1 then return 1 end
-	return math.ceil(n / IEEX_OPTION_ROWS_PER_PAGE)
+	optionLayout()
+	return ieexOptionPageCount
 end
 
--- Position of a row among the VISIBLE ones, 0-based; nil when the row is not built at all. Hidden
--- rows are skipped rather than left as a gap, so a renderer-specific row missing from this install
--- shifts everything below it up instead of stranding a hole (and can change the page count).
-local optionRowIndex = function(labelId)
-	local visibleAbove = 0
-	for _, id in ipairs(IEEX_OPTION_ROW_ORDER) do
-		if id == labelId then
-			return IEex_OptionRowVisible(id) and visibleAbove or nil
-		end
-		if IEex_OptionRowVisible(id) then visibleAbove = visibleAbove + 1 end
-	end
-	return nil
+-- "toggle" or "slider" -- which shape every row on this page has, and so which background it wants.
+function IEex_OptionPageKind(page)
+	optionLayout()
+	return ieexOptionPageKind[page]
 end
 
 function IEex_OptionRowPage(labelId)
-	local index = optionRowIndex(labelId)
-	if not index then return nil end
-	return math.floor(index / IEEX_OPTION_ROWS_PER_PAGE) + 1
+	local place = optionLayout()[labelId]
+	return place and place[1]
 end
 
 -- Y of a row's LABEL. Derived from the row's slot WITHIN its page, so the position a row is built at
 -- is already its final one and switching pages never has to move anything vertically.
 function IEex_OptionRowY(labelId)
-	local index = optionRowIndex(labelId)
-	if not index then return IEEX_OPTION_ROW_FIRST_Y end
-	local slot = index % IEEX_OPTION_ROWS_PER_PAGE
-	return IEEX_OPTION_ROW_FIRST_Y + slot * IEEX_OPTION_ROW_STEP
+	local place = optionLayout()[labelId]
+	if not place then return IEEX_OPTION_ROW_FIRST_Y end
+	return IEEX_OPTION_ROW_FIRST_Y + place[2] * IEEX_OPTION_ROW_STEP
 end
 
 -- Show exactly the rows on IEEX_OPTION_PAGE and put every other one out of reach.
@@ -698,6 +733,11 @@ function IEex_ApplyOptionPage(panel)
 	local pageCount = IEex_OptionPageCount()
 	if IEEX_OPTION_PAGE < 1 then IEEX_OPTION_PAGE = 1 end
 	if IEEX_OPTION_PAGE > pageCount then IEEX_OPTION_PAGE = pageCount end
+
+	-- A slider page has no checkboxes, so it runs on the background whose column of round sockets is
+	-- painted over by the plank -- which is also what frees the width its wider labels need.
+	IEex_SetPanelMosaicResref(panel,
+		IEex_OptionPageKind(IEEX_OPTION_PAGE) == "slider" and "IEEXOPTS" or "GOPPAUB")
 
 	-- x = nil parks the control and deactivates it.
 	local place = function(controlId, x, y)
@@ -5300,7 +5340,7 @@ function IEex_InstallIEexOptions()
 					["y"] = rowY - 4,
 					["width"] = IEEX_OPTION_SLIDER_W,
 					["height"] = IEEX_OPTION_SLIDER_H,
-					["backgroundMos"] = "GUISLDR",
+					["backgroundMos"] = "IEEXSLDR",
 					["knobBam"] = "GUISLDR",
 					["knobFrame"] = 0,
 					["knobFrameActive"] = 1,

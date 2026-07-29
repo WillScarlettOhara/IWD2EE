@@ -602,16 +602,20 @@ end
 --
 -- A slider row has three columns in the same space and no checkbox, so it runs on the IEEXOPTS
 -- background instead, where the socket column is painted over by the plank and the row is usable out
--- to 423. Between that and a trough cut down to 78px, the label column is 264 wide against a widest
--- English label of 191.5 -- the rest is headroom for translation. It only works because a page is
--- never half checkboxes and half sliders; see the forced page break in optionLayout.
-IEEX_OPTION_LABEL_X        = 24
+-- to 423. Between that and a trough cut down to 78px, the label column runs 78..288. It only works
+-- because a page is never half checkboxes and half sliders; see the forced page break in optionLayout.
+-- The label box starts at the PLANK, not at the panel's inner edge. The background art puts a stone
+-- column over 55..70 and the plank's own frame bar over 70..73, with wood from 75; a box starting at
+-- 24 therefore had 54px of itself lying on stone, and since the labels are right-justified a long one
+-- grew straight out over that frame instead of being contained. Starting at 78 means the widest a
+-- label can get is the widest it can be drawn -- and the width check below enforces exactly that.
+IEEX_OPTION_LABEL_X        = 78
 IEEX_OPTION_LABEL_H        = 18
-IEEX_OPTION_TOGGLE_LABEL_W = 358
+IEEX_OPTION_TOGGLE_LABEL_W = 304
 IEEX_OPTION_TOGGLE_X       = 394
 IEEX_OPTION_TOGGLE_W       = 23
 IEEX_OPTION_TOGGLE_H       = 24
-IEEX_OPTION_SLIDER_LABEL_W = 264
+IEEX_OPTION_SLIDER_LABEL_W = 210
 IEEX_OPTION_SLIDER_X       = 292
 IEEX_OPTION_SLIDER_W       = 78 -- IEEXSLDR's trough is authored for exactly this, do not stretch it
 IEEX_OPTION_SLIDER_H       = 22

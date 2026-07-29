@@ -382,7 +382,7 @@
 @55813=~Cette porte n’a pas de serrure conventionnelle et est trop robuste pour être forcée, mais un sort de Déblocage peut encore l’ouvrir.~
 @55814=~Ce conteneur n’a pas de serrure conventionnelle et est trop robuste pour être forcé, mais un sort de Déblocage peut encore l’ouvrir.~
 
-@55901=~Options d’IEex~
+@55901 = ~Options d'IEex~
 @55902=~Brouillard de guerre transparent~
 @55903=~Remplace le brouillard de guerre entrelacé par une version utilisant la transparence. Cela corrige le scintillement causé par l’implémentation vanilla.~
 @55904=~Reformer le groupe~

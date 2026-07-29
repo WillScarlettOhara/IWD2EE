@@ -419,6 +419,45 @@
 			}))
 		end
 
+		-- CanAnimate @0x6FB4C7: the action gate. m_bBumpable = CanAnimate(),
+		-- and the whitelist below it is {RANDOMWALK, RANDOMWALKCONTINUOUS,
+		-- WAIT, FACE} -- so a WALKING party member is NOT bumpable. In a group
+		-- move all six stamp 0x70 at once and nothing can get past anything:
+		-- ClearBumpPath's goal-cell test (GetCost, bCheckBump=FALSE, which
+		-- still folds in 0x70 stamps) fails before the obstacle loop runs, and
+		-- the crowd gate would abort it anyway. Measured on a six-PC shuffle:
+		-- 1826 blocked steps, 10 successful shoves -- the party welds itself
+		-- into a clump and walks on the spot. Vanilla only gets away with it
+		-- because its collision ladder throws the path away every couple of
+		-- seconds, dropping the sprite to idle (= bumpable): the stop-and-go
+		-- WAS the deadlock breaker. Route the gate through the policy, which
+		-- says TRUE for a walking party member ("IP Bump Moving Allies", live
+		-- ini key). Idle PCs are already bumpable; attackers stay unbumpable
+		-- (that is combat slide's business); enemies/neutrals unchanged.
+		-- esi = the sprite; ecx/edx dead here (the fallthrough re-loads dx).
+		if IEex_LabelDefault("IEex_Helper_PF_MoveBumpPolicy", nil) then
+			if IEex_PF_VerifyBytes(0x6FB4C7, {
+				0x66, 0x8B, 0x96, 0x76, 0x04, 0x00, 0x00,
+				0x66, 0x3B, 0x15, 0x84, 0x77, 0x84, 0x00,
+				0x75, 0x09,
+			}) then
+				local moveBumpCave = IEex_WriteAssemblyAuto({[[
+					56
+					!call >IEex_Helper_PF_MoveBumpPolicy
+					85 C0
+					!jne_dword :6FB4D7
+					66 8B 96 76 04 00 00
+					66 3B 15 84 77 84 00
+					!jne_dword :6FB4E0
+					!jmp_dword :6FB4D7
+				]]})
+				IEex_WriteAssembly(0x6FB4C7, IEex_FlattenTable({
+					{"!jmp_dword", {moveBumpCave, 4, 4}},
+					{"!repeat(11,!nop)"},
+				}))
+			end
+		end
+
 		-- Glide instead of teleport: ClearBumpPath's two JumpToPoint call
 		-- sites (loop 1 @0x6FB0A8, recursive shove @0x6FB22B; E8 rel32 to
 		-- 0x745950) are retargeted to PF_SlideJump, which glides eligible

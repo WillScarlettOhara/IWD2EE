@@ -4052,10 +4052,22 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- strip so the shadow never lands on a log line.
 	IEex_Refonte_LogTabW, IEex_Refonte_LogTabH = 38 * s, 13 * s
 	IEex_Refonte_LogTextTop = 16 * s   -- text/scrollbar top inset: tab (13) + 3 clear
-	IEex_Refonte_LogHeights = { 128 * s, 192 * s, 256 * s }
+	-- Height presets, in CYCLE order (the ini persists the INDEX, so entries may only be
+	-- appended -- reordering would silently move every existing install to another size).
+	-- The 4th is the odd one out and is deliberately last: 99 = 107 (the bar block's height,
+	-- blockH below) minus 8 (this box's bottom inset), which puts the log's TOP EDGE exactly
+	-- level with the block's. The block is flush to the screen bottom and the log is not, so
+	-- matching the two boxes' heights would NOT line their tops up -- the inset has to come
+	-- off. Players read the log towering 29px over the block at the old 128 minimum as the
+	-- two bottom-bar elements being mismatched.
+	IEex_Refonte_LogHeights = { 128 * s, 192 * s, 256 * s, 99 * s }
 	IEex_Refonte_LogHeightIdx = math.max(1, math.min(#IEex_Refonte_LogHeights,
 		IEex_GetPrivateProfileInt("IEex Options", "Refonte Log Height", 1, ".\\Icewind2.ini")))
-	local logMaxH = IEex_Refonte_LogHeights[#IEex_Refonte_LogHeights]
+	-- The TALLEST preset, not the last one: the table is in cycle order, not ascending.
+	local logMaxH = 0
+	for _, ph in ipairs(IEex_Refonte_LogHeights) do
+		if ph > logMaxH then logMaxH = ph end
+	end
 
 	-- Panel 0 reposition: origin = top-left of ALL its content (log box at its MAX
 	-- height + command row) so every control keeps POSITIVE panel-relative coords.

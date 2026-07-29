@@ -12,10 +12,13 @@
 //     creatures -- same LANCZOS downscale of the engine's NOPORTLG that the busts are
 //     cropped from, minus its baked 4px frame; the DLL prefers it over the engine's
 //     square 42x42 NOPORTSM whenever the slot is taller than wide,
-//     IEEXBARB/IEEXLOGB.BMP, IEEXLOG1/2/3.BMP (a COMPLETE log bezel per
+//     IEEXBARB/IEEXLOGB.BMP, IEEXLOG1..4.BMP (a COMPLETE log bezel per
 //     height preset, interior texture-synthesised at its final size -- the DLL draws the
 //     matching one as a single quad, so the enlarged log neither smears nor repeats nor
-//     shows a splice line; IEEXLOGB stays as the 3-slice fallback),
+//     shows a splice line; IEEXLOGB stays as the 3-slice fallback. The DLL picks by
+//     HEIGHT, so the resref index tracks IEex_Refonte_LogHeights' CYCLE order, not
+//     ascending size: IEEXLOG4 is the SHORTEST box, 99px, sized so the log's top edge
+//     sits flush with the bar block's),
 //     IEEXNULB.BAM + IEEXRSZB.BAM -- the invisible click strip and the visible chevron
 //     tab that together make the log's resize border, GCOMMBTN.BAM with the
 //     appended icon cycles, the bare-icon USGBTNQL.BAM), mirroring the 2x layout

@@ -3589,9 +3589,9 @@ Type:  One-handed~
 @56097 = ~Log cutscene camera moves~
 @56098 = ~Diagnostic aid: writes one line to cutscene_log.txt for every camera change during a cutscene, recording the view position, the viewport, the scroll target, the area, the resolution and the zoom. Works under both renderers. Off by default.~
 @56099 = ~Smooth cursor (restart required)~
-@56100 = ~Samples the mouse at the rate frames are drawn rather than at the game's logic rate, so the cursor glides instead of stepping. OpenGL only. Requires a restart to take effect.~
+@56100 = ~Samples the mouse at the rate frames are drawn rather than at the game's logic rate, so the cursor glides instead of stepping. OpenGL only. Requires a restart to take effect. Leave it on unless it actually causes trouble -- and if it does, please report it on the mod's Discord rather than quietly playing with it off, because a driver that needs it disabled is something the mod can work around once it is known.~
 @56101 = ~Tile atlas (restart required)~
-@56102 = ~Packs the map tiles into a single large texture so the ground can be drawn in far fewer batches. On is faster on every card tested and is the default; turning it off is a fallback for a driver that mishandles large textures. OpenGL only. Requires a restart to take effect.~
+@56102 = ~Packs the map tiles into a single large texture so the ground can be drawn in far fewer batches. On is faster on every card tested and is the default; turning it off is a fallback for a driver that mishandles large textures. OpenGL only. Requires a restart to take effect. Leave it on unless it actually causes trouble -- and if it does, please report it on the mod's Discord rather than quietly playing with it off, because a driver that needs it disabled is something the mod can work around once it is known.~
 @56103 = ~Pathfinding: enemies shove each other~
 @56104 = ~Lets moving enemies push past one another the way allies already do, instead of only ever shoving allies. Without it a pack funnelling through a doorway jams against itself. Part of Improved Pathfinding, which must be on for this to do anything.~
 @56105 = ~Pathfinding: nudge blocked steps~

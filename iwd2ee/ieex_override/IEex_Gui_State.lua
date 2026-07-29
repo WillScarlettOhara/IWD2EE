@@ -179,22 +179,30 @@ IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration",
 --   Colored Selection Circles (27) is renderer-independent (the tint hooks CMarker::Asynchronous-
 --   Update, not a draw call) -> always visible, even though its stroke widths are GL-only.
 --
--- ORDER = grouped by what the option is about, with every SLIDER row last on purpose: a slider needs
--- 142px for its trough, so its label stops far to the left of where a checkbox row's does, and mixing
--- the two shapes on one page breaks the right-justified column the panel is built around.
---   rules              11 armour-in-combat, 21 pathfinding master + its eight sub-switches
---   world readability   7 action indicators, 9 empty containers, 27 selection circles,
---                      23 portrait frames, 5 transparent fog
---   interface          19 UI borders, 13 stretch UI, 29 pixel-perfect zoom, 48 cutscene log
---   display / system   17 vsync, 15 FPS counter, 40 windowed, 44 background, 52 cursor, 56 atlas
---   values             the sliders, in the same grouping again
-IEEX_OPTION_ROW_ORDER = {
-	11, 21, 60, 64, 68, 72, 76, 80, 84, 88,
-	7, 9, 27, 23, 5,
-	19, 13, 29, 48,
-	17, 15, 40, 44, 52, 56,
-	92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132,
+-- ORDER = one group per page. Each group starts a fresh page, so the menu is browsed by subject
+-- rather than by however many rows happened to fit; a group with more rows than a page holds spreads
+-- evenly over the pages it needs. Every slider row is in the last group on purpose: a slider needs
+-- 78px for its trough and runs on a background whose checkbox sockets are painted over, so the two
+-- shapes can never share a page.
+IEEX_OPTION_ROW_GROUPS = {
+	-- Gameplay and what the world shows you.
+	{ 11, 7, 5, 9, 27, 23 },
+	-- Interface and display.
+	{ 19, 13, 29, 48, 17, 15, 40, 44, 52, 56 },
+	-- Pathfinding: the master switch and its eight sub-switches.
+	{ 21, 60, 64, 68, 72, 76, 80, 84, 88 },
+	-- Everything with a value rather than a state.
+	{ 92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132 },
 }
+
+-- Flattened, because everything downstream walks the rows in menu order and does not care where the
+-- page breaks fall.
+IEEX_OPTION_ROW_ORDER = {}
+for _, group in ipairs(IEEX_OPTION_ROW_GROUPS) do
+	for _, id in ipairs(group) do
+		IEEX_OPTION_ROW_ORDER[#IEEX_OPTION_ROW_ORDER + 1] = id
+	end
+end
 
 -- GL-only rows, by label id -- see the comment above for why each one is on this list.
 local ieexGLOnlyRows = {
@@ -375,14 +383,14 @@ function IEex_OptionRows()
 			["kind"] = "toggle", ["ini"] = "Smooth Cursor",
 			["bridge"] = "smoothCursor", ["default"] = 1,
 			["label"] = {ex_tra_56099, "Smooth cursor (restart required)"},
-			["desc"]  = {ex_tra_56100, "Samples the mouse at the rate frames are drawn rather than at the game's logic rate, so the cursor glides instead of stepping. OpenGL only. Requires a restart to take effect."},
+			["desc"]  = {ex_tra_56100, "Samples the mouse at the rate frames are drawn rather than at the game's logic rate, so the cursor glides instead of stepping. OpenGL only. Requires a restart to take effect. Leave it on unless it actually causes trouble -- and if it does, please report it on the mod's Discord rather than quietly playing with it off, because a driver that needs it disabled is something the mod can work around once it is known."},
 		},
 
 		[56] = {
 			["kind"] = "toggle", ["ini"] = "Tile Atlas",
 			["bridge"] = "tileAtlas", ["default"] = 1,
 			["label"] = {ex_tra_56101, "Tile atlas (restart required)"},
-			["desc"]  = {ex_tra_56102, "Packs the map tiles into a single large texture so the ground can be drawn in far fewer batches. On is faster on every card tested and is the default; turning it off is a fallback for a driver that mishandles large textures. OpenGL only. Requires a restart to take effect."},
+			["desc"]  = {ex_tra_56102, "Packs the map tiles into a single large texture so the ground can be drawn in far fewer batches. On is faster on every card tested and is the default; turning it off is a fallback for a driver that mishandles large textures. OpenGL only. Requires a restart to take effect. Leave it on unless it actually causes trouble -- and if it does, please report it on the mod's Discord rather than quietly playing with it off, because a driver that needs it disabled is something the mod can work around once it is known."},
 		},
 
 		[60] = {
@@ -652,9 +660,9 @@ IEEX_OPTION_PAGE = 1
 -- gap, so a renderer-specific row missing from this install shifts everything below it up instead of
 -- stranding a hole -- which is also why the page count differs between installs.
 --
--- A page NEVER mixes checkboxes and sliders: the two need different column widths, and a slider page
--- runs on a background whose checkbox sockets have been painted over. So a change of kind forces a
--- page break, at the cost of leaving the page before it short.
+-- Pages come from IEEX_OPTION_ROW_GROUPS: every group starts a new one. That also keeps checkboxes
+-- and sliders apart, which they have to be -- they need different column widths and different
+-- backgrounds -- since the slider rows are a group of their own.
 --
 -- Derived from the descriptors, not recorded while the panel is built: the build runs on Sync and
 -- every handler on Async, and a table filled in during the build would not exist on the other side.
@@ -665,30 +673,25 @@ local function optionLayout()
 	if ieexOptionLayout then return ieexOptionLayout end
 	ieexOptionLayout, ieexOptionPageKind = {}, {}
 
-	-- Runs of one kind, in menu order.
-	local runs, run = {}, nil
-	for _, id in ipairs(IEEX_OPTION_ROW_ORDER) do
-		local row = IEex_OptionRow(id)
-		if row and IEex_OptionRowVisible(id) then
-			if not run or run.kind ~= row.kind then
-				run = {["kind"] = row.kind, ["ids"] = {}}
-				runs[#runs + 1] = run
-			end
-			run.ids[#run.ids + 1] = id
-		end
-	end
-
 	local page = 0
-	for _, r in ipairs(runs) do
-		-- Spread the run evenly over the pages it needs instead of filling each to the brim: 24
-		-- checkboxes is three pages either way, and 8/8/8 reads better than 11/11/2.
-		local pages = math.max(1, math.ceil(#r.ids / IEEX_OPTION_ROWS_PER_PAGE))
-		local perPage = math.ceil(#r.ids / pages)
-		for i, id in ipairs(r.ids) do
+	for _, group in ipairs(IEEX_OPTION_ROW_GROUPS) do
+
+		local ids = {}
+		for _, id in ipairs(group) do
+			local row = IEex_OptionRow(id)
+			if row and IEex_OptionRowVisible(id) then ids[#ids + 1] = id end
+		end
+
+		-- Spread over the pages the group needs instead of filling each to the brim: a group of 15 is
+		-- two pages either way, and 8/7 reads better than 11/4. A group everything is hidden in (all
+		-- of its rows renderer-specific, say) takes no page at all.
+		local pages = math.ceil(#ids / IEEX_OPTION_ROWS_PER_PAGE)
+		local perPage = pages > 0 and math.ceil(#ids / pages) or 0
+		for i, id in ipairs(ids) do
 			local slot = (i - 1) % perPage
 			if slot == 0 then page = page + 1 end
 			ieexOptionLayout[id] = {page, slot}
-			ieexOptionPageKind[page] = r.kind
+			ieexOptionPageKind[page] = IEex_OptionRow(id).kind
 		end
 	end
 	ieexOptionPageCount = math.max(1, page)

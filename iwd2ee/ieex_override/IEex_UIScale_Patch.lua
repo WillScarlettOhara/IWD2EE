@@ -800,6 +800,11 @@
 			{0x45445547, 0x4D485441}, -- GUDEATHM
 			{0x42575547, 0x4D335054}, -- GUWBTP3M
 			{0x4B513342, 0x4D4F4F4C}, -- B3QKLOOM
+			-- IEex Options panel art, cut from GOPPAUB and GUISLDR by
+			-- mod-scripts/options_panel/build_slider_assets.py and shipped at 2x like its sources, so
+			-- it de-doubles for the same reason they do.
+			{0x58454549, 0x5354504F}, -- IEEXOPTS (slider-page background, no checkbox sockets)
+			{0x58454549, 0x52444C53}, -- IEEXSLDR (shortened slider trough)
 		}
 		local mos_match = "!push(eax) !mov(eax,[ecx+0x10]) !test_eax_eax !jz_dword >skip "
 		for k, p in ipairs(mos_list) do

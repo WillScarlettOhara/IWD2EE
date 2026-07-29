@@ -3640,3 +3640,8 @@ Type:  One-handed~
 @56139 = ~Percorso: ritardo di ricalcolo~
 @56140 = ~Numero di turni di gioco fra due ricalcoli del percorso durante l'inseguimento di un bersaglio in movimento. 8 corrisponde al gioco originale. Ogni ricalcolo getta via il percorso corrente e il personaggio resta fermo fino alla risposta della ricerca, circa due turni: è quindi il ritmo cammina/fermati di un inseguimento. 8 cammina circa sei turni e si ferma due; 4 cammina due e si ferma due, con uno scatto visibile mentre chiude la distanza. Non scendere sotto 8 senza attivare "cammina durante il ricalcolo". Fa parte della ricerca del percorso migliorata, che deve essere attiva.~
 @56141 = ~Pagina %d / %d~
+@56142 = ~Auto~
+@56143 = ~Uguale~
+@56144 = ~No~
+@56145 = ~Inquad.~
+@56146 = ~Intero~

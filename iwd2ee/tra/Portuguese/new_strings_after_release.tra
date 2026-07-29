@@ -3818,3 +3818,8 @@ Tipo: Uma Mão~
 @56139 = ~Caminho: atraso de recálculo~
 @56140 = ~Número de turnos de jogo entre dois recálculos de rota durante a perseguição de um alvo em movimento. 8 corresponde ao jogo original. Cada recálculo descarta a rota atual e o personagem fica parado até a busca responder, cerca de dois turnos: é, portanto, o ritmo anda/para de uma perseguição. 8 anda cerca de seis turnos e para dois; 4 anda dois e para dois, com um solavanco visível ao fechar a distância. Não desça abaixo de 8 sem ligar "andar durante o recálculo". Faz parte da busca de caminho aprimorada, que precisa estar ativa.~
 @56141 = ~Página %d / %d~
+@56142 = ~Auto~
+@56143 = ~Igual~
+@56144 = ~Não~
+@56145 = ~Enqua.~
+@56146 = ~Inteiro~

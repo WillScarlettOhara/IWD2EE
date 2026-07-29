@@ -3631,3 +3631,8 @@ Type:  One-handed~
 @56139 = ~Pathfinding: chase re-route delay~
 @56140 = ~How many game ticks pass between route recalculations while chasing something that moves. 8 matches the original. Each recalculation discards the current route and the character stands still until the search answers, about two ticks, so this is really the walk-to-stand rhythm of a chase: 8 walks about six and stands about two, while 4 walks two and stands two and shows a visible stutter closing to melee. Do not go below 8 unless "keep walking while re-routing" is on. Part of Improved Pathfinding, which must be on for this to do anything.~
 @56141 = ~Page %d / %d~
+@56142 = ~Auto~
+@56143 = ~Same~
+@56144 = ~Off~
+@56145 = ~Framed~
+@56146 = ~Whole~

@@ -233,6 +233,16 @@ function IEex_OptionText(traId, fallback)
 	return fallback or IEex_FetchString(traId or 0)
 end
 
+-- Slider readouts that are WORDS rather than numbers, so they need translating like any other
+-- string. Shared, because several rows show the same one, and each is a {strref, English} pair the
+-- same shape as a label or a description. They live in a 46px column, which is what decides how far
+-- a language may spell them out -- see the readout check in add_option_translations.py.
+IEEX_OPTION_AUTO   = {ex_tra_56142, "Auto"}
+IEEX_OPTION_SAME   = {ex_tra_56143, "Same"}
+IEEX_OPTION_OFF    = {ex_tra_56144, "Off"}
+IEEX_OPTION_FRAMED = {ex_tra_56145, "Framed"}
+IEEX_OPTION_WHOLE  = {ex_tra_56146, "Whole"}
+
 -------------------------------
 -- IEex Options row registry --
 -------------------------------
@@ -453,7 +463,7 @@ function IEex_OptionRows()
 			["kind"] = "slider", ["ini"] = "Selection Circle Thickness",
 			["bridge"] = "selectionCircleThickness", ["default"] = 2,
 			["values"]  = {0, 1, 2, 3, 4, 5, 6},
-			["display"] = {"Auto", "1", "2", "3", "4", "5", "6"},
+			["display"] = {IEEX_OPTION_AUTO, "1", "2", "3", "4", "5", "6"},
 			["label"] = {ex_tra_56119, "Selection circle thickness"},
 			["desc"]  = {ex_tra_56120, "Stroke width of the circles under characters, counted in half map pixels, so it magnifies with the camera the way everything else on the map does and the outline keeps the same weight relative to the circle at every zoom. Because the result is a whole number of one-pixel rings, a thin setting stays at one pixel across a range of zooms before stepping up. 2 is one whole map pixel -- the original hairline at zoom 1, and the default; 1 is thinner still; Auto follows the pixel density; up to 6 is three whole map pixels. Independent of \"Colored selection circles\": either can be had without the other. The stroke grows inward, so the outer edge, and the click target, never moves. OpenGL only."},
 		},
@@ -462,7 +472,7 @@ function IEex_OptionRows()
 			["kind"] = "slider", ["ini"] = "Destination Marker Thickness",
 			["bridge"] = "destinationMarkerThickness", ["default"] = 2,
 			["values"]  = {0, 1, 2, 3, 4, 5, 6},
-			["display"] = {"Same", "1", "2", "3", "4", "5", "6"},
+			["display"] = {IEEX_OPTION_SAME, "1", "2", "3", "4", "5", "6"},
 			["label"] = {ex_tra_56121, "Destination marker thickness"},
 			["desc"]  = {ex_tra_56122, "Stroke width of the move-destination and target reticle, on the same half-map-pixel scale and with the same default as the selection circles. \"Same\" follows the selection circle thickness exactly. Each of the four pieces is drawn as one closed shape with its corners joined and rounded, because drawn as three separate strokes they only meet while they are one pixel wide and pull apart once widened; the width is capped at a quarter of a piece's depth, past which the pieces fill into solid wedges. OpenGL only."},
 		},
@@ -471,7 +481,7 @@ function IEex_OptionRows()
 			["kind"] = "slider", ["ini"] = "Portrait Frame Thickness",
 			["bridge"] = "portraitFrameThickness", ["default"] = 1,
 			["values"]  = {0, 1, 2, 3, 4},
-			["display"] = {"Same", "1", "2", "3", "4"},
+			["display"] = {IEEX_OPTION_SAME, "1", "2", "3", "4"},
 			["label"] = {ex_tra_56123, "Portrait frame thickness"},
 			["desc"]  = {ex_tra_56124, "Stroke width, in screen pixels, of the selection frames around the party portraits. A portrait is interface rather than map, so this one does not scale with the camera zoom. 1 is the original hairline and the default -- the slot is small and its frame sits right on the bust -- up to 4, or \"Same\" to follow the selection circle thickness at zoom 1. It grows inward but stops at the gap between frame and portrait art, so it never covers the face. Under the software renderer \"Same\" means the original hairline, the circle thickness being an OpenGL-only feature."},
 		},
@@ -498,7 +508,7 @@ function IEex_OptionRows()
 			["kind"] = "slider", ["ini"] = "Max FPS",
 			["bridge"] = "maxFps", ["default"] = 0,
 			["values"]  = {0, 30, 60, 72, 90, 120, 144, 165, 240, 9999},
-			["display"] = {"Auto", "30", "60", "72", "90", "120", "144", "165", "240", "Off"},
+			["display"] = {IEEX_OPTION_AUTO, "30", "60", "72", "90", "120", "144", "165", "240", IEEX_OPTION_OFF},
 			["label"] = {ex_tra_56129, "Frame rate limit (restart req.)"},
 			["desc"]  = {ex_tra_56130, "Ceiling on how many frames are drawn each second. Auto settles just under the display's refresh rate, which is the default; Off removes the limit entirely. On a variable-refresh display the automatic cap sits just below the refresh on purpose, so every frame lands inside the adaptive window -- which also means the display's refresh rate follows each frame. Some VA and OLED panels shift their gamma whenever the refresh moves, and that reads as the whole image pulsing in time with the frame rate. If you see it, choose a limit clearly ABOVE your refresh (144 on a 120Hz panel) and leave Vsync on: the refresh then pins to its maximum and stops moving, at the cost of some frames being held for two refreshes. Requires a restart to take effect."},
 		},
@@ -525,7 +535,7 @@ function IEex_OptionRows()
 			["kind"] = "slider", ["ini"] = "Cutscene Zoom",
 			["bridge"] = "cutsceneZoom", ["default"] = 1,
 			["values"]  = {0, 1, 2},
-			["display"] = {"Off", "Framed", "Whole"},
+			["display"] = {IEEX_OPTION_OFF, IEEX_OPTION_FRAMED, IEEX_OPTION_WHOLE},
 			["label"] = {ex_tra_56135, "Cutscene framing"},
 			["desc"]  = {ex_tra_56136, "Holds a fixed zoom for the length of a cutscene, so scripted shots are framed the way they were composed. They were authored for an 800x600 view: at a high resolution the same shot plays inside a window several times too wide and the beats land in the wrong place. \"Framed\" restores the authored view and is the default, matching its HEIGHT so nothing is ever cropped -- only the sides widen -- and snapping to a whole factor by itself when pixel-perfect zoom is on. \"Whole\" always snaps to a whole factor, so the map stays pixel-exact even with pixel-perfect zoom off. \"Off\" keeps whatever zoom you are playing at. Your own zoom is restored when the cutscene ends, and the wheel is ignored while the framing holds. OpenGL only."},
 		},
@@ -554,6 +564,14 @@ end
 
 function IEex_OptionRow(labelId)
 	return IEex_OptionRows()[labelId]
+end
+
+-- What a slider's readout shows at a given stop: a literal for the numbers and percentages, the
+-- resolved string for the words.
+function IEex_OptionDisplay(row, index)
+	local shown = row.display[index + 1]
+	if type(shown) == "table" then return IEex_OptionText(shown[1], shown[2]) end
+	return shown
 end
 
 -- Which row a control belongs to, for the click handlers. DERIVED from the descriptors rather than
@@ -841,7 +859,7 @@ function IEex_UpdateOptionSlider(CUIControlSlider, showDescription)
 	IEex_Helper_SetBridge(IEex_Helper_GetBridge("IEex_Options", "workingOptions"), row.bridge, value)
 
 	local readout = IEex_GetControlFromPanel(panel, labelId + 2)
-	if readout ~= 0x0 then IEex_SetControlLabelText(readout, row.display[index + 1]) end
+	if readout ~= 0x0 then IEex_SetControlLabelText(readout, IEex_OptionDisplay(row, index)) end
 
 	if showDescription then IEex_SetOptionDescription(labelId) end
 end
@@ -6219,7 +6237,7 @@ function IEex_InitOptionButtons()
 					IEex_SetControlSliderValue(widget, index)
 					local readout = IEex_GetControlFromPanel(newOptionsPanel, labelId + 2)
 					if readout ~= 0x0 then
-						IEex_SetControlLabelText(readout, row.display[index + 1])
+						IEex_SetControlLabelText(readout, IEex_OptionDisplay(row, index))
 					end
 				else
 					IEex_SetControlButtonFrameUpForce(widget,

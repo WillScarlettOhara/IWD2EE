@@ -3770,3 +3770,8 @@ Type d’arme : à une main~
 @56139 = ~Chemin : délai de recalcul en poursuite~
 @56140 = ~Nombre de tours de jeu entre deux recalculs d'itinéraire pendant la poursuite d'une cible mobile. 8 correspond au jeu d'origine. Chaque recalcul jette l'itinéraire courant et le personnage reste immobile jusqu'à la réponse de la recherche, environ deux tours : c'est donc le rythme marche/arrêt d'une poursuite. 8 marche environ six tours et s'arrête deux ; 4 marche deux et s'arrête deux, avec une saccade visible à l'approche du corps à corps. Ne descendez pas sous 8 sans activer « marcher pendant le recalcul ». Fait partie de la recherche de chemin améliorée, qui doit être active.~
 @56141 = ~Page %d / %d~
+@56142 = ~Auto~
+@56143 = ~Idem~
+@56144 = ~Aucun~
+@56145 = ~Cadré~
+@56146 = ~Entier~

@@ -518,7 +518,7 @@ function IEex_OptionRows()
 			["values"]  = {0, 1, 2},
 			["display"] = {"0", "1", "2"},
 			["label"] = {ex_tra_56133, "Main loop sleep (ms)"},
-			["desc"]  = {ex_tra_56134, "Milliseconds the game pauses on each pass of its main loop. 0 simply yields to the rest of the system and is the default; 1 or 2 eases the load on a weak processor when the frame rate is left uncapped, at the cost of some responsiveness."},
+			["desc"]  = {ex_tra_56134, "Milliseconds the game pauses on each pass of its main loop. 0 simply yields to the rest of the system and is the default; 1 or 2 eases the load on a weak processor when the frame rate is left uncapped, at the cost of some responsiveness. Leave it at 0 unless you have a reason not to -- and if the game only behaves with it raised, please report it on the mod's Discord rather than quietly playing that way, because a machine that needs the pause is something the mod can accommodate once it is known."},
 		},
 
 		[124] = {

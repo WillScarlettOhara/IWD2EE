@@ -618,10 +618,13 @@ IEEX_OPTION_NAV_Y          = 331
 IEEX_OPTION_NAV_ARROW_W    = 38
 IEEX_OPTION_NAV_ARROW_H    = 38
 IEEX_OPTION_NAV_LABEL_DY   = 10
-IEEX_OPTION_NAV_PREV_X     = 515
-IEEX_OPTION_NAV_LABEL_X    = 561
-IEEX_OPTION_NAV_LABEL_W    = 100
-IEEX_OPTION_NAV_NEXT_X     = 669
+-- The counter is sized for the longest way a language spells it, not for English: "Страница 4 / 4"
+-- is 93px where "Page 4 / 4" is 62, and a two-digit page count would have run it over 100. 130 keeps
+-- the whole cluster centred on Done/Cancel and still ends at 722, clear of the panel edge.
+IEEX_OPTION_NAV_PREV_X     = 500
+IEEX_OPTION_NAV_LABEL_X    = 546
+IEEX_OPTION_NAV_LABEL_W    = 130
+IEEX_OPTION_NAV_NEXT_X     = 684
 
 -- The knob's own geometry, in the same 1x space. The knob is the stock GUISLDR BAM, 17x14 at 1x, and
 -- the trough's own top rail has been cropped away so it sits flush in the plank -- which is why the

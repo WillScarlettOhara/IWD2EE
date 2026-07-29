@@ -160,61 +160,483 @@ end
 -- to the option-panel builder / IEex_Load|WriteOptions defined later in this chunk.
 IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini") ~= 0
 
--- IEex Options menu (panel 14) option rows, top->bottom by LABEL id. Some rows are renderer-specific
--- and are not built (and their toggle is skipped in IEex_InitOptionButtons) in the wrong renderer:
---   Transparent Fog of War (5) is SOFTWARE-only  -> hidden under GL  (Export_RenderFoW early-returns in GL).
---   Stretch UI (13), Vsync (17) are GL-only -> hidden in software
---   (their C++ no-ops without a GL context: ComputeUIScale / EnsureVSync).
---   Colored Portrait Frames (23) needs the World HUD Refonte, which is what installs the portrait
---   render override the tint lives in -> the row only exists when IEex_Gui_Patch.lua wrote that
---   hook (IEEX_PORTRAIT_FRAMES_AVAILABLE). It works under BOTH renderers (the override's DrawLine
---   fallback covers software), so do NOT gate it on GL. Frame WEIGHT has no row either: [IEex
---   Options] "Portrait Frame Thickness" (0 = follow the circles). (Row 23 was 'Smooth Cursor',
---   now hardwired via its ini key only -- nobody turns it off, and it needs a restart.)
---   Colored Selection Circles (27) is renderer-independent (the tint hooks CMarker::Asynchronous-
---   Update, not a draw call) -> always visible. Only the marker THICKNESS that ships with it is
---   GL-only, and that has no row: [IEex Options] "Selection Circle Thickness" in Icewind2.ini.
---   (Row 27 was 'Tile Atlas', now hardwired via its ini key only -- nobody turns it off.)
---   Integer Zoom (29) is GL-only (the camera zoom is a GL matrix; the software renderer never
---   leaves 1.0) -> hidden in software. It took its slot from 'Cap FPS to Display Refresh' (25),
---   now hardwired via its ini key only ([IEex Options] "Max FPS"): that cap needs a restart to
---   take effect, so the row was worth less than one that applies live.
---   The panel fits 11 rows at the authored 27px step; IEex_OptionRowStep tightens the step only
---   if a longer list would run the bottom row into the Done/Cancel bar.
---   Improved Pathfinding (21) is renderer-independent -> always visible. (Row 21 was 'UI Single
---   Buffer', now hardwired via its ini key only: =0 is never correct with the GL present FBO --
---   RENDER_COUNT=2 on a single buffer truncates dialog/UI text until an alt-tab FBO rebuild.)
--- IEex_OptionRowY packs the VISIBLE rows so a hidden one leaves no gap, on a step that is 27px
--- whenever the list fits and tightens just enough when it does not (IEex_OptionRowStep).
+-- IEex Options menu (panel 14) rows, top->bottom by LABEL id. IEEX_OPTION_ROWS says what each row
+-- IS; this says what order the player meets them in, and every coordinate is derived from a row's
+-- position here (IEex_OptionRowY / IEex_OptionRowPage) -- so reordering the menu, or pushing a row
+-- onto the next page, is a one-line edit. It used to mean hand-editing y values in lockstep.
 --
--- ORDER = what the player sees, top to bottom, grouped by what the option is about:
---   rules            11 armour-in-combat, 21 pathfinding
---   world readability 7 action indicators, 9 empty containers, 27 selection circles,
---                    23 portrait frames, 5 transparent fog
---   interface        19 UI borders, 13 stretch UI, 29 integer zoom
---   display          17 vsync, 15 FPS counter
--- Every row coordinate is DERIVED from this table (IEex_OptionRowY), so reordering the menu
--- is a one-line edit here -- it used to mean hand-editing 24 hardcoded y values in lockstep.
-IEEX_OPTION_ROW_ORDER = {11, 21, 7, 9, 27, 23, 5, 19, 13, 29, 17, 15}
+-- A row whose feature does not exist in this build is not created at all and the survivors repack
+-- with no gap, which is why the page count can differ from one install to the next:
+--   Transparent Fog of War (5) is SOFTWARE-only (Export_RenderFoW early-returns under GL).
+--   GL-only, because the C++ behind them no-ops without a GL context: Stretch UI (13, ComputeUIScale),
+--   Vsync (17, EnsureVSync), Pixel-perfect Zoom (29 -- the camera zoom is a GL matrix and the software
+--   renderer never leaves 1.0), Run In Background (44), Smooth Cursor (52), Tile Atlas (56), the two
+--   marker stroke widths (92 / 96), UI Scale (104) and Cutscene Zoom (124).
+--   Needing the World HUD Refonte, which is what installs the portrait render override these hang
+--   off: Colored Portrait Frames (23), Portrait Frame Thickness (100), Floating HUD Size (108). They
+--   work under BOTH renderers (the override's DrawLine fallback covers software), so they gate on
+--   IEEX_PORTRAIT_FRAMES_AVAILABLE and NOT on GL.
+--   Colored Selection Circles (27) is renderer-independent (the tint hooks CMarker::Asynchronous-
+--   Update, not a draw call) -> always visible, even though its stroke widths are GL-only.
+--
+-- ORDER = grouped by what the option is about, with every SLIDER row last on purpose: a slider needs
+-- 142px for its trough, so its label stops far to the left of where a checkbox row's does, and mixing
+-- the two shapes on one page breaks the right-justified column the panel is built around.
+--   rules              11 armour-in-combat, 21 pathfinding master + its eight sub-switches
+--   world readability   7 action indicators, 9 empty containers, 27 selection circles,
+--                      23 portrait frames, 5 transparent fog
+--   interface          19 UI borders, 13 stretch UI, 29 pixel-perfect zoom, 48 cutscene log
+--   display / system   17 vsync, 15 FPS counter, 40 windowed, 44 background, 52 cursor, 56 atlas
+--   values             the sliders, in the same grouping again
+IEEX_OPTION_ROW_ORDER = {
+	11, 21, 60, 64, 68, 72, 76, 80, 84, 88,
+	7, 9, 27, 23, 5,
+	19, 13, 29, 48,
+	17, 15, 40, 44, 52, 56,
+	92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132,
+}
+
+-- GL-only rows, by label id -- see the comment above for why each one is on this list.
+local ieexGLOnlyRows = {
+	[13] = true, [17] = true, [29] = true, [44] = true, [52] = true,
+	[56] = true, [92] = true, [96] = true, [104] = true, [124] = true,
+}
+
+-- Rows that only exist alongside the World HUD Refonte's portrait render override.
+local ieexRefonteRows = { [23] = true, [100] = true, [108] = true }
 
 function IEex_OptionRowVisible(labelId)
 	if labelId == 5 then return not IEEX_GL_ACTIVE end
-	if labelId == 13 or labelId == 17 or labelId == 29 then return IEEX_GL_ACTIVE end
+	if ieexGLOnlyRows[labelId] then return IEEX_GL_ACTIVE end
 	-- Captured from IEex_PortraitGridEnabled at load (see the declaration): read live it would
 	-- go false at game load via IEex_InstallPortraitGrid's veto, and read from a patch-file
 	-- global it would be missing on the Async thread, where IEex_InitOptionButtons runs.
 	-- `== true` keeps an undefined global falsy-safe on a core-only install.
-	if labelId == 23 then return IEEX_PORTRAIT_FRAMES_AVAILABLE == true end
+	if ieexRefonteRows[labelId] then return IEEX_PORTRAIT_FRAMES_AVAILABLE == true end
 	return true
 end
 
--- Option label/description text: the TRA strref when the mod's strings are installed,
--- otherwise the English fallback. Needed because a freshly deployed lua can run against an
--- IEex_TRA.LUA whose placeholders are still 0 (the WeiDU install resolves them), and
--- IEex_FetchString(0) would render strref 0.
+-- Option label/description text: the TRA strref when the mod's strings are installed, otherwise the
+-- English fallback. Needed because a freshly deployed lua can run against an IEex_TRA.LUA whose
+-- placeholders are still 0 (the WeiDU install resolves them). With neither, this still resolves the
+-- strref so the caller always gets a string -- the rows that predate the fallbacks rely on that.
 function IEex_OptionText(traId, fallback)
-	return (traId or 0) ~= 0 and IEex_FetchString(traId) or fallback
+	if (traId or 0) ~= 0 then return IEex_FetchString(traId) end
+	return fallback or IEex_FetchString(traId or 0)
 end
+
+-------------------------------
+-- IEex Options row registry --
+-------------------------------
+
+-- One entry per option row, keyed by its LABEL control id. Everything the menu needs about an option
+-- lives here and nowhere else: the panel builder, the click handlers, the checkbox/knob initialiser,
+-- the description area and the ini<->bridge round trip are all loops over this table. Adding an
+-- option is one entry plus its two strings; it used to be seven edits that failed silently one by one.
+--
+--   kind    "toggle" -> a GBTNOPT3 checkbox, stored in the bridge as a boolean
+--           "slider" -> a GUISLDR slider plus a value readout, stored as a number
+--   ini     key under [IEex Options] in Icewind2.ini
+--   bridge  key in the IEex_Options bridge (the panel's edit buffer)
+--   values  slider only: setting written to the ini for each knob stop, in knob order
+--   display slider only: what the readout shows for each stop (same order, kept SHORT -- the
+--           readout is 63px wide)
+--
+-- Built on first use rather than at chunk load: it is a large table and only the lua states that
+-- actually reach the options panel or the ini round-trip ever need it. The ex_tra_* strrefs it reads
+-- are already in place either way -- IEex_IWD2_State.lua loads IEex_TRA.lua before this file.
+local ieexOptionRows
+
+function IEex_OptionRows()
+
+	if ieexOptionRows then return ieexOptionRows end
+
+	ieexOptionRows = {
+
+		[5] = {
+			["kind"] = "toggle", ["ini"] = "Transparent Fog of War",
+			["bridge"] = "transparentFogOfWar", ["default"] = 0,
+			["label"] = {ex_tra_55902, "Transparent Fog of War"},
+			["desc"]  = {ex_tra_55903},
+		},
+
+		[7] = {
+			["kind"] = "toggle", ["ini"] = "Action Indicators",
+			["bridge"] = "actionIndicators", ["default"] = 1,
+			["label"] = {ex_tra_55905, "Action Indicators"},
+			["desc"]  = {ex_tra_55906},
+		},
+
+		[9] = {
+			["kind"] = "toggle", ["ini"] = "Highlight Empty Containers in Gray",
+			["bridge"] = "highlightEmptyContainersInGray", ["default"] = 1,
+			["label"] = {ex_tra_55907, "Highlight Empty Containers in Gray"},
+			["desc"]  = {ex_tra_55908},
+		},
+
+		[11] = {
+			["kind"] = "toggle", ["ini"] = "Prevent Equipping Armor During Combat",
+			["bridge"] = "preventEquippingArmorDuringCombat", ["default"] = 0,
+			["label"] = {ex_tra_55931, "Prevent Equipping Armor During Combat"},
+			["desc"]  = {ex_tra_55932},
+		},
+
+		[13] = {
+			["kind"] = "toggle", ["ini"] = "Stretch UI to Screen",
+			["bridge"] = "stretchUI", ["default"] = 0,
+			["label"] = {ex_tra_56079, "Stretch UI to Screen"},
+			["desc"]  = {ex_tra_56080, "Stretches the interface to fill the entire screen. When off, the UI renders at its native size with letterboxed black borders (crisper); when on, it is scaled up to fill the display (larger, but slightly softer)."},
+		},
+
+		[15] = {
+			["kind"] = "toggle", ["ini"] = "Show FPS",
+			["bridge"] = "showFps", ["default"] = 0,
+			["label"] = {ex_tra_56081, "Show FPS"},
+			["desc"]  = {ex_tra_56082, "Displays an on-screen counter showing the render framerate, the AI (game-logic) update rate, and the VRAM pool usage."},
+		},
+
+		[17] = {
+			["kind"] = "toggle", ["ini"] = "Vsync",
+			["bridge"] = "vsync", ["default"] = 1,
+			["label"] = {ex_tra_56083, "Vsync"},
+			["desc"]  = {ex_tra_56084, "Synchronizes frame presentation with your monitor's refresh rate to eliminate screen tearing."},
+		},
+
+		[19] = {
+			["kind"] = "toggle", ["ini"] = "UI Borders",
+			["bridge"] = "uiBorders", ["default"] = 1,
+			["label"] = {ex_tra_56085, "Decorative UI & HUD Borders (restart required)"},
+			["desc"]  = {ex_tra_56086, "Adds decorative stone borders around the interface: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty margins at the screen edges (for example on widescreen displays). When off, the world shows through those margins. Requires a restart to take effect."},
+		},
+
+		[21] = {
+			["kind"] = "toggle", ["ini"] = "Improved Pathfinding",
+			["bridge"] = "improvedPathfinding", ["default"] = 1,
+			["label"] = {ex_tra_56087, "Improved Pathfinding (restart required)"},
+			["desc"]  = {ex_tra_56088, "GemRB-inspired pathfinding improvements: characters wait for walkers instead of shuffling, stop cleanly next to occupied destinations, no longer stop short of their goal, and enemies unclog doorways by shoving their own allies (never party members). Chasing a moving target keeps its path while the new one is computed, instead of standing still for the whole search -- that is what made a run to melee stop and start. Idle non-hostile NPCs can be shoved aside instead of walling off a corridor. The individual behaviours have their own rows below, and their numeric tuning is on the value rows. Requires a restart to fully take effect."},
+		},
+
+		[23] = {
+			["kind"] = "toggle", ["ini"] = "Colored Portrait Frames",
+			["bridge"] = "coloredPortraitFrames", ["default"] = 0,
+			-- The frame tint DEPENDS on the circle tint, and structurally so: the engine reads the
+			-- marker colour for the frame only while a portrait is hovered, so with the circles off
+			-- the frame would be tinted at rest and vanilla green under the cursor. Both ship off, so
+			-- turning this on alone would otherwise do visibly nothing -- switch the circles on with
+			-- it, and repaint their toggle so the panel does not lie about what just changed.
+			["onEnable"] = function(workingOptions)
+				if not IEex_Helper_GetBridge(workingOptions, "coloredCircles") then
+					IEex_Helper_SetBridge(workingOptions, "coloredCircles", true)
+					local circlesToggle = IEex_GetControlFromPanel(
+						IEex_GetPanelFromEngine(IEex_GetEngineOptions(), 14), 28)
+					if circlesToggle then IEex_SetControlButtonFrameUpForce(circlesToggle, 3) end
+				end
+			end,
+			["label"] = {ex_tra_56077, "Colored portrait frames"},
+			["desc"]  = {ex_tra_56078, "Tints the selection frame around each party portrait with that character's own secondary (minor clothing) color, matching the circle under their feet. Off by default, since BG2EE colors the ground circles and not the portrait frames. Requires \"Colored selection circles\" and switches it on with this option. The frame is a 1-pixel hairline unless \"Portrait Frame Thickness\" says otherwise (1 to 4 pixels, or Auto to follow the selection circles); it never covers the portrait itself."},
+		},
+
+		[27] = {
+			["kind"] = "toggle", ["ini"] = "Colored Selection Circles",
+			["bridge"] = "coloredCircles", ["default"] = 0,
+			["label"] = {ex_tra_56075, "Colored selection circles"},
+			["desc"]  = {ex_tra_56076, "Tints each party member's selection circle and move-destination marker with that character's own secondary (minor clothing) color instead of the vanilla green, the way BG2EE colors its party circles. On by default. Enemies stay red and neutrals cyan; a character who is talking stays white and a panicking one stays yellow. The party portraits keep their vanilla green frame unless \"Colored portrait frames\" is also on. Stroke widths have their own rows (\"Selection circle thickness\" and \"Destination marker thickness\"); OpenGL only."},
+		},
+
+		[29] = {
+			["kind"] = "toggle", ["ini"] = "Integer Zoom",
+			["bridge"] = "integerZoom", ["default"] = 0,
+			["label"] = {ex_tra_56091, "Pixel-perfect zoom"},
+			["desc"]  = {ex_tra_56092, "Restricts the mouse-wheel zoom to whole-number levels (1x, 2x, 3x...), where every map pixel becomes an exact square block of screen pixels and the artwork stays as sharp as the original game. In between those levels the map is enlarged by a fraction, so some pixels are stretched wider than others and the image shimmers slightly while the camera moves. Fully zoomed out is always 1x, the original 1:1 presentation. The trade-off is coarser steps: with this on the wheel jumps straight from one whole level to the next instead of easing through the range. OpenGL only."},
+		},
+
+		[40] = {
+			["kind"] = "toggle", ["ini"] = "Windowed",
+			["bridge"] = "windowed", ["default"] = 0,
+			["label"] = {ex_tra_56093, "Windowed mode (restart required)"},
+			["desc"]  = {ex_tra_56094, "Runs the game in an ordinary titlebar window whose interior is exactly the launch resolution, instead of taking over the whole screen. Pick a custom resolution in the launch dialog to size it: a windowed run never changes the display mode, so any size is safe there. Requires a restart to take effect."},
+		},
+
+		[44] = {
+			["kind"] = "toggle", ["ini"] = "Run In Background",
+			["bridge"] = "runInBackground", ["default"] = 1,
+			["label"] = {ex_tra_56095, "Keep running when unfocused"},
+			["desc"]  = {ex_tra_56096, "Keeps the game simulating, drawing and playing its audio while another window has the focus. Off gives the classic behaviour, where alt-tabbing pauses and mutes everything. Frames are skipped only while the window is minimised. Native Windows with OpenGL; under Wine and the software renderer the original behaviour is kept either way."},
+		},
+
+		[48] = {
+			["kind"] = "toggle", ["ini"] = "Cutscene Log",
+			["bridge"] = "cutsceneLog", ["default"] = 0,
+			["label"] = {ex_tra_56097, "Log cutscene camera moves"},
+			["desc"]  = {ex_tra_56098, "Diagnostic aid: writes one line to cutscene_log.txt for every camera change during a cutscene, recording the view position, the viewport, the scroll target, the area, the resolution and the zoom. Works under both renderers. Off by default."},
+		},
+
+		[52] = {
+			["kind"] = "toggle", ["ini"] = "Smooth Cursor",
+			["bridge"] = "smoothCursor", ["default"] = 1,
+			["label"] = {ex_tra_56099, "Smooth cursor (restart required)"},
+			["desc"]  = {ex_tra_56100, "Samples the mouse at the rate frames are drawn rather than at the game's logic rate, so the cursor glides instead of stepping. OpenGL only. Requires a restart to take effect."},
+		},
+
+		[56] = {
+			["kind"] = "toggle", ["ini"] = "Tile Atlas",
+			["bridge"] = "tileAtlas", ["default"] = 1,
+			["label"] = {ex_tra_56101, "Tile atlas (restart required)"},
+			["desc"]  = {ex_tra_56102, "Packs the map tiles into a single large texture so the ground can be drawn in far fewer batches. On is faster on every card tested and is the default; turning it off is a fallback for a driver that mishandles large textures. OpenGL only. Requires a restart to take effect."},
+		},
+
+		[60] = {
+			["kind"] = "toggle", ["ini"] = "IP Enemy Bumping",
+			["bridge"] = "ipEnemyBumping", ["default"] = 1,
+			["label"] = {ex_tra_56103, "Pathfinding: enemies shove each other"},
+			["desc"]  = {ex_tra_56104, "Lets moving enemies push past one another the way allies already do, instead of only ever shoving allies. Without it a pack funnelling through a doorway jams against itself. Part of Improved Pathfinding, which must be on for this to do anything."},
+		},
+
+		[64] = {
+			["kind"] = "toggle", ["ini"] = "IP Directed Adjust",
+			["bridge"] = "ipDirectedAdjust", ["default"] = 1,
+			["label"] = {ex_tra_56105, "Pathfinding: nudge blocked steps"},
+			["desc"]  = {ex_tra_56106, "When a single step is blocked, shifts it toward the intended destination instead of stalling the whole walk. Part of Improved Pathfinding, which must be on for this to do anything."},
+		},
+
+		[68] = {
+			["kind"] = "toggle", ["ini"] = "IP Combat Slide",
+			["bridge"] = "ipCombatSlide", ["default"] = 0,
+			["label"] = {ex_tra_56107, "Pathfinding: slide around melee targets"},
+			["desc"]  = {ex_tra_56108, "Experimental. Melee attackers may glide a short way around the creature they are fighting to make room for other attackers, instead of queuing up single-file. Party members only: enemies keep the original rules, which makes them BETTER at blocking a door or tunnel against you. Off by default. Part of Improved Pathfinding, which must be on for this to do anything."},
+		},
+
+		[72] = {
+			["kind"] = "toggle", ["ini"] = "IP Pursuit Keep Path",
+			["bridge"] = "ipPursuitKeepPath", ["default"] = 1,
+			["label"] = {ex_tra_56109, "Pathfinding: keep walking while re-routing"},
+			["desc"]  = {ex_tra_56110, "While chasing something that moves, keeps walking the current route until the new one is ready, then swaps to it. Without this a character throws its route away the moment it asks for a new one and stands still for the whole search, which is what makes a run into melee stop and start. Part of Improved Pathfinding, which must be on for this to do anything."},
+		},
+
+		[76] = {
+			["kind"] = "toggle", ["ini"] = "IP Bump Idle NPCs",
+			["bridge"] = "ipBumpIdleNPCs", ["default"] = 1,
+			["label"] = {ex_tra_56111, "Pathfinding: shove idle bystanders"},
+			["desc"]  = {ex_tra_56112, "Lets the party push aside a non-hostile creature that is standing still -- a cat asleep in a corridor, a villager in a doorway. Originally an idle neutral is a solid wall no shove can clear until its own script happens to move it. Enemies and creatures that cannot move stay unshovable. Part of Improved Pathfinding, which must be on for this to do anything."},
+		},
+
+		[80] = {
+			["kind"] = "toggle", ["ini"] = "IP Ally Queue",
+			["bridge"] = "ipAllyQueue", ["default"] = 1,
+			["label"] = {ex_tra_56113, "Pathfinding: queue behind party members"},
+			["desc"]  = {ex_tra_56114, "When one party member is blocked by another who is already walking somewhere, it waits and falls in behind instead of asking for a new route. Originally it waits a moment, discards its route and searches again -- standing still for the whole search and then walking into the next body, because a one-cell doorway has no way around. That churn, repeated per follower, is the stutter at every narrow passage. Part of Improved Pathfinding, which must be on for this to do anything."},
+		},
+
+		[84] = {
+			["kind"] = "toggle", ["ini"] = "IP Collision Smoothing",
+			["bridge"] = "ipCollisionSmoothing", ["default"] = 0,
+			["label"] = {ex_tra_56115, "Pathfinding: smooth paths after a bump"},
+			["desc"]  = {ex_tra_56116, "Keeps the route-smoothing pass on searches triggered by a collision, which the original drops. Paths after a shove look tidier, but each one costs the single shared search thread an extra pass -- and that queue is what every character waits on while standing there with no route. Off by default. Part of Improved Pathfinding, which must be on for this to do anything."},
+		},
+
+		[88] = {
+			["kind"] = "toggle", ["ini"] = "IP Enemy Soft Block",
+			["bridge"] = "ipEnemySoftBlock", ["default"] = 0,
+			["label"] = {ex_tra_56117, "Pathfinding: enemies route through allies"},
+			["desc"]  = {ex_tra_56118, "Lets an enemy's route treat its own shovable allies as expensive ground rather than as a wall. Off by default, because enemies then walk into the party's line and grind against it. Part of Improved Pathfinding, which must be on for this to do anything."},
+		},
+
+		[92] = {
+			["kind"] = "slider", ["ini"] = "Selection Circle Thickness",
+			["bridge"] = "selectionCircleThickness", ["default"] = 2,
+			["values"]  = {0, 1, 2, 3, 4, 5, 6},
+			["display"] = {"Auto", "1", "2", "3", "4", "5", "6"},
+			["label"] = {ex_tra_56119, "Selection circle thickness"},
+			["desc"]  = {ex_tra_56120, "Stroke width of the circles under characters, counted in half map pixels, so it magnifies with the camera the way everything else on the map does and the outline keeps the same weight relative to the circle at every zoom. Because the result is a whole number of one-pixel rings, a thin setting stays at one pixel across a range of zooms before stepping up. 2 is one whole map pixel -- the original hairline at zoom 1, and the default; 1 is thinner still; Auto follows the pixel density; up to 6 is three whole map pixels. Independent of \"Colored selection circles\": either can be had without the other. The stroke grows inward, so the outer edge, and the click target, never moves. OpenGL only."},
+		},
+
+		[96] = {
+			["kind"] = "slider", ["ini"] = "Destination Marker Thickness",
+			["bridge"] = "destinationMarkerThickness", ["default"] = 2,
+			["values"]  = {0, 1, 2, 3, 4, 5, 6},
+			["display"] = {"Same", "1", "2", "3", "4", "5", "6"},
+			["label"] = {ex_tra_56121, "Destination marker thickness"},
+			["desc"]  = {ex_tra_56122, "Stroke width of the move-destination and target reticle, on the same half-map-pixel scale and with the same default as the selection circles. \"Same\" follows the selection circle thickness exactly. Each of the four pieces is drawn as one closed shape with its corners joined and rounded, because drawn as three separate strokes they only meet while they are one pixel wide and pull apart once widened; the width is capped at a quarter of a piece's depth, past which the pieces fill into solid wedges. OpenGL only."},
+		},
+
+		[100] = {
+			["kind"] = "slider", ["ini"] = "Portrait Frame Thickness",
+			["bridge"] = "portraitFrameThickness", ["default"] = 1,
+			["values"]  = {0, 1, 2, 3, 4},
+			["display"] = {"Same", "1", "2", "3", "4"},
+			["label"] = {ex_tra_56123, "Portrait frame thickness"},
+			["desc"]  = {ex_tra_56124, "Stroke width, in screen pixels, of the selection frames around the party portraits. A portrait is interface rather than map, so this one does not scale with the camera zoom. 1 is the original hairline and the default -- the slot is small and its frame sits right on the bust -- up to 4, or \"Same\" to follow the selection circle thickness at zoom 1. It grows inward but stops at the gap between frame and portrait art, so it never covers the face. Under the software renderer \"Same\" means the original hairline, the circle thickness being an OpenGL-only feature."},
+		},
+
+		[104] = {
+			["kind"] = "slider", ["ini"] = "UI Scale",
+			["bridge"] = "uiScale", ["default"] = 100,
+			["values"]  = {70, 75, 80, 85, 90, 95, 100},
+			["display"] = {"70%", "75%", "80%", "85%", "90%", "95%", "100%"},
+			["label"] = {ex_tra_56125, "Interface size (restart required)"},
+			["desc"]  = {ex_tra_56126, "Size of the interface as a percentage of the space it is given. 100 fills it, which is the default; lower values shrink the interface within the screen and give the world more room. This changes the size the interface is drawn at, not the resolution it is drawn from. OpenGL only. Requires a restart to take effect."},
+		},
+
+		[108] = {
+			["kind"] = "slider", ["ini"] = "Floating HUD Size",
+			["bridge"] = "floatingHudSize", ["default"] = 100,
+			["values"]  = {50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150},
+			["display"] = {"50%", "60%", "70%", "80%", "90%", "100%", "110%", "120%", "130%", "140%", "150%"},
+			["label"] = {ex_tra_56127, "Floating HUD size (restart required)"},
+			["desc"]  = {ex_tra_56128, "Size of the floating HUD -- the portrait busts, the action and command bars and the combat log. 100 is the shipped size, which occupies the same fraction of the screen at every resolution: the HUD is laid out on a virtual canvas and scaled to fit, so a larger screen does not make it smaller. Above 100 enlarges it further, and past its native size the artwork is stretched and softens; below 100 shrinks it. Applies with or without the 2x interface component. Requires a restart to take effect."},
+		},
+
+		[112] = {
+			["kind"] = "slider", ["ini"] = "Max FPS",
+			["bridge"] = "maxFps", ["default"] = 0,
+			["values"]  = {0, 30, 60, 72, 90, 120, 144, 165, 240, 9999},
+			["display"] = {"Auto", "30", "60", "72", "90", "120", "144", "165", "240", "Off"},
+			["label"] = {ex_tra_56129, "Frame rate limit (restart required)"},
+			["desc"]  = {ex_tra_56130, "Ceiling on how many frames are drawn each second. Auto settles just under the display's refresh rate, which is the default; Off removes the limit entirely. On a variable-refresh display the automatic cap sits just below the refresh on purpose, so every frame lands inside the adaptive window -- which also means the display's refresh rate follows each frame. Some VA and OLED panels shift their gamma whenever the refresh moves, and that reads as the whole image pulsing in time with the frame rate. If you see it, choose a limit clearly ABOVE your refresh (144 on a 120Hz panel) and leave Vsync on: the refresh then pins to its maximum and stops moving, at the cost of some frames being held for two refreshes. Requires a restart to take effect."},
+		},
+
+		[116] = {
+			["kind"] = "slider", ["ini"] = "SFX Audible Percent",
+			["bridge"] = "sfxAudiblePercent", ["default"] = 60,
+			["values"]  = {40, 50, 60, 70, 80, 90, 100, 110, 120},
+			["display"] = {"40%", "50%", "60%", "70%", "80%", "90%", "100%", "110%", "120%"},
+			["label"] = {ex_tra_56131, "Sound effect range"},
+			["desc"]  = {ex_tra_56132, "How far away a sound effect can still be heard, as a percentage of the screen width. Around 96 matches the original game; 60 is the default and keeps sound to roughly what is on screen; 50 goes silent at the very edge of the view. Larger values let noise carry in from off screen."},
+		},
+
+		[120] = {
+			["kind"] = "slider", ["ini"] = "Loop Sleep Ms",
+			["bridge"] = "loopSleepMs", ["default"] = 0,
+			["values"]  = {0, 1, 2},
+			["display"] = {"0", "1", "2"},
+			["label"] = {ex_tra_56133, "Main loop sleep (ms)"},
+			["desc"]  = {ex_tra_56134, "Milliseconds the game pauses on each pass of its main loop. 0 simply yields to the rest of the system and is the default; 1 or 2 eases the load on a weak processor when the frame rate is left uncapped, at the cost of some responsiveness."},
+		},
+
+		[124] = {
+			["kind"] = "slider", ["ini"] = "Cutscene Zoom",
+			["bridge"] = "cutsceneZoom", ["default"] = 1,
+			["values"]  = {0, 1, 2},
+			["display"] = {"Off", "Framed", "Whole"},
+			["label"] = {ex_tra_56135, "Cutscene framing"},
+			["desc"]  = {ex_tra_56136, "Holds a fixed zoom for the length of a cutscene, so scripted shots are framed the way they were composed. They were authored for an 800x600 view: at a high resolution the same shot plays inside a window several times too wide and the beats land in the wrong place. \"Framed\" restores the authored view and is the default, matching its HEIGHT so nothing is ever cropped -- only the sides widen -- and snapping to a whole factor by itself when pixel-perfect zoom is on. \"Whole\" always snaps to a whole factor, so the map stays pixel-exact even with pixel-perfect zoom off. \"Off\" keeps whatever zoom you are playing at. Your own zoom is restored when the cutscene ends, and the wheel is ignored while the framing holds. OpenGL only."},
+		},
+
+		[128] = {
+			["kind"] = "slider", ["ini"] = "IP Behavior Flags",
+			["bridge"] = "ipBehaviorFlags", ["default"] = 15,
+			["values"]  = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+			["display"] = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"},
+			["label"] = {ex_tra_56137, "Pathfinding: behaviour flags"},
+			["desc"]  = {ex_tra_56138, "Advanced. Selects which core pathfinding behaviours are active, as a sum: 1 the stall fix, 2 waiting for a creature that is already moving, 4 stopping cleanly on arrival, 8 looking ahead along the route. 15 is all four and the default; lower the number only to isolate which one is responsible for something you are seeing. Part of Improved Pathfinding, which must be on for this to do anything."},
+		},
+
+		[132] = {
+			["kind"] = "slider", ["ini"] = "IP Pursuit Repath",
+			["bridge"] = "ipPursuitRepath", ["default"] = 8,
+			["values"]  = {2, 4, 6, 8, 10, 12, 14, 16},
+			["display"] = {"2", "4", "6", "8", "10", "12", "14", "16"},
+			["label"] = {ex_tra_56139, "Pathfinding: chase re-route delay"},
+			["desc"]  = {ex_tra_56140, "How many game ticks pass between route recalculations while chasing something that moves. 8 matches the original. Each recalculation discards the current route and the character stands still until the search answers, about two ticks, so this is really the walk-to-stand rhythm of a chase: 8 walks about six and stands about two, while 4 walks two and stands two and shows a visible stutter closing to melee. Do not go below 8 unless \"keep walking while re-routing\" is on. Part of Improved Pathfinding, which must be on for this to do anything."},
+		},
+	}
+
+	return ieexOptionRows
+end
+
+function IEex_OptionRow(labelId)
+	return IEex_OptionRows()[labelId]
+end
+
+-- Which row a control belongs to, for the click handlers. DERIVED from the descriptors rather than
+-- recorded while the panel is built, because the build runs on Sync and every handler runs on Async:
+-- a table filled in during the build would simply not exist on the side that needs it.
+local ieexOptionControlOwner
+
+function IEex_OptionRowOfControl(controlId)
+	if not ieexOptionControlOwner then
+		ieexOptionControlOwner = {}
+		for labelId, row in pairs(IEex_OptionRows()) do
+			ieexOptionControlOwner[labelId] = labelId
+			ieexOptionControlOwner[labelId + 1] = labelId
+			if row.kind == "slider" then ieexOptionControlOwner[labelId + 2] = labelId end
+		end
+	end
+	return ieexOptionControlOwner[controlId]
+end
+
+-----------------------------------
+-- IEex Options row geometry     --
+-----------------------------------
+
+-- Column layout, in 1x-authored coordinates (IEex_AddControlToPanel / IEex_SetControlXY apply the
+-- HD x2 themselves). Toggle rows keep the layout the panel was authored with -- a wide right-justified
+-- label ending just short of the checkbox. Slider rows have to give the trough its 142px, so their
+-- label is shorter and stops further left; that is why IEEX_OPTION_ROW_ORDER groups the sliders
+-- together at the end, so a page is normally all one shape and the right-justified labels line up.
+IEEX_OPTION_LABEL_X        = 24
+IEEX_OPTION_LABEL_H        = 18
+IEEX_OPTION_TOGGLE_LABEL_W = 358
+IEEX_OPTION_TOGGLE_X       = 394
+IEEX_OPTION_TOGGLE_W       = 23
+IEEX_OPTION_TOGGLE_H       = 24
+IEEX_OPTION_SLIDER_LABEL_W = 176
+IEEX_OPTION_SLIDER_X       = 208
+IEEX_OPTION_SLIDER_W       = 142 -- GUISLDR's trough is authored for exactly this, do not stretch it
+IEEX_OPTION_SLIDER_H       = 25
+IEEX_OPTION_VALUE_X        = 354
+IEEX_OPTION_VALUE_W        = 63
+
+-- Where an off-page row is parked: past the right edge of an 800-wide panel by a wide margin, so
+-- CUIPanel::OnLButtonDown's rect test can never reach it and CUIPanel::Render never intersects it.
+-- Positive rather than off to the left because the coordinate goes through IEex_WriteDword.
+IEEX_OPTION_ROW_PARKED_X   = 2000
+
+-- Page arrows and their counter, centred under the option column -- which is empty on the Done/Cancel
+-- baseline, those two sitting far to the right. GUIBTACT frames 48/49 and 52/53 are the left/right
+-- scroll arrows the quickloot bar already uses; they are authored 38x38 at 1x, and a button BAM draws
+-- at its own size from the top-left of the control, so the rect has to be that size or the art spills
+-- past what the player can actually click. 38 tall against Done's 25 is why the arrows sit 7px higher,
+-- centred on the same band, with the counter's own baseline nudged back down to match.
+IEEX_OPTION_NAV_Y          = 368
+IEEX_OPTION_NAV_ARROW_W    = 38
+IEEX_OPTION_NAV_ARROW_H    = 38
+IEEX_OPTION_NAV_LABEL_DY   = 10
+IEEX_OPTION_NAV_PREV_X     = 124
+IEEX_OPTION_NAV_LABEL_X    = 170
+IEEX_OPTION_NAV_LABEL_W    = 100
+IEEX_OPTION_NAV_NEXT_X     = 278
+
+-- The knob's own geometry, in the same 1x space, mirroring what the vanilla GUIOPT volume sliders
+-- carry in the CHU. The travel is expressed as a total sweep divided by the number of gaps, which is
+-- how the stock sliders are authored too (11 stops -> 11px, 5 stops -> 27px).
+IEEX_OPTION_SLIDER_KNOB_X     = 11
+IEEX_OPTION_SLIDER_KNOB_Y     = 5
+IEEX_OPTION_SLIDER_SWEEP      = 110
+IEEX_OPTION_SLIDER_TRACK_MIN_X = 20
+IEEX_OPTION_SLIDER_TRACK_MAX_X = 120
+IEEX_OPTION_SLIDER_TRACK_MIN_Y = 9
+IEEX_OPTION_SLIDER_TRACK_MAX_Y = 30
+
+function IEex_OptionSliderJumpWidth(stops)
+	if stops < 2 then return IEEX_OPTION_SLIDER_SWEEP end
+	return math.floor(IEEX_OPTION_SLIDER_SWEEP / (stops - 1))
+end
+
+-- Rows are laid out on a fixed 27px step between IEEX_OPTION_ROW_FIRST_Y and the last Y that still
+-- clears the Done/Cancel bar at y=375 -- that is 11 per page. Anything past that goes to the next
+-- page instead of cramming the step, which is what the pre-pagination layout used to do (and it had
+-- already run the 12th row's toggle into the button strip once).
+IEEX_OPTION_ROW_FIRST_Y = 70
+IEEX_OPTION_ROW_LAST_Y  = 345
+IEEX_OPTION_ROW_STEP    = 27
+IEEX_OPTION_ROWS_PER_PAGE =
+	math.floor((IEEX_OPTION_ROW_LAST_Y - IEEX_OPTION_ROW_FIRST_Y) / IEEX_OPTION_ROW_STEP) + 1
+
+-- Which page the panel is showing. A STATE global on purpose: the rows are built on Sync (CHU init)
+-- but every click handler runs on Async, and a page index that existed in only one of the two would
+-- desync the panel exactly the way a patch-file row flag once did.
+IEEX_OPTION_PAGE = 1
 
 function IEex_OptionRowCount()
 	local n = 0
@@ -224,33 +646,167 @@ function IEex_OptionRowCount()
 	return n
 end
 
--- Vertical step between rows. 27px is the authored spacing and stays exact for any list that
--- fits; it only tightens when the visible rows would otherwise run into the Done/Cancel bar at
--- y=375 (labels are 18px tall and toggles sit 3px higher and are 24px tall, so the LAST label
--- must start by IEEX_OPTION_ROW_LAST_Y). The row list grew to 12 under GL when "Pixel-perfect
--- zoom" was added, which at 27px put the bottom row's toggle in the button strip.
-IEEX_OPTION_ROW_FIRST_Y = 70
-IEEX_OPTION_ROW_LAST_Y  = 345
-function IEex_OptionRowStep()
+function IEex_OptionPageCount()
 	local n = IEex_OptionRowCount()
-	if n < 2 then return 27 end
-	local step = math.floor((IEEX_OPTION_ROW_LAST_Y - IEEX_OPTION_ROW_FIRST_Y) / (n - 1))
-	if step > 27 then step = 27 end
-	return step
+	if n < 1 then return 1 end
+	return math.ceil(n / IEEX_OPTION_ROWS_PER_PAGE)
 end
 
--- Y of a row's LABEL, straight from its position in IEEX_OPTION_ROW_ORDER: hidden rows are
--- skipped (no gap) and the remaining ones are packed on the step above, starting at
--- IEEX_OPTION_ROW_FIRST_Y. Toggles sit 3px higher. Deriving both means the menu order lives in
--- exactly one place.
-function IEex_OptionRowY(labelId)
-	local step = IEex_OptionRowStep()
+-- Position of a row among the VISIBLE ones, 0-based; nil when the row is not built at all. Hidden
+-- rows are skipped rather than left as a gap, so a renderer-specific row missing from this install
+-- shifts everything below it up instead of stranding a hole (and can change the page count).
+local optionRowIndex = function(labelId)
 	local visibleAbove = 0
 	for _, id in ipairs(IEEX_OPTION_ROW_ORDER) do
-		if id == labelId then return IEEX_OPTION_ROW_FIRST_Y + visibleAbove * step end
+		if id == labelId then
+			return IEex_OptionRowVisible(id) and visibleAbove or nil
+		end
 		if IEex_OptionRowVisible(id) then visibleAbove = visibleAbove + 1 end
 	end
-	return IEEX_OPTION_ROW_FIRST_Y
+	return nil
+end
+
+function IEex_OptionRowPage(labelId)
+	local index = optionRowIndex(labelId)
+	if not index then return nil end
+	return math.floor(index / IEEX_OPTION_ROWS_PER_PAGE) + 1
+end
+
+-- Y of a row's LABEL. Derived from the row's slot WITHIN its page, so the position a row is built at
+-- is already its final one and switching pages never has to move anything vertically.
+function IEex_OptionRowY(labelId)
+	local index = optionRowIndex(labelId)
+	if not index then return IEEX_OPTION_ROW_FIRST_Y end
+	local slot = index % IEEX_OPTION_ROWS_PER_PAGE
+	return IEEX_OPTION_ROW_FIRST_Y + slot * IEEX_OPTION_ROW_STEP
+end
+
+-- Show exactly the rows on IEEX_OPTION_PAGE and put every other one out of reach.
+--
+-- Clearing m_bActive is what stops a control rendering, and for the widgets it is also enough to stop
+-- them responding -- CUIControlButton::OnLButtonDown and CUIControlSlider::OnLButtonDown both return
+-- early on it. It is NOT enough for the labels: CUIPanel::OnLButtonDown hit-tests each control and
+-- only then calls it, and IEex_UI_Label answers without consulting m_bActive. Every page stacks its
+-- rows at the same Y, so an off-page label under the cursor would answer for the row the player can
+-- actually see. Hence the parking: off-page rows are moved off the panel, where the rect test can
+-- never reach them. Y never changes -- a row's slot within its page is fixed at build time.
+function IEex_ApplyOptionPage(panel)
+
+	panel = panel or IEex_GetPanelFromEngine(IEex_GetEngineOptions(), 14)
+	if panel == 0x0 then return end
+
+	local pageCount = IEex_OptionPageCount()
+	if IEEX_OPTION_PAGE < 1 then IEEX_OPTION_PAGE = 1 end
+	if IEEX_OPTION_PAGE > pageCount then IEEX_OPTION_PAGE = pageCount end
+
+	-- x = nil parks the control and deactivates it.
+	local place = function(controlId, x, y)
+		local control = IEex_GetControlFromPanel(panel, controlId)
+		if control == 0x0 then return end
+		IEex_SetControlActive(control, x ~= nil)
+		IEex_SetControlXY(control, x or IEEX_OPTION_ROW_PARKED_X, y)
+	end
+
+	for _, labelId in ipairs(IEEX_OPTION_ROW_ORDER) do
+		local row = IEex_OptionRow(labelId)
+		if row and IEex_OptionRowVisible(labelId) then
+			local onPage = IEex_OptionRowPage(labelId) == IEEX_OPTION_PAGE
+			local rowY   = IEex_OptionRowY(labelId)
+			place(labelId, onPage and IEEX_OPTION_LABEL_X or nil, rowY)
+			if row.kind == "slider" then
+				place(labelId + 1, onPage and IEEX_OPTION_SLIDER_X or nil, rowY - 4)
+				place(labelId + 2, onPage and IEEX_OPTION_VALUE_X  or nil, rowY)
+			else
+				place(labelId + 1, onPage and IEEX_OPTION_TOGGLE_X or nil, rowY - 3)
+			end
+		end
+	end
+
+	if pageCount > 1 then
+		local pageLabel = IEex_GetControlFromPanel(panel, 33)
+		if pageLabel ~= 0x0 then
+			IEex_SetControlLabelText(pageLabel, string.format(
+				IEex_OptionText(ex_tra_56141, "Page %d / %d"), IEEX_OPTION_PAGE, pageCount))
+		end
+		-- An arrow at the end of its travel is hidden rather than greyed: GUIBTACT's scroll arrows
+		-- have no disabled frame, and the pair keeps its position either way because both arrows are
+		-- built at a fixed x.
+		place(31, IEEX_OPTION_PAGE > 1         and IEEX_OPTION_NAV_PREV_X or nil, IEEX_OPTION_NAV_Y)
+		place(32, IEEX_OPTION_PAGE < pageCount and IEEX_OPTION_NAV_NEXT_X or nil, IEEX_OPTION_NAV_Y)
+	end
+end
+
+-- Page arrows. Clamped, never wrapped -- and the arrow that has nothing left to reach is hidden, so
+-- in practice a click at either end cannot happen. The description is cleared because the row it
+-- described has just left the screen.
+function IEex_StepOptionPage(delta)
+
+	local page = IEEX_OPTION_PAGE + delta
+	local pageCount = IEex_OptionPageCount()
+	if page < 1 then page = 1 end
+	if page > pageCount then page = pageCount end
+	if page == IEEX_OPTION_PAGE then return end
+	IEEX_OPTION_PAGE = page
+
+	local screenOptions = IEex_GetEngineOptions()
+	local panel = IEex_GetPanelFromEngine(screenOptions, 14)
+	IEex_ApplyOptionPage(panel)
+	IEex_SetTextAreaToString(screenOptions, 14, 3, "")
+	IEex_PanelInvalidate(panel)
+end
+
+-- Flip a checkbox row. The whole behaviour of a toggle is its descriptor, so there is one of these
+-- rather than one closure per option; onEnable covers the rare row that has to drag another one with
+-- it. Only the working copy is touched -- "Done" is what commits it, "Cancel" what discards it.
+function IEex_ToggleOptionRow(labelId, CUIControlButton)
+
+	local row = IEex_OptionRow(labelId)
+	if not row then return end
+
+	local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
+	local newValue = not IEex_Helper_GetBridge(workingOptions, row.bridge)
+
+	IEex_SetControlButtonFrameUp(CUIControlButton, newValue and 3 or 1)
+	IEex_Helper_SetBridge(workingOptions, row.bridge, newValue)
+
+	if newValue and row.onEnable then row.onEnable(workingOptions) end
+end
+
+-- Store the stop the knob landed on and refresh the readout beside it. showDescription is set only on
+-- the FINAL change, so a drag does not re-render the description text area on every stop it sweeps
+-- through. The engine stores the knob's INDEX, so the setting itself comes from row.values.
+function IEex_UpdateOptionSlider(CUIControlSlider, showDescription)
+
+	local panel = IEex_GetControlPanel(CUIControlSlider)
+	if IEex_GetCHUResrefFromPanel(panel) ~= "GUIOPT" or IEex_GetPanelID(panel) ~= 14 then return end
+
+	local labelId = IEex_OptionRowOfControl(IEex_GetControlID(CUIControlSlider))
+	local row = labelId and IEex_OptionRow(labelId)
+	if not row or row.kind ~= "slider" then return end
+
+	local index = IEex_GetControlSliderValue(CUIControlSlider)
+	local value = row.values[index + 1]
+	if value == nil then return end
+
+	IEex_Helper_SetBridge(IEex_Helper_GetBridge("IEex_Options", "workingOptions"), row.bridge, value)
+
+	local readout = IEex_GetControlFromPanel(panel, labelId + 2)
+	if readout ~= 0x0 then IEex_SetControlLabelText(readout, row.display[index + 1]) end
+
+	if showDescription then IEex_SetOptionDescription(labelId) end
+end
+
+-- Index of the knob stop holding `value`, or the stop nearest to it -- an ini hand-edited to something
+-- between two stops still lands the knob somewhere sensible instead of at 0.
+function IEex_OptionSliderIndex(row, value)
+	local best, bestDistance = 0, nil
+	for i, candidate in ipairs(row.values) do
+		local distance = math.abs(candidate - value)
+		if bestDistance == nil or distance < bestDistance then
+			best, bestDistance = i - 1, distance
+		end
+	end
+	return best
 end
 
 -- Which options-screen panel opened the IEex options panel (14): 2 = in-game main options panel,
@@ -681,6 +1237,34 @@ end
 
 function IEex_ShouldControlButtonRender(CUIControlButton, bForceRender)
 	return IEex_GetControlButtonPendingRenderCount(CUIControlButton) ~= 0 or bForceRender ~= 0
+end
+
+------------------------------
+-- Control Slider Functions --
+------------------------------
+
+-- m_nKnobJumpCount: how many stops the knob has.
+function IEex_GetControlSliderJumpCount(CUIControlSlider)
+	return IEex_ReadWord(CUIControlSlider + 0x1F2)
+end
+
+-- m_nValue is the INDEX of the current stop (0 .. jumpCount-1), never the value being configured:
+-- the knob is drawn at m_nKnobJumpWidth * m_nValue + m_nKnobOffsetX and OnMouseMove derives the index
+-- straight back from the cursor with the same arithmetic. Callers map index <-> setting themselves.
+function IEex_GetControlSliderValue(CUIControlSlider)
+	return IEex_ReadWord(CUIControlSlider + 0x208)
+end
+
+-- Clamped, because an out-of-range index would park the knob past the end of its trough and the next
+-- drag would snap it back with no OnThumbChange (the engine only fires that when the value CHANGES).
+-- Repainting is left to the caller's IEex_PanelInvalidate: CUIPanel::Render force-renders every
+-- control it touches, so the knob follows without poking the control's own render count.
+function IEex_SetControlSliderValue(CUIControlSlider, value)
+	local jumpCount = IEex_GetControlSliderJumpCount(CUIControlSlider)
+	if value < 0 then value = 0 end
+	if jumpCount > 0 and value > jumpCount - 1 then value = jumpCount - 1 end
+	IEex_WriteWord(CUIControlSlider + 0x208, value)
+	return value
 end
 
 -----------------------------
@@ -2620,6 +3204,34 @@ function IEex_DefineCustomControl(controlName, controlStructType, args)
 			!pop(esi)
 			!ret(8)
 		]]})
+
+	elseif controlStructType == IEex_ControlStructType.SLIDER then
+
+		-- CUIControlSlider's vftable, read out of the `mov [esi], imm32` its ctor ends on (0x4D5BEC).
+		-- 0x70 spans every slot through OnThumbFinalChange (0x6C) -- the two the engine calls itself
+		-- when the knob moves: OnThumbChange on each step the value crosses (drag or a click in the
+		-- track), OnThumbFinalChange once that gesture settles. Both are no-arg __thiscall, hence the
+		-- bare `!ret` in the handlers, unlike the CPoint-taking mouse slots.
+		fillVFTableDefaults(0x70, 0x84CA74)
+		IEex_WriteArgs(newVFTable, args, {
+			{ "OnThumbChange",      0x68, IEex_WriteType.DWORD, IEex_WriteFailType.NOTHING },
+			{ "OnThumbFinalChange", 0x6C, IEex_WriteType.DWORD, IEex_WriteFailType.NOTHING },
+		})
+
+		structSize = 0x216 -- m_nDragOffset (0x212) + sizeof(int)
+		newConstructor = IEex_WriteAssemblyAuto({[[
+			!mark_esp
+			!push(esi)
+			!mov(esi,ecx)
+			!marked_esp !push([esp+8]) ; pControlInfo ;
+			!marked_esp !push([esp+4]) ; pPanel ;
+			!mov(ecx,esi)
+			!call :4D5B90 ; CUIControlSlider_Construct ;
+			!mov([esi],$1) ]], {newVFTable}, [[
+			!mov(eax,esi)
+			!pop(esi)
+			!ret(8)
+		]]})
 	else
 		IEex_Error("Unimplemented controlStructType")
 	end
@@ -2672,6 +3284,13 @@ IEex_ControlStructTypeLength = {
 	[IEex_ControlStructType.SCROLL_BAR] = 0x28,
 }
 
+-- UI_CONTROL_SLIDER fields expressed in layout pixels, i.e. the ones that must follow the same x2 as
+-- x/y/width/height when a 1x-authored control is dropped into a pre-scaled 2x menu.
+IEex_SliderScaledFields = {
+	"knobOffsetX", "knobOffsetY", "knobJumpWidth",
+	"trackMinY", "trackMaxY", "trackMinX", "trackMaxX",
+}
+
 function IEex_AddControlStToPanel(CUIPanel, UI_Control_st)
 	IEex_Call(0x4D2AE0, {UI_Control_st}, CUIPanel, 0x0)
 end
@@ -2691,6 +3310,16 @@ function IEex_AddControlToPanel(CUIPanel, args)
 			if args.y      then args.y      = args.y      * 2 end
 			if args.width  then args.width  = args.width  * 2 end
 			if args.height then args.height = args.height * 2 end
+			-- A slider carries geometry the base control does not: CUIControlSlider's ctor (0x4D5B90)
+			-- doubles the knob offset, the jump width and the track rect ITSELF, but only when the
+			-- MANAGER is double-size -- which is exactly the case this branch exists to cover, where it
+			-- is not. Left at 1x the knob would sit a half-step off its trough and the draggable track
+			-- would be half the length of the 2x background it is drawn over.
+			if args.type == IEex_ControlStructType.SLIDER then
+				for _, field in ipairs(IEex_SliderScaledFields) do
+					if args[field] then args[field] = args[field] * 2 end
+				end
+			end
 		end
 	end
 
@@ -2755,6 +3384,26 @@ function IEex_AddControlToPanel(CUIPanel, args)
 			{ "troughFrame",             0x20, IEex_WriteType.WORD,   IEex_WriteFailType.ERROR },
 			{ "sliderFrame",             0x22, IEex_WriteType.WORD,   IEex_WriteFailType.ERROR },
 			{ "textAreaID",              0x24, IEex_WriteType.DWORD,  IEex_WriteFailType.ERROR },
+		})
+	elseif type == IEex_ControlStructType.SLIDER then
+		-- The trough is a MOS drawn across the whole control rect and the knob a BAM frame slid along
+		-- it, so background and rect have to agree in size (GUISLDR is authored for 142x25 at 1x).
+		-- knobJumpCount is the number of STOPS, and the value the engine stores is the index of the
+		-- current one -- see IEex_SetControlSliderValue.
+		IEex_WriteArgs(UI_Control_st, args, {
+			{ "backgroundMos",   0xE,  IEex_WriteType.RESREF, IEex_WriteFailType.ERROR      },
+			{ "knobBam",         0x16, IEex_WriteType.RESREF, IEex_WriteFailType.ERROR      },
+			{ "sequence",        0x1E, IEex_WriteType.WORD,   IEex_WriteFailType.DEFAULT, 0 },
+			{ "knobFrame",       0x20, IEex_WriteType.WORD,   IEex_WriteFailType.DEFAULT, 0 },
+			{ "knobFrameActive", 0x22, IEex_WriteType.WORD,   IEex_WriteFailType.DEFAULT, 1 },
+			{ "knobOffsetX",     0x24, IEex_WriteType.WORD,   IEex_WriteFailType.DEFAULT, 0 },
+			{ "knobOffsetY",     0x26, IEex_WriteType.WORD,   IEex_WriteFailType.DEFAULT, 0 },
+			{ "knobJumpWidth",   0x28, IEex_WriteType.WORD,   IEex_WriteFailType.ERROR      },
+			{ "knobJumpCount",   0x2A, IEex_WriteType.WORD,   IEex_WriteFailType.ERROR      },
+			{ "trackMinY",       0x2C, IEex_WriteType.WORD,   IEex_WriteFailType.DEFAULT, 0 },
+			{ "trackMaxY",       0x2E, IEex_WriteType.WORD,   IEex_WriteFailType.DEFAULT, 0 },
+			{ "trackMinX",       0x30, IEex_WriteType.WORD,   IEex_WriteFailType.DEFAULT, 0 },
+			{ "trackMaxX",       0x32, IEex_WriteType.WORD,   IEex_WriteFailType.DEFAULT, 0 },
 		})
 	else
 		IEex_Error("type unimplemented")
@@ -2989,6 +3638,10 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 	-- is remembered in IEex_OptionsParentPanelID so Done/Cancel restore the right one.
 	local openIEexOptions = function(parentPanelID)
 		IEex_OptionsParentPanelID = parentPanelID
+		-- Always open on the first page: the panel is reached from two different screens and coming
+		-- back to page 3 because that is where it was left last time reads as the menu being broken.
+		IEEX_OPTION_PAGE = 1
+		IEex_ApplyOptionPage()
 		IEex_InitOptionButtons()
 		-- Copy current options to working temp
 		IEex_Helper_SetBridge("IEex_Options", "workingOptions", IEex_Helper_GetBridge("IEex_Options", "options"))
@@ -3129,150 +3782,11 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 				[2] = function()
 					closeIEexOptions()
 				end,
-				-- "Transparent Fog of War" Toggle
-				[6] = function()
-					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "transparentFogOfWar") then
-						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "transparentFogOfWar", false)
-					else
-						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "transparentFogOfWar", true)
-					end
-				end,
-				-- "Action Indicators" Toggle
-				[8] = function()
-					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "actionIndicators") then
-						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "actionIndicators", false)
-					else
-						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "actionIndicators", true)
-					end
-				end,
-				-- "Highlight Empty Containers in Gray" Toggle
-				[10] = function()
-					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "highlightEmptyContainersInGray") then
-						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "highlightEmptyContainersInGray", false)
-					else
-						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "highlightEmptyContainersInGray", true)
-					end
-				end,
-				-- "Prevent Equipping Armor During Combat" Toggle
-				[12] = function()
-					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "preventEquippingArmorDuringCombat") then
-						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "preventEquippingArmorDuringCombat", false)
-					else
-						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "preventEquippingArmorDuringCombat", true)
-					end
-				end,
-				-- "Stretch UI to Screen" Toggle
-				[14] = function()
-					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "stretchUI") then
-						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "stretchUI", false)
-					else
-						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "stretchUI", true)
-					end
-				end,
-				-- "Pixel-Perfect Zoom" Toggle
-				[30] = function()
-					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "integerZoom") then
-						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "integerZoom", false)
-					else
-						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "integerZoom", true)
-					end
-				end,
-				-- "Show FPS" Toggle
-				[16] = function()
-					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "showFps") then
-						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "showFps", false)
-					else
-						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "showFps", true)
-					end
-				end,
-				-- "Vsync" Toggle
-				[18] = function()
-					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "vsync") then
-						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "vsync", false)
-					else
-						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "vsync", true)
-					end
-				end,
-				-- "UI Borders" Toggle
-				[20] = function()
-					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "uiBorders") then
-						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "uiBorders", false)
-					else
-						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "uiBorders", true)
-					end
-				end,
-				-- "Improved Pathfinding" Toggle
-				[22] = function()
-					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "improvedPathfinding") then
-						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "improvedPathfinding", false)
-					else
-						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "improvedPathfinding", true)
-					end
-				end,
-				-- "Colored Portrait Frames" Toggle
-				[24] = function()
-					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "coloredPortraitFrames") then
-						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "coloredPortraitFrames", false)
-					else
-						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "coloredPortraitFrames", true)
-						-- The frame tint DEPENDS on the circle tint, and structurally so: the engine
-						-- reads the marker colour for the frame only while a portrait is hovered, so
-						-- with the circles off the frame would be tinted at rest and vanilla green
-						-- under the cursor. Both ship off, so turning this on alone would otherwise
-						-- do visibly nothing -- switch the circles on with it, and repaint their
-						-- toggle so the panel doesn't lie about what just changed.
-						if not IEex_Helper_GetBridge(workingOptions, "coloredCircles") then
-							IEex_Helper_SetBridge(workingOptions, "coloredCircles", true)
-							local circlesToggle = IEex_GetControlFromPanel(
-								IEex_GetPanelFromEngine(IEex_GetEngineOptions(), 14), 28)
-							if circlesToggle then IEex_SetControlButtonFrameUpForce(circlesToggle, 3) end
-						end
-					end
-				end,
-				-- "Colored Selection Circles" Toggle
-				[28] = function()
-					local workingOptions = IEex_Helper_GetBridge("IEex_Options", "workingOptions")
-					if IEex_Helper_GetBridge(workingOptions, "coloredCircles") then
-						IEex_SetControlButtonFrameUp(CUIControlButton, 1)
-						IEex_Helper_SetBridge(workingOptions, "coloredCircles", false)
-					else
-						IEex_SetControlButtonFrameUp(CUIControlButton, 3)
-						IEex_Helper_SetBridge(workingOptions, "coloredCircles", true)
-					end
-				end,
+				-- Page arrows. Every OPTION row is handled generically in the tail of this function
+				-- instead of here: a toggle's behaviour is entirely its descriptor, so there is nothing
+				-- per-option left to write down.
+				[31] = function() IEex_StepOptionPage(-1) end,
+				[32] = function() IEex_StepOptionPage(1) end,
 			},
 		},
 		["GUIREC"] = {
@@ -3525,37 +4039,30 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 		controlHandler()
 	end
 
-	-- Also show the option's description when its TOGGLE is pressed (not only when the label text is
-	-- clicked) -- toggle id N maps to label id N-1. No-op for non-option buttons (Done/Cancel -> ids
-	-- 0/1, absent from the table) and other screens. Ensures players see descriptions just by toggling.
+	-- Option rows are handled here rather than in the table above, generically: everything a checkbox
+	-- does is written down in its descriptor, so there is no per-option code left. The description
+	-- follows any click that lands on a row, so it shows whether the player hit the option's text or
+	-- its checkbox -- most players never discover that the label itself is clickable. Not a row (the
+	-- Done/Cancel/arrow buttons, or another screen entirely) -> nothing happens.
 	if resref == "GUIOPT" and panelID == 14 then
-		IEex_SetOptionDescription(controlID - 1)
+		local labelId = IEex_OptionRowOfControl(controlID)
+		local row = labelId and IEex_OptionRow(labelId)
+		if row then
+			if row.kind == "toggle" and controlID == labelId + 1 then
+				IEex_ToggleOptionRow(labelId, CUIControlButton)
+			end
+			IEex_SetOptionDescription(labelId)
+		end
 	end
 end
 
--- Shared option-description lookup -> renders into the IEex Options description area (panel 14,
--- control 3). Keyed by LABEL id (= toggle id - 1). Called from BOTH the label-click handler
--- (IEex_Extern_UI_LabelLDown) and each toggle handler, so the description shows whether the player
--- clicks the option's text OR flips its toggle (most players never discover the click-the-label UX).
--- A number value is a TRA strref (resolved via IEex_FetchString); a string is used inline.
+-- Renders a row's help text into the description area (panel 14, control 3). Reached from a click on
+-- the option's label, on its checkbox, or from a slider settling on a new value, so the text shows
+-- however the player touched the row -- most of them never discover that the label itself is clickable.
 function IEex_SetOptionDescription(labelId)
-	local descriptions = {
-		[5]  = ex_tra_55903,
-		[7]  = ex_tra_55906,
-		[9]  = ex_tra_55908,
-		[11] = ex_tra_55932,
-		[13] = IEex_OptionText(ex_tra_56080, "Stretches the interface to fill the entire screen. When off, the UI renders at its native size with letterboxed black borders (crisper); when on, it is scaled up to fill the display (larger, but slightly softer)."),
-		[15] = IEex_OptionText(ex_tra_56082, "Displays an on-screen counter showing the render framerate, the AI (game-logic) update rate, and the VRAM pool usage."),
-		[17] = IEex_OptionText(ex_tra_56084, "Synchronizes frame presentation with your monitor's refresh rate to eliminate screen tearing."),
-		[19] = IEex_OptionText(ex_tra_56086, "Adds decorative stone borders around the interface: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty margins at the screen edges (for example on widescreen displays). When off, the world shows through those margins. Requires a restart to take effect."),
-		[21] = IEex_OptionText(ex_tra_56088, "GemRB-inspired pathfinding improvements: characters wait for walkers instead of shuffling, stop cleanly next to occupied destinations, no longer stop short of their goal, and enemies unclog doorways by shoving their own allies (never party members). Chasing a moving target keeps its path while the new one is computed, instead of standing still for the whole search -- that is what made a run to melee stop and start. Idle non-hostile NPCs can be shoved aside instead of walling off a corridor. Fine-tuning keys (IP *) live in icewind2.ini under [IEex Options]. Requires a restart to fully take effect."),
-		[23] = IEex_OptionText(ex_tra_56078, "Tints the selection frame around each party portrait with that character's own secondary (minor clothing) color, matching the circle under their feet. Off by default, since BG2EE colors the ground circles and not the portrait frames. Requires \"Colored selection circles\" and switches it on with this option. The frame is a 1-pixel hairline unless \"Portrait Frame Thickness\" under [IEex Options] in Icewind2.ini says otherwise (1 to 4 pixels, or 0 to follow the selection circles); it never covers the portrait itself."),
-		[27] = IEex_OptionText(ex_tra_56076, "Tints each party member's selection circle and move-destination marker with that character's own secondary (minor clothing) color instead of the vanilla green, the way BG2EE colors its party circles. On by default. Enemies stay red and neutrals cyan; a character who is talking stays white and a panicking one stays yellow. The party portraits keep their vanilla green frame unless \"Colored portrait frames\" is also on. Stroke widths are set under [IEex Options] in Icewind2.ini with \"Selection Circle Thickness\" and \"Destination Marker Thickness\" (both default to 2 = one whole map pixel; 0 on the marker follows the circles); OpenGL only."),
-		[29] = IEex_OptionText(ex_tra_56092, "Restricts the mouse-wheel zoom to whole-number levels (1x, 2x, 3x...), where every map pixel becomes an exact square block of screen pixels and the artwork stays as sharp as the original game. In between those levels the map is enlarged by a fraction, so some pixels are stretched wider than others and the image shimmers slightly while the camera moves. Fully zoomed out is always 1x, the original 1:1 presentation. The trade-off is coarser steps: with this on the wheel jumps straight from one whole level to the next instead of easing through the range. OpenGL only."),
-	}
-	local d = descriptions[labelId]
-	if d == nil then return end
-	IEex_SetTextAreaToString(IEex_GetEngineOptions(), 14, 3, type(d) == "number" and IEex_FetchString(d) or d)
+	local row = labelId and IEex_OptionRow(labelId)
+	if not row then return end
+	IEex_SetTextAreaToString(IEex_GetEngineOptions(), 14, 3, IEex_OptionText(row.desc[1], row.desc[2]))
 end
 
 function IEex_Extern_UI_LabelLDown(CUIControlLabel)
@@ -3563,37 +4070,23 @@ function IEex_Extern_UI_LabelLDown(CUIControlLabel)
 	IEex_AssertThread(IEex_Thread.Async, true)
 
 	local panel = IEex_GetControlPanel(CUIControlLabel)
-	local resref = IEex_GetCHUResrefFromPanel(panel)
-	local panelID = IEex_GetPanelID(panel)
-	local controlID = IEex_GetControlID(CUIControlLabel)
+	if IEex_GetCHUResrefFromPanel(panel) ~= "GUIOPT" or IEex_GetPanelID(panel) ~= 14 then return end
 
-	local handlers = {
-		["GUIOPT"] = {
-			[14] = {
-				[5]  = function() IEex_SetOptionDescription(5)  end,
-				[7]  = function() IEex_SetOptionDescription(7)  end,
-				[9]  = function() IEex_SetOptionDescription(9)  end,
-				[11] = function() IEex_SetOptionDescription(11) end,
-				[13] = function() IEex_SetOptionDescription(13) end,
-				[15] = function() IEex_SetOptionDescription(15) end,
-				[17] = function() IEex_SetOptionDescription(17) end,
-				[19] = function() IEex_SetOptionDescription(19) end,
-				[21] = function() IEex_SetOptionDescription(21) end,
-				[23] = function() IEex_SetOptionDescription(23) end,
-				[27] = function() IEex_SetOptionDescription(27) end,
-				[29] = function() IEex_SetOptionDescription(29) end,
-			},
-		},
-	}
+	-- Every clickable label in the panel belongs to an option row, and all any of them does is show
+	-- that row's description -- including a slider's value readout, which sits beside its own row.
+	IEex_SetOptionDescription(IEex_OptionRowOfControl(IEex_GetControlID(CUIControlLabel)))
+end
 
-	local resrefHandler = handlers[resref]
-	if not resrefHandler then return end
-	local panelHandler = resrefHandler[panelID]
-	if not panelHandler then return end
-	local controlHandler = panelHandler[controlID]
-	if controlHandler then
-		controlHandler()
-	end
+-- Fired by the engine for each stop the knob crosses, so the readout tracks the drag.
+function IEex_Extern_UI_SliderThumbChange(CUIControlSlider)
+	IEex_AssertThread(IEex_Thread.Async, true)
+	IEex_UpdateOptionSlider(CUIControlSlider, false)
+end
+
+-- Fired once the drag or click settles: same work, plus the row's description.
+function IEex_Extern_UI_SliderThumbFinalChange(CUIControlSlider)
+	IEex_AssertThread(IEex_Thread.Async, true)
+	IEex_UpdateOptionSlider(CUIControlSlider, true)
 end
 
 ---------------------
@@ -3844,6 +4337,40 @@ IEex_AbsoluteOnce("IEex_CustomControls", function()
 				@call_error
 				!pop_all_registers_iwd2
 				!ret_word 08 00
+			]]}
+		})),
+	})
+
+	-- The moved value already lives in the control, so both handlers only report WHICH one moved.
+	-- OnThumbChange fires on every stop the knob crosses, which keeps the value readout live during a
+	-- drag; OnThumbFinalChange fires once the gesture settles and is where the heavier work belongs
+	-- (refreshing the description text area on every pixel of a drag would be visible). Both are
+	-- no-arg __thiscall -- hence the bare `!ret`, not the `!ret_word 08 00` the CPoint slots need.
+	IEex_DefineCustomControl("IEex_UI_Slider", IEex_ControlStructType.SLIDER, {
+		["OnThumbChange"] = IEex_WriteAssemblyAuto(IEex_FlattenTable({
+			{"!push_all_registers_iwd2"},
+			IEex_GenLuaCall("IEex_Extern_UI_SliderThumbChange", {
+				["args"] = {
+					{"!push(ecx)"},
+				},
+			}),
+			{[[
+				@call_error
+				!pop_all_registers_iwd2
+				!ret
+			]]}
+		})),
+		["OnThumbFinalChange"] = IEex_WriteAssemblyAuto(IEex_FlattenTable({
+			{"!push_all_registers_iwd2"},
+			IEex_GenLuaCall("IEex_Extern_UI_SliderThumbFinalChange", {
+				["args"] = {
+					{"!push(ecx)"},
+				},
+			}),
+			{[[
+				@call_error
+				!pop_all_registers_iwd2
+				!ret
 			]]}
 		})),
 	})
@@ -4730,386 +5257,132 @@ function IEex_InstallIEexOptions()
 		["textAreaID"] = 3,
 	})
 
-	-- "Transparent Fog of War" Label + Toggle - ID 5 / 6. Software-only (Export_RenderFoW early-returns
-	-- in GL), so IEex_OptionRowVisible(5) hides it under GL. IEex_InitOptionButtons guards control 6 to match.
-	if IEex_OptionRowVisible(5) then
+	-- Option rows. Id, kind, text and position all come from IEEX_OPTION_ROWS / IEEX_OPTION_ROW_ORDER,
+	-- so a new option is one entry there and nothing here. A row whose feature this build does not
+	-- have is skipped outright rather than built and hidden, and the rows under it move up.
+	--
+	-- Control ids, from a row's LABEL id N: N the label, N+1 the widget (checkbox or knob), N+2 a
+	-- slider's value readout. The rows that predate this loop keep their historical odd ids 5..30, so
+	-- the stride is not uniform across the panel -- which is why the click handlers resolve a control
+	-- back to its row through IEex_OptionRowOfControl instead of assuming N-1.
+	for _, labelId in ipairs(IEEX_OPTION_ROW_ORDER) do
 
-	-- "Transparent Fog of War" Label - ID 5
-	IEex_AddControlOverride("GUIOPT", 14, 5, "IEex_UI_Label")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.LABEL,
-		["id"] = 5,
-		["x"] = 24,
-		["y"] = IEex_OptionRowY(5),
-		["width"] = 358,
-		["height"] = 18,
-		["fontBam"] = "NORMAL",
-		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
-	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 5), IEex_FetchString(ex_tra_55902)) -- "Transparent Fog of War"
+		local row = IEex_OptionRow(labelId)
+		if row and IEex_OptionRowVisible(labelId) then
 
-	-- "Transparent Fog of War" Toggle - ID 6
-	IEex_AddControlOverride("GUIOPT", 14, 6, "IEex_UI_Button")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.BUTTON,
-		["id"] = 6,
-		["x"] = 394,
-		["y"] = IEex_OptionRowY(5) - 3,
-		["width"] = 23,
-		["height"] = 24,
-		["bam"] = "GBTNOPT3",
-		["frameUnpressed"] = 1,
-		["framePressed"] = 2,
-	})
+			local isSlider = row.kind == "slider"
+			local rowY     = IEex_OptionRowY(labelId)
+			local widgetId = labelId + 1
 
+			IEex_AddControlOverride("GUIOPT", 14, labelId, "IEex_UI_Label")
+			IEex_AddControlToPanel(newOptionsPanel, {
+				["type"] = IEex_ControlStructType.LABEL,
+				["id"] = labelId,
+				["x"] = IEEX_OPTION_LABEL_X,
+				["y"] = rowY,
+				["width"] = isSlider and IEEX_OPTION_SLIDER_LABEL_W or IEEX_OPTION_TOGGLE_LABEL_W,
+				["height"] = IEEX_OPTION_LABEL_H,
+				["fontBam"] = "NORMAL",
+				["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
+			})
+			IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, labelId),
+				IEex_OptionText(row.label[1], row.label[2]))
+
+			if isSlider then
+
+				local stops = #row.values
+
+				IEex_AddControlOverride("GUIOPT", 14, widgetId, "IEex_UI_Slider")
+				IEex_AddControlToPanel(newOptionsPanel, {
+					["type"] = IEex_ControlStructType.SLIDER,
+					["id"] = widgetId,
+					["x"] = IEEX_OPTION_SLIDER_X,
+					["y"] = rowY - 4,
+					["width"] = IEEX_OPTION_SLIDER_W,
+					["height"] = IEEX_OPTION_SLIDER_H,
+					["backgroundMos"] = "GUISLDR",
+					["knobBam"] = "GUISLDR",
+					["knobFrame"] = 0,
+					["knobFrameActive"] = 1,
+					["knobOffsetX"] = IEEX_OPTION_SLIDER_KNOB_X,
+					["knobOffsetY"] = IEEX_OPTION_SLIDER_KNOB_Y,
+					["knobJumpWidth"] = IEex_OptionSliderJumpWidth(stops),
+					["knobJumpCount"] = stops,
+					["trackMinX"] = IEEX_OPTION_SLIDER_TRACK_MIN_X,
+					["trackMaxX"] = IEEX_OPTION_SLIDER_TRACK_MAX_X,
+					["trackMinY"] = IEEX_OPTION_SLIDER_TRACK_MIN_Y,
+					["trackMaxY"] = IEEX_OPTION_SLIDER_TRACK_MAX_Y,
+				})
+
+				-- Value readout. Its own label, because the engine's slider draws a trough and a knob
+				-- and nothing else -- without it the player drags a knob with no idea what is under it.
+				local valueId = labelId + 2
+				IEex_AddControlOverride("GUIOPT", 14, valueId, "IEex_UI_Label")
+				IEex_AddControlToPanel(newOptionsPanel, {
+					["type"] = IEex_ControlStructType.LABEL,
+					["id"] = valueId,
+					["x"] = IEEX_OPTION_VALUE_X,
+					["y"] = rowY,
+					["width"] = IEEX_OPTION_VALUE_W,
+					["height"] = IEEX_OPTION_LABEL_H,
+					["fontBam"] = "NORMAL",
+					["textFlags"] = 0x45, -- Use color(0) | Center justify(4) | Middle justify(6)
+				})
+			else
+				IEex_AddControlOverride("GUIOPT", 14, widgetId, "IEex_UI_Button")
+				IEex_AddControlToPanel(newOptionsPanel, {
+					["type"] = IEex_ControlStructType.BUTTON,
+					["id"] = widgetId,
+					["x"] = IEEX_OPTION_TOGGLE_X,
+					["y"] = rowY - 3,
+					["width"] = IEEX_OPTION_TOGGLE_W,
+					["height"] = IEEX_OPTION_TOGGLE_H,
+					["bam"] = "GBTNOPT3",
+					["frameUnpressed"] = 1,
+					["framePressed"] = 2,
+				})
+			end
+		end
 	end
 
-	-- "Action Indicators" Label - ID 7
-	IEex_AddControlOverride("GUIOPT", 14, 7, "IEex_UI_Label")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.LABEL,
-		["id"] = 7,
-		["x"] = 24,
-		["y"] = IEex_OptionRowY(7),
-		["width"] = 358,
-		["height"] = 18,
-		["fontBam"] = "NORMAL",
-		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
-	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 7), IEex_FetchString(ex_tra_55905)) -- "Action Indicators"
+	-- Page arrows + counter, built only when there is more than one page: on a lean install (software
+	-- renderer, no World HUD Refonte) the surviving rows can still fit on one, and a pair of arrows
+	-- that never does anything is worse than none. IEex_ApplyOptionPage hides whichever arrow is at
+	-- the end of its travel.
+	if IEex_OptionPageCount() > 1 then
 
-	-- "Action Indicators" Toggle - ID 8
-	IEex_AddControlOverride("GUIOPT", 14, 8, "IEex_UI_Button")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.BUTTON,
-		["id"] = 8,
-		["x"] = 394,
-		["y"] = IEex_OptionRowY(7) - 3,
-		["width"] = 23,
-		["height"] = 24,
-		["bam"] = "GBTNOPT3",
-		["frameUnpressed"] = 1,
-		["framePressed"] = 2,
-	})
+		for _, arrow in ipairs({{31, IEEX_OPTION_NAV_PREV_X, 48, 49}, {32, IEEX_OPTION_NAV_NEXT_X, 52, 53}}) do
+			IEex_AddControlOverride("GUIOPT", 14, arrow[1], "IEex_UI_Button")
+			IEex_AddControlToPanel(newOptionsPanel, {
+				["type"] = IEex_ControlStructType.BUTTON,
+				["id"] = arrow[1],
+				["x"] = arrow[2],
+				["y"] = IEEX_OPTION_NAV_Y,
+				["width"] = IEEX_OPTION_NAV_ARROW_W,
+				["height"] = IEEX_OPTION_NAV_ARROW_H,
+				["bam"] = "GUIBTACT",
+				["frameUnpressed"] = arrow[3],
+				["framePressed"] = arrow[4],
+			})
+		end
 
-	-- "Highlight Empty Containers in Gray" Label - ID 9
-	IEex_AddControlOverride("GUIOPT", 14, 9, "IEex_UI_Label")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.LABEL,
-		["id"] = 9,
-		["x"] = 24,
-		["y"] = IEex_OptionRowY(9),
-		["width"] = 358,
-		["height"] = 18,
-		["fontBam"] = "NORMAL",
-		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
-	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 9), IEex_FetchString(ex_tra_55907)) -- "Highlight Empty Containers in Gray"
-
-	-- "Highlight Empty Containers in Gray" Toggle - ID 10
-	IEex_AddControlOverride("GUIOPT", 14, 10, "IEex_UI_Button")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.BUTTON,
-		["id"] = 10,
-		["x"] = 394,
-		["y"] = IEex_OptionRowY(9) - 3,
-		["width"] = 23,
-		["height"] = 24,
-		["bam"] = "GBTNOPT3",
-		["frameUnpressed"] = 1,
-		["framePressed"] = 2,
-	})
-
-	-- "Prevent Equipping Armor During Combat" Label - ID 11
-	IEex_AddControlOverride("GUIOPT", 14, 11, "IEex_UI_Label")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.LABEL,
-		["id"] = 11,
-		["x"] = 24,
-		["y"] = IEex_OptionRowY(11),
-		["width"] = 358,
-		["height"] = 18,
-		["fontBam"] = "NORMAL",
-		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
-	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 11), IEex_FetchString(ex_tra_55931)) -- "Prevent Equipping Armor During Combat"
-
-	-- "Prevent Equipping Armor During Combat" Toggle - ID 12
-	IEex_AddControlOverride("GUIOPT", 14, 12, "IEex_UI_Button")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.BUTTON,
-		["id"] = 12,
-		["x"] = 394,
-		["y"] = IEex_OptionRowY(11) - 3,
-		["width"] = 23,
-		["height"] = 24,
-		["bam"] = "GBTNOPT3",
-		["frameUnpressed"] = 1,
-		["framePressed"] = 2,
-	})
-
-	if IEex_OptionRowVisible(13) then
-
-	-- "Stretch UI to Screen" Label - ID 13
-	IEex_AddControlOverride("GUIOPT", 14, 13, "IEex_UI_Label")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.LABEL,
-		["id"] = 13,
-		["x"] = 24,
-		["y"] = IEex_OptionRowY(13),
-		["width"] = 358,
-		["height"] = 18,
-		["fontBam"] = "NORMAL",
-		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
-	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 13),
-		IEex_OptionText(ex_tra_56079, "Stretch UI to Screen"))
-
-	-- "Stretch UI to Screen" Toggle - ID 14
-	IEex_AddControlOverride("GUIOPT", 14, 14, "IEex_UI_Button")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.BUTTON,
-		["id"] = 14,
-		["x"] = 394,
-		["y"] = IEex_OptionRowY(13) - 3,
-		["width"] = 23,
-		["height"] = 24,
-		["bam"] = "GBTNOPT3",
-		["frameUnpressed"] = 1,
-		["framePressed"] = 2,
-	})
-
+		IEex_AddControlOverride("GUIOPT", 14, 33, "IEex_UI_Label")
+		IEex_AddControlToPanel(newOptionsPanel, {
+			["type"] = IEex_ControlStructType.LABEL,
+			["id"] = 33,
+			["x"] = IEEX_OPTION_NAV_LABEL_X,
+			["y"] = IEEX_OPTION_NAV_Y + IEEX_OPTION_NAV_LABEL_DY,
+			["width"] = IEEX_OPTION_NAV_LABEL_W,
+			["height"] = IEEX_OPTION_LABEL_H,
+			["fontBam"] = "NORMAL",
+			["textFlags"] = 0x45, -- Use color(0) | Center justify(4) | Middle justify(6)
+		})
 	end
 
-	-- "Pixel-Perfect Zoom" Label + Toggle - ID 29 / 30. GL-only (the camera zoom is a GL matrix;
-	-- the software renderer stays at 1.0), so IEex_OptionRowVisible(29) hides it in software.
-	-- IEex_InitOptionButtons guards control 30 to match.
-	if IEex_OptionRowVisible(29) then
-
-	-- "Pixel-Perfect Zoom" Label - ID 29
-	IEex_AddControlOverride("GUIOPT", 14, 29, "IEex_UI_Label")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.LABEL,
-		["id"] = 29,
-		["x"] = 24,
-		["y"] = IEex_OptionRowY(29),
-		["width"] = 358,
-		["height"] = 18,
-		["fontBam"] = "NORMAL",
-		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
-	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 29),
-		IEex_OptionText(ex_tra_56091, "Pixel-perfect zoom"))
-
-	-- "Pixel-Perfect Zoom" Toggle - ID 30
-	IEex_AddControlOverride("GUIOPT", 14, 30, "IEex_UI_Button")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.BUTTON,
-		["id"] = 30,
-		["x"] = 394,
-		["y"] = IEex_OptionRowY(29) - 3,
-		["width"] = 23,
-		["height"] = 24,
-		["bam"] = "GBTNOPT3",
-		["frameUnpressed"] = 1,
-		["framePressed"] = 2,
-	})
-
-	end
-
-	-- "Show FPS" Label - ID 15
-	IEex_AddControlOverride("GUIOPT", 14, 15, "IEex_UI_Label")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.LABEL,
-		["id"] = 15,
-		["x"] = 24,
-		["y"] = IEex_OptionRowY(15),
-		["width"] = 358,
-		["height"] = 18,
-		["fontBam"] = "NORMAL",
-		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
-	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 15),
-		IEex_OptionText(ex_tra_56081, "Show FPS"))
-
-	-- "Show FPS" Toggle - ID 16
-	IEex_AddControlOverride("GUIOPT", 14, 16, "IEex_UI_Button")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.BUTTON,
-		["id"] = 16,
-		["x"] = 394,
-		["y"] = IEex_OptionRowY(15) - 3,
-		["width"] = 23,
-		["height"] = 24,
-		["bam"] = "GBTNOPT3",
-		["frameUnpressed"] = 1,
-		["framePressed"] = 2,
-	})
-
-	if IEex_OptionRowVisible(17) then
-
-	-- "Vsync" Label - ID 17
-	IEex_AddControlOverride("GUIOPT", 14, 17, "IEex_UI_Label")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.LABEL,
-		["id"] = 17,
-		["x"] = 24,
-		["y"] = IEex_OptionRowY(17),
-		["width"] = 358,
-		["height"] = 18,
-		["fontBam"] = "NORMAL",
-		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
-	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 17),
-		IEex_OptionText(ex_tra_56083, "Vsync"))
-
-	-- "Vsync" Toggle - ID 18
-	IEex_AddControlOverride("GUIOPT", 14, 18, "IEex_UI_Button")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.BUTTON,
-		["id"] = 18,
-		["x"] = 394,
-		["y"] = IEex_OptionRowY(17) - 3,
-		["width"] = 23,
-		["height"] = 24,
-		["bam"] = "GBTNOPT3",
-		["frameUnpressed"] = 1,
-		["framePressed"] = 2,
-	})
-
-	end
-
-	-- "UI Borders" Label - ID 19
-	IEex_AddControlOverride("GUIOPT", 14, 19, "IEex_UI_Label")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.LABEL,
-		["id"] = 19,
-		["x"] = 24,
-		["y"] = IEex_OptionRowY(19),
-		["width"] = 358,
-		["height"] = 18,
-		["fontBam"] = "NORMAL",
-		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
-	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 19),
-		IEex_OptionText(ex_tra_56085, "Decorative UI & HUD Borders (restart required)"))
-
-	-- "UI Borders" Toggle - ID 20
-	IEex_AddControlOverride("GUIOPT", 14, 20, "IEex_UI_Button")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.BUTTON,
-		["id"] = 20,
-		["x"] = 394,
-		["y"] = IEex_OptionRowY(19) - 3,
-		["width"] = 23,
-		["height"] = 24,
-		["bam"] = "GBTNOPT3",
-		["frameUnpressed"] = 1,
-		["framePressed"] = 2,
-	})
-
-	if IEex_OptionRowVisible(21) then
-
-	-- "Improved Pathfinding" Label - ID 21
-	IEex_AddControlOverride("GUIOPT", 14, 21, "IEex_UI_Label")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.LABEL,
-		["id"] = 21,
-		["x"] = 24,
-		["y"] = IEex_OptionRowY(21),
-		["width"] = 358,
-		["height"] = 18,
-		["fontBam"] = "NORMAL",
-		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
-	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 21),
-		IEex_OptionText(ex_tra_56087, "Improved Pathfinding (restart required)"))
-
-	-- "Improved Pathfinding" Toggle - ID 22
-	IEex_AddControlOverride("GUIOPT", 14, 22, "IEex_UI_Button")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.BUTTON,
-		["id"] = 22,
-		["x"] = 394,
-		["y"] = IEex_OptionRowY(21) - 3,
-		["width"] = 23,
-		["height"] = 24,
-		["bam"] = "GBTNOPT3",
-		["frameUnpressed"] = 1,
-		["framePressed"] = 2,
-	})
-
-	end
-
-	if IEex_OptionRowVisible(23) then
-
-	-- "Colored Portrait Frames" Label - ID 23
-	IEex_AddControlOverride("GUIOPT", 14, 23, "IEex_UI_Label")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.LABEL,
-		["id"] = 23,
-		["x"] = 24,
-		["y"] = IEex_OptionRowY(23),
-		["width"] = 358,
-		["height"] = 18,
-		["fontBam"] = "NORMAL",
-		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
-	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 23),
-		IEex_OptionText(ex_tra_56077, "Colored portrait frames"))
-
-	-- "Colored Portrait Frames" Toggle - ID 24
-	IEex_AddControlOverride("GUIOPT", 14, 24, "IEex_UI_Button")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.BUTTON,
-		["id"] = 24,
-		["x"] = 394,
-		["y"] = IEex_OptionRowY(23) - 3,
-		["width"] = 23,
-		["height"] = 24,
-		["bam"] = "GBTNOPT3",
-		["frameUnpressed"] = 1,
-		["framePressed"] = 2,
-	})
-
-	end
-
-	-- (Row 25/26 was 'Cap FPS to Display Refresh', now hardwired via its ini key only: the cap needs
-	-- a restart to take effect anyway, so [IEex Options] "Max FPS" in Icewind2.ini is enough and the
-	-- slot goes to an option that applies live.)
-
-	if IEex_OptionRowVisible(27) then
-
-	-- "Colored Selection Circles" Label - ID 27
-	IEex_AddControlOverride("GUIOPT", 14, 27, "IEex_UI_Label")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.LABEL,
-		["id"] = 27,
-		["x"] = 24,
-		["y"] = IEex_OptionRowY(27),
-		["width"] = 358,
-		["height"] = 18,
-		["fontBam"] = "NORMAL",
-		["textFlags"] = 0x51, -- Use color(0) | Right justify(4) | Middle justify(6)
-	})
-	IEex_SetControlLabelText(IEex_GetControlFromPanel(newOptionsPanel, 27),
-		IEex_OptionText(ex_tra_56075, "Colored selection circles"))
-
-	-- "Colored Selection Circles" Toggle - ID 28
-	IEex_AddControlOverride("GUIOPT", 14, 28, "IEex_UI_Button")
-	IEex_AddControlToPanel(newOptionsPanel, {
-		["type"] = IEex_ControlStructType.BUTTON,
-		["id"] = 28,
-		["x"] = 394,
-		["y"] = IEex_OptionRowY(27) - 3,
-		["width"] = 23,
-		["height"] = 24,
-		["bam"] = "GBTNOPT3",
-		["frameUnpressed"] = 1,
-		["framePressed"] = 2,
-	})
-
-	end
+	-- Park everything that is not on page 1. Safe from here (Sync): it only moves controls and sets
+	-- their active flag -- it never touches the description text area, which is the Async-side work
+	-- IEex_InitOptionButtons does when the panel opens.
+	IEex_ApplyOptionPage(newOptionsPanel)
 
 	IEex_SetPanelActive(newOptionsPanel, false)
 end
@@ -5838,8 +6111,14 @@ function IEex_LoadOptions()
 
 	local options = IEex_Helper_GetBridge("IEex_Options", "options")
 
-	IEex_Helper_SetBridge(options, "transparentFogOfWar",
-		IEex_GetPrivateProfileInt("IEex Options", "Transparent Fog of War", 0, ".\\Icewind2.ini") ~= 0 and true or false)
+	-- ini -> the bridge the panel edits. A toggle lands as a boolean, a slider as the number itself.
+	-- Only keys that HAVE a row belong here: the bridge is the panel's edit buffer and "Done" rewrites
+	-- every key it holds, so carrying a key with no way to see or change it would quietly normalise a
+	-- hand-edited value out of the ini.
+	for labelId, row in pairs(IEex_OptionRows()) do
+		local raw = IEex_GetPrivateProfileInt("IEex Options", row.ini, row.default, ".\\Icewind2.ini")
+		IEex_Helper_SetBridge(options, row.bridge, row.kind == "slider" and raw or (raw ~= 0))
+	end
 
 	-- IEex_FogTypePtr points at this byte; in GL force it 0 so the FoW asm hooks (RenderFoWSolid /
 	-- RenderFoW / sprite-interlace / ground-pile) stay inert even if the ini still holds 1 from a
@@ -5848,94 +6127,25 @@ function IEex_LoadOptions()
 	if IEEX_GL_ACTIVE then
 		IEex_Helper_SetBridge(options, "transparentFogOfWar", false)
 	end
-
-	IEex_Helper_SetBridge(options, "actionIndicators",
-		IEex_GetPrivateProfileInt("IEex Options", "Action Indicators", 1, ".\\Icewind2.ini") ~= 0 and true or false)
-
-	IEex_Helper_SetBridge(options, "highlightEmptyContainersInGray",
-		IEex_GetPrivateProfileInt("IEex Options", "Highlight Empty Containers in Gray", 1, ".\\Icewind2.ini") ~= 0 and true or false)
-
-	IEex_Helper_SetBridge(options, "preventEquippingArmorDuringCombat",
-		IEex_GetPrivateProfileInt("IEex Options", "Prevent Equipping Armor During Combat", 0, ".\\Icewind2.ini") ~= 0 and true or false)
-
-	IEex_Helper_SetBridge(options, "stretchUI",
-		IEex_GetPrivateProfileInt("IEex Options", "Stretch UI to Screen", 0, ".\\Icewind2.ini") ~= 0 and true or false)
-
-	-- Consumed by the DLL (ZoomApplyTicks re-reads the ini on each wheel event), not through the
-	-- bridge -- the bridge copy exists only to drive the menu row.
-	IEex_Helper_SetBridge(options, "integerZoom",
-		IEex_GetPrivateProfileInt("IEex Options", "Integer Zoom", 0, ".\\Icewind2.ini") ~= 0 and true or false)
-
-	IEex_Helper_SetBridge(options, "showFps",
-		IEex_GetPrivateProfileInt("IEex Options", "Show FPS", 0, ".\\Icewind2.ini") ~= 0 and true or false)
-
-	IEex_Helper_SetBridge(options, "vsync",
-		IEex_GetPrivateProfileInt("IEex Options", "Vsync", 1, ".\\Icewind2.ini") ~= 0 and true or false)
-
-	IEex_Helper_SetBridge(options, "uiBorders",
-		IEex_GetPrivateProfileInt("IEex Options", "UI Borders", 1, ".\\Icewind2.ini") ~= 0 and true or false)
-
-	IEex_Helper_SetBridge(options, "improvedPathfinding",
-		IEex_GetPrivateProfileInt("IEex Options", "Improved Pathfinding", 1, ".\\Icewind2.ini") ~= 0 and true or false)
-
-	IEex_Helper_SetBridge(options, "coloredPortraitFrames",
-		IEex_GetPrivateProfileInt("IEex Options", "Colored Portrait Frames", 0, ".\\Icewind2.ini") ~= 0 and true or false)
-
-	-- ("Max FPS" has no bridge entry: the frame cap is read straight from the ini by the DLL
-	-- (thread_hooks.cpp) and needs a restart anyway, so it has no menu row to drive.)
-
-	-- No bridge entry for keys that lost their row (Tile Atlas, Smooth Cursor): the bridge is
-	-- only the panel's edit buffer, and IEex_WriteOptions rewrites every key it holds on each
-	-- "Done" -- so a UI-less key would silently normalise (and clobber) a hand-edited value.
-	-- Their consumers read the ini directly: IEex_HDTiles_Patch.lua for Tile Atlas, the
-	-- RenderPointer3d prologue in IEexHelper for Smooth Cursor.
-	IEex_Helper_SetBridge(options, "coloredCircles",
-		IEex_GetPrivateProfileInt("IEex Options", "Colored Selection Circles", 0, ".\\Icewind2.ini") ~= 0 and true or false)
 end
 
 function IEex_WriteOptions()
 
 	local options = IEex_Helper_GetBridge("IEex_Options", "options")
 
-	-- In GL the runtime value is force-false (see IEex_LoadOptions); skip the write so we don't
-	-- clobber the player's software-mode preference stored in the ini.
-	if not IEEX_GL_ACTIVE then
-		IEex_WritePrivateProfileString("IEex Options", "Transparent Fog of War",
-			IEex_Helper_GetBridge(options, "transparentFogOfWar") and "1" or "0", ".\\Icewind2.ini")
+	for labelId, row in pairs(IEex_OptionRows()) do
+		-- In GL the runtime value of the fog is force-false (see IEex_LoadOptions); skip its write so we
+		-- do not clobber the player's software-mode preference stored in the ini.
+		if not (row.bridge == "transparentFogOfWar" and IEEX_GL_ACTIVE) then
+			local value = IEex_Helper_GetBridge(options, row.bridge)
+			if row.kind == "slider" then
+				value = tostring(value or row.default)
+			else
+				value = value and "1" or "0"
+			end
+			IEex_WritePrivateProfileString("IEex Options", row.ini, value, ".\\Icewind2.ini")
+		end
 	end
-
-	IEex_WritePrivateProfileString("IEex Options", "Action Indicators",
-		IEex_Helper_GetBridge(options, "actionIndicators") and "1" or "0", ".\\Icewind2.ini")
-
-	IEex_WritePrivateProfileString("IEex Options", "Highlight Empty Containers in Gray",
-		IEex_Helper_GetBridge(options, "highlightEmptyContainersInGray") and "1" or "0", ".\\Icewind2.ini")
-
-	IEex_WritePrivateProfileString("IEex Options", "Prevent Equipping Armor During Combat",
-		IEex_Helper_GetBridge(options, "preventEquippingArmorDuringCombat") and "1" or "0", ".\\Icewind2.ini")
-
-	IEex_WritePrivateProfileString("IEex Options", "Stretch UI to Screen",
-		IEex_Helper_GetBridge(options, "stretchUI") and "1" or "0", ".\\Icewind2.ini")
-
-	IEex_WritePrivateProfileString("IEex Options", "Integer Zoom",
-		IEex_Helper_GetBridge(options, "integerZoom") and "1" or "0", ".\\Icewind2.ini")
-
-	IEex_WritePrivateProfileString("IEex Options", "Show FPS",
-		IEex_Helper_GetBridge(options, "showFps") and "1" or "0", ".\\Icewind2.ini")
-
-	IEex_WritePrivateProfileString("IEex Options", "Vsync",
-		IEex_Helper_GetBridge(options, "vsync") and "1" or "0", ".\\Icewind2.ini")
-
-	IEex_WritePrivateProfileString("IEex Options", "UI Borders",
-		IEex_Helper_GetBridge(options, "uiBorders") and "1" or "0", ".\\Icewind2.ini")
-
-	IEex_WritePrivateProfileString("IEex Options", "Improved Pathfinding",
-		IEex_Helper_GetBridge(options, "improvedPathfinding") and "1" or "0", ".\\Icewind2.ini")
-
-	IEex_WritePrivateProfileString("IEex Options", "Colored Selection Circles",
-		IEex_Helper_GetBridge(options, "coloredCircles") and "1" or "0", ".\\Icewind2.ini")
-
-	IEex_WritePrivateProfileString("IEex Options", "Colored Portrait Frames",
-		IEex_Helper_GetBridge(options, "coloredPortraitFrames") and "1" or "0", ".\\Icewind2.ini")
 end
 
 function IEex_InitOptionButtons()
@@ -5946,54 +6156,27 @@ function IEex_InitOptionButtons()
 
 	IEex_SetTextAreaToString(screenOptions, 14, 3, "")
 
-	if IEex_OptionRowVisible(5) then -- control 6 ("Transparent Fog of War"): software-only
-		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 6),
-			IEex_Helper_GetBridge(options, "transparentFogOfWar") and 3 or 1)
-	end
-
-	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 8),
-		IEex_Helper_GetBridge(options, "actionIndicators") and 3 or 1)
-
-	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 10),
-		IEex_Helper_GetBridge(options, "highlightEmptyContainersInGray") and 3 or 1)
-
-	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 12),
-		IEex_Helper_GetBridge(options, "preventEquippingArmorDuringCombat") and 3 or 1)
-
-	if IEex_OptionRowVisible(13) then
-		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 14),
-			IEex_Helper_GetBridge(options, "stretchUI") and 3 or 1)
-	end
-
-	if IEex_OptionRowVisible(29) then -- control 30 ("Pixel-Perfect Zoom"): GL-only
-		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 30),
-			IEex_Helper_GetBridge(options, "integerZoom") and 3 or 1)
-	end
-
-	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 16),
-		IEex_Helper_GetBridge(options, "showFps") and 3 or 1)
-
-	if IEex_OptionRowVisible(17) then
-		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 18),
-			IEex_Helper_GetBridge(options, "vsync") and 3 or 1)
-	end
-
-	IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 20),
-		IEex_Helper_GetBridge(options, "uiBorders") and 3 or 1)
-
-	if IEex_OptionRowVisible(21) then
-		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 22),
-			IEex_Helper_GetBridge(options, "improvedPathfinding") and 3 or 1)
-	end
-
-	if IEex_OptionRowVisible(23) then
-		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 24),
-			IEex_Helper_GetBridge(options, "coloredPortraitFrames") and 3 or 1)
-	end
-
-	if IEex_OptionRowVisible(27) then
-		IEex_SetControlButtonFrameUpForce(IEex_GetControlFromPanel(newOptionsPanel, 28),
-			IEex_Helper_GetBridge(options, "coloredCircles") and 3 or 1)
+	-- Paint every widget from the saved value. A checkbox left on whatever frame it was built with
+	-- reads as OFF while the setting is on, and the first click then appears to do nothing because it
+	-- is really the second one that agrees with what is on screen.
+	for labelId, row in pairs(IEex_OptionRows()) do
+		if IEex_OptionRowVisible(labelId) then
+			local widget = IEex_GetControlFromPanel(newOptionsPanel, labelId + 1)
+			if widget ~= 0x0 then
+				if row.kind == "slider" then
+					local index = IEex_OptionSliderIndex(row,
+						IEex_Helper_GetBridge(options, row.bridge) or row.default)
+					IEex_SetControlSliderValue(widget, index)
+					local readout = IEex_GetControlFromPanel(newOptionsPanel, labelId + 2)
+					if readout ~= 0x0 then
+						IEex_SetControlLabelText(readout, row.display[index + 1])
+					end
+				else
+					IEex_SetControlButtonFrameUpForce(widget,
+						IEex_Helper_GetBridge(options, row.bridge) and 3 or 1)
+				end
+			end
+		end
 	end
 end
 
@@ -6034,7 +6217,7 @@ function IEex_InjectOptionIniComments()
 		["IP Collision Smoothing"]                = "Improved Pathfinding: keep path smoothing on collision re-searches (vanilla drops it). Prettier post-bump paths, but each one costs the SINGLE shared search thread an extra pass -- and that queue is what every sprite waits on while standing path-less. Default off.",
 		["IP Enemy Soft Block"]                   = "Improved Pathfinding sub-option: enemy searches soft-cost through bumpable allies instead of hard-blocking. Default off (enemies may path into the party line and grind).",
 		["IP Combat Slide"]                       = "Improved Pathfinding EXPERIMENTAL: melee allies may slide around their target to make room for more attackers instead of jamming corridors single-file. Party-only (enemies keep vanilla rules, so door/tunnel body-blocking gets STRONGER for the player); slides are short interpolated glides, ~2 cells max per burst. Default off.",
-		["Tile Atlas"]                            = "OpenGL: batch map tiles into an atlas texture for faster tile rendering. 1 = on. OpenGL only. (No longer in the options menu -- ini only.)",
+		["Tile Atlas"]                            = "OpenGL: batch map tiles into an atlas texture for faster tile rendering. 1 = on. OpenGL only.",
 		["Colored Selection Circles"]             = "Tint each character's selection circle and move-destination marker with that character's own secondary (minor clothing) colour instead of the vanilla green, the way BG2EE colours its party circles. Enemies stay red, neutrals cyan, talking white, morale failure yellow. 0 = vanilla green (default -- the tint is opt-in, so an untouched install looks like the original under either renderer); 1 = tinted. In the options menu. Colour only -- the stroke width is a separate key.",
 		["Selection Circle Thickness"]            = "Stroke width of the selection circles under characters, in HALF map pixels: it magnifies with the camera zoom, like everything else on the map, so the outline keeps the same weight relative to the circle at every zoom level. The count is a whole number of 1-pixel rings, so a thin setting stays pinned at 1 pixel over a range of zooms before stepping up. 2 = one whole map pixel, i.e. the vanilla hairline at zoom 1, and the default; 1 is thinner still; 0 = automatic by pixel density (the BG2EE weighting); or force up to 6 (6 = three whole map pixels). Independent of Colored Selection Circles: either can be had without the other. Thickness grows INWARD, so the outer edge -- and the click target -- never moves. OpenGL only.",
 		["Destination Marker Thickness"]          = "Stroke width of the move-destination / target reticle, in HALF map pixels, on the same scale and with the same default as Selection Circle Thickness. 0 = follow Selection Circle Thickness exactly; or force 1 to 6. Each of the four pie pieces is drawn as one closed path with its three corners joined and rounded -- the engine draws them as three separate primitives that only meet because they are one pixel wide, so a wider stroke pulls them apart -- and the width is capped at a quarter of a pie piece's depth, past which the pieces fill into solid wedges. OpenGL only.",
@@ -6060,8 +6243,8 @@ function IEex_InjectOptionIniComments()
 		["Vsync"]                                 = "Sync frame presentation to the display refresh to remove tearing. OpenGL only.",
 		["UI Borders"]                            = "Decorative stone borders: the frame around the in-game HUD (command bar, world map, containers) plus the panels filling the empty screen-edge margins.",
 		["UI Single Buffer"]                      = "Single persistent UI buffer to reduce flicker of dynamic elements. OpenGL only.",
-		["Smooth Cursor"]                         = "Sample the mouse at the render framerate for smoother cursor motion. OpenGL only. (No longer in the options menu -- ini only.)",
-		["Max FPS"]                               = "Frame cap: 0 = auto (just under display refresh), 9999 = uncapped, or an explicit ceiling (e.g. 144). (No longer in the options menu -- ini only.) On a variable-refresh display (G-Sync / FreeSync) the auto cap sits just below the refresh on purpose, so every frame lands inside the adaptive window -- which also means the panel's refresh rate follows each frame. Some VA and OLED panels shift gamma whenever the refresh moves, and that reads as the whole image pulsing in time with the framerate. If you see it, set a cap clearly ABOVE your refresh (144 on a 120Hz panel) and leave Vsync on: the refresh pins to its maximum and stops moving, so there is nothing left for the gamma to follow. The trade is that the game then produces frames faster than the display can show them, so some are held for two refreshes.",
+		["Smooth Cursor"]                         = "Sample the mouse at the render framerate for smoother cursor motion. OpenGL only.",
+		["Max FPS"]                               = "Frame cap: 0 = auto (just under display refresh), 9999 = uncapped, or an explicit ceiling (e.g. 144). On a variable-refresh display (G-Sync / FreeSync) the auto cap sits just below the refresh on purpose, so every frame lands inside the adaptive window -- which also means the panel's refresh rate follows each frame. Some VA and OLED panels shift gamma whenever the refresh moves, and that reads as the whole image pulsing in time with the framerate. If you see it, set a cap clearly ABOVE your refresh (144 on a 120Hz panel) and leave Vsync on: the refresh pins to its maximum and stops moving, so there is nothing left for the gamma to follow. The trade is that the game then produces frames faster than the display can show them, so some are held for two refreshes.",
 		["Fill Screen"]                           = "OpenGL: 1 = fit the game image to the desktop via an FBO; 0 = raw direct present (native resolution only).",
 		["Software Renderer"]                     = "1 = force the stock software (DirectDraw) renderer; 0 = OpenGL (default). [Program Options] '3D Acceleration' is rewritten from this every launch.",
 		["Gamma Normalized"]                      = "(internal) 1 = the one-time reset of [Program Options] 'Gamma Correction' to 0 already ran (the GOG-shipped 2 is tuned for the unmodded renderer). Delete this key to run the reset once more.",

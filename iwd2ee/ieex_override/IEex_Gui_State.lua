@@ -473,7 +473,7 @@ function IEex_OptionRows()
 			["bridge"] = "uiScale", ["default"] = 100,
 			["values"]  = {70, 75, 80, 85, 90, 95, 100},
 			["display"] = {"70%", "75%", "80%", "85%", "90%", "95%", "100%"},
-			["label"] = {ex_tra_56125, "Interface size (restart required)"},
+			["label"] = {ex_tra_56125, "Interface size (restart req.)"},
 			["desc"]  = {ex_tra_56126, "Size of the interface as a percentage of the space it is given. 100 fills it, which is the default; lower values shrink the interface within the screen and give the world more room. This changes the size the interface is drawn at, not the resolution it is drawn from. OpenGL only. Requires a restart to take effect."},
 		},
 
@@ -482,7 +482,7 @@ function IEex_OptionRows()
 			["bridge"] = "floatingHudSize", ["default"] = 100,
 			["values"]  = {50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150},
 			["display"] = {"50%", "60%", "70%", "80%", "90%", "100%", "110%", "120%", "130%", "140%", "150%"},
-			["label"] = {ex_tra_56127, "Floating HUD size (restart required)"},
+			["label"] = {ex_tra_56127, "Floating HUD size (restart req.)"},
 			["desc"]  = {ex_tra_56128, "Size of the floating HUD -- the portrait busts, the action and command bars and the combat log. 100 is the shipped size, which occupies the same fraction of the screen at every resolution: the HUD is laid out on a virtual canvas and scaled to fit, so a larger screen does not make it smaller. Above 100 enlarges it further, and past its native size the artwork is stretched and softens; below 100 shrinks it. Applies with or without the 2x interface component. Requires a restart to take effect."},
 		},
 
@@ -491,7 +491,7 @@ function IEex_OptionRows()
 			["bridge"] = "maxFps", ["default"] = 0,
 			["values"]  = {0, 30, 60, 72, 90, 120, 144, 165, 240, 9999},
 			["display"] = {"Auto", "30", "60", "72", "90", "120", "144", "165", "240", "Off"},
-			["label"] = {ex_tra_56129, "Frame rate limit (restart required)"},
+			["label"] = {ex_tra_56129, "Frame rate limit (restart req.)"},
 			["desc"]  = {ex_tra_56130, "Ceiling on how many frames are drawn each second. Auto settles just under the display's refresh rate, which is the default; Off removes the limit entirely. On a variable-refresh display the automatic cap sits just below the refresh on purpose, so every frame lands inside the adaptive window -- which also means the display's refresh rate follows each frame. Some VA and OLED panels shift their gamma whenever the refresh moves, and that reads as the whole image pulsing in time with the frame rate. If you see it, choose a limit clearly ABOVE your refresh (144 on a 120Hz panel) and leave Vsync on: the refresh then pins to its maximum and stops moving, at the cost of some frames being held for two refreshes. Requires a restart to take effect."},
 		},
 
@@ -576,21 +576,24 @@ end
 --
 -- A slider row has three columns in the same space and no checkbox, so it runs on the IEEXOPTS
 -- background instead, where the socket column is painted over by the plank and the row is usable out
--- to 423. That is what makes the widest label (214px, "Floating HUD size (restart required)") fit
--- without clipping, and it only works because a page is never half checkboxes and half sliders --
--- see the forced page break in optionLayout.
+-- to 423. Between that and a trough cut down to 78px, the label column is 264 wide against a widest
+-- English label of 191.5 -- the rest is headroom for translation. It only works because a page is
+-- never half checkboxes and half sliders; see the forced page break in optionLayout.
 IEEX_OPTION_LABEL_X        = 24
 IEEX_OPTION_LABEL_H        = 18
 IEEX_OPTION_TOGGLE_LABEL_W = 358
 IEEX_OPTION_TOGGLE_X       = 394
 IEEX_OPTION_TOGGLE_W       = 23
 IEEX_OPTION_TOGGLE_H       = 24
-IEEX_OPTION_SLIDER_LABEL_W = 216
-IEEX_OPTION_SLIDER_X       = 244
-IEEX_OPTION_SLIDER_W       = 110 -- IEEXSLDR's trough is authored for exactly this, do not stretch it
-IEEX_OPTION_SLIDER_H       = 25
-IEEX_OPTION_VALUE_X        = 358
-IEEX_OPTION_VALUE_W        = 60
+IEEX_OPTION_SLIDER_LABEL_W = 264
+IEEX_OPTION_SLIDER_X       = 292
+IEEX_OPTION_SLIDER_W       = 78 -- IEEXSLDR's trough is authored for exactly this, do not stretch it
+IEEX_OPTION_SLIDER_H       = 22
+IEEX_OPTION_VALUE_X        = 374
+-- Sized to the longest readout there is ("Framed", 42.5px) plus a little air, not to the column it
+-- could have had: every pixel not spent here is a pixel the label gets, and the label is what has to
+-- survive translation. 230 leaves ~38px over the widest English one.
+IEEX_OPTION_VALUE_W        = 46
 
 -- Where an off-page row is parked: past the right edge of an 800-wide panel by a wide margin, so
 -- CUIPanel::OnLButtonDown's rect test can never reach it and CUIPanel::Render never intersects it.
@@ -612,17 +615,18 @@ IEEX_OPTION_NAV_LABEL_X    = 561
 IEEX_OPTION_NAV_LABEL_W    = 100
 IEEX_OPTION_NAV_NEXT_X     = 669
 
--- The knob's own geometry, in the same 1x space. The knob is the stock GUISLDR BAM (17x14 at 1x) and
--- the groove it runs in, once the trough has been shortened, is x=11..96 -- so the far stop puts the
--- knob's right edge exactly on the groove's end. The travel is expressed as a total sweep divided by
--- the number of gaps, which is how the stock sliders are authored too.
+-- The knob's own geometry, in the same 1x space. The knob is the stock GUISLDR BAM, 17x14 at 1x, and
+-- the trough's own top rail has been cropped away so it sits flush in the plank -- which is why the
+-- knob rides 3px higher than the stock sliders put it. The travel is expressed as a total sweep
+-- divided by the number of gaps, the way the stock sliders are authored, and 50 is what fits the
+-- knob's right edge inside a 78px groove at the last stop.
 IEEX_OPTION_SLIDER_KNOB_X     = 11
-IEEX_OPTION_SLIDER_KNOB_Y     = 5
-IEEX_OPTION_SLIDER_SWEEP      = 68
+IEEX_OPTION_SLIDER_KNOB_Y     = 2
+IEEX_OPTION_SLIDER_SWEEP      = 50
 IEEX_OPTION_SLIDER_TRACK_MIN_X = 11
-IEEX_OPTION_SLIDER_TRACK_MAX_X = 96
-IEEX_OPTION_SLIDER_TRACK_MIN_Y = 2
-IEEX_OPTION_SLIDER_TRACK_MAX_Y = 23
+IEEX_OPTION_SLIDER_TRACK_MAX_X = 61
+IEEX_OPTION_SLIDER_TRACK_MIN_Y = 0
+IEEX_OPTION_SLIDER_TRACK_MAX_Y = 21
 
 function IEex_OptionSliderJumpWidth(stops)
 	if stops < 2 then return IEEX_OPTION_SLIDER_SWEEP end
@@ -754,7 +758,7 @@ function IEex_ApplyOptionPage(panel)
 			local rowY   = IEex_OptionRowY(labelId)
 			place(labelId, onPage and IEEX_OPTION_LABEL_X or nil, rowY)
 			if row.kind == "slider" then
-				place(labelId + 1, onPage and IEEX_OPTION_SLIDER_X or nil, rowY - 4)
+				place(labelId + 1, onPage and IEEX_OPTION_SLIDER_X or nil, rowY - 1)
 				place(labelId + 2, onPage and IEEX_OPTION_VALUE_X  or nil, rowY)
 			else
 				place(labelId + 1, onPage and IEEX_OPTION_TOGGLE_X or nil, rowY - 3)
@@ -5337,7 +5341,7 @@ function IEex_InstallIEexOptions()
 					["type"] = IEex_ControlStructType.SLIDER,
 					["id"] = widgetId,
 					["x"] = IEEX_OPTION_SLIDER_X,
-					["y"] = rowY - 4,
+					["y"] = rowY - 1,
 					["width"] = IEEX_OPTION_SLIDER_W,
 					["height"] = IEEX_OPTION_SLIDER_H,
 					["backgroundMos"] = "IEEXSLDR",

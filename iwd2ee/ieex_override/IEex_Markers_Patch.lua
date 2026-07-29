@@ -29,7 +29,8 @@
 	--
 	-- Player settings, [IEex Options] in Icewind2.ini (read by IEexHelper, lazily):
 	--   Colored Selection Circles       0 = vanilla green (default), 1 = tinted (options menu row)
-	--   Selection Circle Thickness      1 = vanilla hairline (default), 0 = auto (2px, or 3px
+	--   Selection Circle Thickness      half map pixels, 2 = vanilla hairline at zoom 1 (default),
+	--                                   0 = auto by pixel density (2px, or 3px
 	--                                   above 1920 wide), 2-4 = forced; independent of the tint
 	--   Colored Portrait Frames         0 = vanilla green portrait frames (default), 1 = tinted
 	--                                   (options menu row; needs the World HUD Refonte)

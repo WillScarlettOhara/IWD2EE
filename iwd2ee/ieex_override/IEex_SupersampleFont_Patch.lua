@@ -19,6 +19,24 @@ end
 
 IEex_DisableCodeProtection()
 
+-- CVidFont::TextOut @0x793720 -- the portrait HP digits, redrawn from an 8-bit coverage atlas
+-- (Override/IEEXHPF.BMP) instead of blitted through the font. The engine's font path has 1-BIT
+-- ALPHA: a BAM pixel is either the colour key or fully opaque, and CVidFont::RealizePalette
+-- (0x793570) rebuilds the palette as a ramp from index1 = BACKGROUND to index255 = the text
+-- colour -- so every anti-aliased edge pixel is composited over BLACK rather than over the
+-- portrait behind it. The AA of this option's NUMFONT therefore drew a dark fringe around each
+-- digit and its drop shadow could only be a hard 1-bit slab. The helper carries real per-pixel
+-- coverage, so the glyphs blend into the portrait and the shadow fades over two passes.
+-- Scoped to the NUMFONT resref inside the helper: any other font takes the trampoline, as does
+-- a missing atlas. Hooked HERE, on the font draw, and not in the portrait render -- that one is
+-- the Modern HUD's reimplementation of CGameSprite::RenderPortrait, so hooking it would have
+-- left every 2x-UI-without-Modern-HUD install on the old look. 8-byte prologue:
+-- sub esp,0x10 / push ebp / mov ebp,[esp+0x18].
+IEex_HookReplaceFunctionMaintainOriginal(0x793720, 8, "CVidFont::TextOutOriginal", {[[
+	!jmp_dword >IEex_Helper_CVidFont_TextOutHP
+]]})
+IEex_Helper_DefineAddress("CVidFont::TextOutOriginal", IEex_Label("CVidFont::TextOutOriginal"))
+
 -- CVidFont::TextOut3d @0x7A1210 -- wrap a registered font's draw in a MODELVIEW scale about the
 -- anchor (7-byte prologue: push -1 / push 0x845028). The overlay itself calls the TRAMPOLINE (no
 -- re-entry); this wrap only protects any other cached-path consumer of a registered font, and it

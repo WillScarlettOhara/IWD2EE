@@ -1492,7 +1492,7 @@
 	end
 
 	--------------------------------------------------------------------------------
-	-- World-HUD refonte -- CGameSprite::RenderPortrait (0x704D40) -> DLL
+	-- Modern HUD -- CGameSprite::RenderPortrait (0x704D40) -> DLL
 	-- reimplementation with the hardcoded 42/44 geometry derived from the control
 	-- size (image = szControl-4, ring = szControl-2), so the portrait slot can be
 	-- rectangular (54x84). Stock control sizes (46x46) render pixel-identical, so
@@ -1613,7 +1613,7 @@
 		}))
 
 		-- Parallel to the Formation (right-click) wrap above: the LEFT-click / mouse-move world
-		-- dispatch also runs UNCONDITIONALLY after the UI manager. Under the floating HUD at a
+		-- dispatch also runs UNCONDITIONALLY after the UI manager. Under the modern HUD at a
 		-- sub-reference resolution (s < 1) the cursor is stored LOGICAL over the inflated HUD
 		-- panels (so the engine's virtual-space control hit-test still finds the relocated
 		-- buttons), but CGameArea's world handlers feed that logical point to GetWorldCoordinates

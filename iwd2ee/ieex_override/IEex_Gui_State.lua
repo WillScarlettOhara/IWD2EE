@@ -1,6 +1,9 @@
 
 -- HD UI master gate (install-time, flipped false->true by the WeiDU 2x UI component). See the same
 -- flag in IEex_UIScale_Patch.lua. Core ships OFF = stock 1x UI.
+-- Sentinel for "key not present in the ini": GetPrivateProfileInt cannot say absent,
+-- it can only return the default we hand it, so hand it something no key can hold.
+local IEEX_INI_ABSENT = -2147483647
 local IEEX_HD_UI = false
 
 -- Supersampled floating world text: on only with the 2x UI "non-pixelated fonts" sub-option, which
@@ -121,7 +124,7 @@ if not IEex_Vanilla then
 		{"Cutscene Zoom", 1},
 		{"UI Borders", 1},
 		{"Transparent Fog of War", 0},
-		{"Floating HUD Size", 100},
+		{"Modern HUD Size", 100},
 		{"Floating Text Size", 100},
 		{"Action Indicators", 1},
 		{"Highlight Empty Containers in Gray", 1},
@@ -134,6 +137,23 @@ if not IEex_Vanilla then
 		{"IP Enemy Soft Block", 0},
 		{"Prevent Equipping Armor During Combat", 0},
 	}
+	-- Renamed 2026-07-30: "Floating HUD *" -> "Modern HUD *". Carry a player's existing value over
+	-- ONCE, before the seeder below writes the new key at its default and loses it. The read sites
+	-- keep a permanent fallback as well (IEex_Refonte_CanvasWidth, and the DLL's
+	-- GetRefonteHudCanvasWidth): "Ref Width" is never seeded, and the DLL can reach the ini before
+	-- this runs.
+	local ex_ini_renamed = {
+		{"Floating HUD Size",      "Modern HUD Size"},
+		{"Floating HUD Ref Width", "Modern HUD Ref Width"},
+	}
+	for _, ren in ipairs(ex_ini_renamed) do
+		if IEex_GetPrivateProfileInt("IEex Options", ren[2], IEEX_INI_ABSENT, ".\\Icewind2.ini") == IEEX_INI_ABSENT then
+			local old = IEex_GetPrivateProfileInt("IEex Options", ren[1], IEEX_INI_ABSENT, ".\\Icewind2.ini")
+			if old ~= IEEX_INI_ABSENT then
+				IEex_WritePrivateProfileInt("IEex Options", ren[2], old, ".\\Icewind2.ini")
+			end
+		end
+	end
 	for _, opt in ipairs(ex_ini_option_defaults) do
 		IEex_WritePrivateProfileInt("IEex Options", opt[1], IEex_GetPrivateProfileInt("IEex Options", opt[1], opt[2], ".\\Icewind2.ini"), ".\\Icewind2.ini")
 	end
@@ -180,8 +200,8 @@ IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration",
 --   Vsync (17, EnsureVSync), Pixel-perfect Zoom (29 -- the camera zoom is a GL matrix and the software
 --   renderer never leaves 1.0), Run In Background (44), Smooth Cursor (52), Tile Atlas (56), the two
 --   marker stroke widths (92 / 96), UI Scale (104) and Cutscene Zoom (124).
---   Needing the World HUD Refonte, which is what installs the portrait render override these hang
---   off: Colored Portrait Frames (23), Portrait Frame Thickness (100), Floating HUD Size (108). They
+--   Needing the Modern HUD, which is what installs the portrait render override these hang
+--   off: Colored Portrait Frames (23), Portrait Frame Thickness (100), Modern HUD Size (108). They
 --   work under BOTH renderers (the override's DrawLine fallback covers software), so they gate on
 --   IEEX_PORTRAIT_FRAMES_AVAILABLE and NOT on GL.
 --   Colored Selection Circles (27) is renderer-independent (the tint hooks CMarker::Asynchronous-
@@ -222,7 +242,7 @@ local ieexGLOnlyRows = {
 	[56] = true, [92] = true, [96] = true, [104] = true, [124] = true,
 }
 
--- Rows that only exist alongside the World HUD Refonte's portrait render override.
+-- Rows that only exist alongside the Modern HUD's portrait render override.
 local ieexRefonteRows = { [23] = true, [100] = true, [108] = true }
 
 function IEex_OptionRowVisible(labelId)
@@ -511,12 +531,12 @@ function IEex_OptionRows()
 		},
 
 		[108] = {
-			["kind"] = "slider", ["ini"] = "Floating HUD Size",
+			["kind"] = "slider", ["ini"] = "Modern HUD Size",
 			["bridge"] = "floatingHudSize", ["default"] = 100,
 			["values"]  = {50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150},
 			["display"] = {"50%", "60%", "70%", "80%", "90%", "100%", "110%", "120%", "130%", "140%", "150%"},
-			["label"] = {ex_tra_56127, "Floating HUD size (restart req.)"},
-			["desc"]  = {ex_tra_56128, "Size of the floating HUD -- the portrait busts, the action and command bars and the combat log. 100 is the shipped size, which occupies the same fraction of the screen at every resolution: the HUD is laid out on a virtual canvas and scaled to fit, so a larger screen does not make it smaller. Above 100 enlarges it further, and past its native size the artwork is stretched and softens; below 100 shrinks it. Applies with or without the 2x interface component. Requires a restart to take effect."},
+			["label"] = {ex_tra_56127, "Modern HUD size (restart req.)"},
+			["desc"]  = {ex_tra_56128, "Size of the modern HUD -- the portrait busts, the action and command bars and the combat log. 100 is the shipped size, which occupies the same fraction of the screen at every resolution: the HUD is laid out on a virtual canvas and scaled to fit, so a larger screen does not make it smaller. Above 100 enlarges it further, and past its native size the artwork is stretched and softens; below 100 shrinks it. Applies with or without the 2x interface component. Requires a restart to take effect."},
 		},
 
 		[112] = {
@@ -1574,9 +1594,9 @@ end
 IEex_WorldScreenSpellInfoPanelID = 50
 IEex_WorldScreenItemInfoPanelID = 51
 IEex_ActionIndicatorsPanelID = 100
--- World-HUD refonte (PoE/BG2EE-style floating HUD): portrait busts bottom-right, bars
+-- Modern HUD (PoE/BG2EE-style modern HUD): portrait busts bottom-right, bars
 -- bottom-centre, resizable log bottom-left. WeiDU-MANAGED: the core ships false; the
--- "World HUD Refonte" component (DESIGNATED 103) flips it true (REPLACE_TEXTUALLY, same
+-- "Modern HUD" component (DESIGNATED 103) flips it true (REPLACE_TEXTUALLY, same
 -- pattern as IEEX_HD_UI). Runtime requirements enforced in IEex_InstallPortraitGrid:
 -- OpenGL renderer + GUIW10 (the installer flips this back off when unmet).
 IEex_PortraitGridEnabled = false
@@ -2343,7 +2363,7 @@ end)
 -- GUI Hook Functions --
 ------------------------
 
--- The World HUD Refonte inflates panels 0 and 1 into bounding boxes so that CUIPanel::IsOver still
+-- The Modern HUD inflates panels 0 and 1 into bounding boxes so that CUIPanel::IsOver still
 -- covers the relocated controls: panel 0 spans the full-width bottom band from the (draggable) log
 -- top down to the screen bottom, panel 1 the bottom-right column. Both keep their stock MOS
 -- background, so the IEex_PanelHasBackground shortcut below reports that whole band as UI -- the
@@ -4494,13 +4514,13 @@ end)
 -- the controls IN PLACE and WIDEN panel 1's rect so its IsOver test still covers the relocated row.
 -- Panel 1 also composites REPLACE in the HUD layer, so the portraits stay opaque (no garbage-alpha
 -- blend that turned the new-panel version transparent).
--- Floating HUD VIRTUAL-CANVAS width: the width the refonte HUD is laid out on (log bottom-left,
+-- Modern HUD VIRTUAL-CANVAS width: the width the refonte HUD is laid out on (log bottom-left,
 -- bars centre, portraits bottom-right OF THE CANVAS) before the DLL fits it to the real screen from
 -- the bottom-LEFT pivot (s = resW / canvas). Two ini keys:
---   "Floating HUD Ref Width" (default 3840) = the width the layout is AUTHORED for -- where the full
+--   "Modern HUD Ref Width" (default 3840) = the width the layout is AUTHORED for -- where the full
 --      spread fits. Only meaningful at the engine 2x tier and only above resW: a narrower screen
 --      then shows the 4K layout SIZED DOWN, not an intermediate-res compaction.
---   "Floating HUD Size" (default 100 = percent) = the player's size knob, and the only lever that
+--   "Modern HUD Size" (default 100 = percent) = the player's size knob, and the only lever that
 --      grows the HUD past native: the canvas is divided by it, so >100 narrows the canvas below the
 --      screen (s > 1, bigger HUD, upscaled past the 2x art) and <100 widens it (smaller HUD). 100
 --      leaves the canvas exactly where it always was, at both tiers.
@@ -4510,11 +4530,17 @@ end)
 -- puts the clickable rects somewhere other than the drawn HUD.
 function IEex_Refonte_CanvasWidth(nResW, nMult)
 
-	local refW = IEex_GetPrivateProfileInt("IEex Options", "Floating HUD Ref Width", 3840, ".\\Icewind2.ini")
+	local refW = IEex_GetPrivateProfileInt("IEex Options", "Modern HUD Ref Width", IEEX_INI_ABSENT, ".\\Icewind2.ini")
+	if refW == IEEX_INI_ABSENT then                                  -- pre-rename ini, never seeded
+		refW = IEex_GetPrivateProfileInt("IEex Options", "Floating HUD Ref Width", 3840, ".\\Icewind2.ini")
+	end
 	if refW < 2560 then refW = 2560 end
 	if refW > 7680 then refW = 7680 end
 
-	local pct = IEex_GetPrivateProfileInt("IEex Options", "Floating HUD Size", 100, ".\\Icewind2.ini")
+	local pct = IEex_GetPrivateProfileInt("IEex Options", "Modern HUD Size", IEEX_INI_ABSENT, ".\\Icewind2.ini")
+	if pct == IEEX_INI_ABSENT then                                   -- pre-rename ini, before the migration ran
+		pct = IEex_GetPrivateProfileInt("IEex Options", "Floating HUD Size", 100, ".\\Icewind2.ini")
+	end
 	if pct < 50 then pct = 50 end
 	if pct > 200 then pct = 200 end
 
@@ -4565,7 +4591,7 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- is laid out on the authored reference-width canvas (default 4K) -- the width where the full
 	-- spread fits (log bottom-left FULL, bars centre, portraits bottom-right) -- and the DLL
 	-- (Export_UIScale*, bottom-LEFT pivot) scales it to the real screen, so a narrower 2x screen
-	-- shows the 4K layout SIZED DOWN: big correct-shape log, no compaction. "Floating HUD Size"
+	-- shows the 4K layout SIZED DOWN: big correct-shape log, no compaction. "Modern HUD Size"
 	-- then scales that canvas either way (>100 = canvas narrower than the screen = a HUD bigger than
 	-- native), at BOTH tiers -- at the default 100 on a 1x install this is still just resW.
 	-- Vertical stays resH-based (the DLL scale pivots on the bottom edge, so bottom-anchoring is
@@ -4617,7 +4643,7 @@ function IEex_InstallPortraitGrid(chuResref)
 	IEex_Refonte_BarBlock = { ["left"] = blockLeft, ["top"] = blockTop, ["w"] = blockW, ["h"] = blockH }
 
 	-- PANEL 1 ORIGIN. The engine centres panel 1 on the PHYSICAL width, but the refonte lays its
-	-- controls out on the VIRTUAL canvas -- so the moment "Floating HUD Size" makes that canvas
+	-- controls out on the VIRTUAL canvas -- so the moment "Modern HUD Size" makes that canvas
 	-- narrower than the screen, the centred bar block starts LEFT of the stock origin and the action
 	-- bar's panel-relative x goes negative. Negative control coords wrap 16-bit (the same failure the
 	-- panel-0 re-origin below documents), which threw the leftmost action-bar buttons off screen.
@@ -4805,7 +4831,7 @@ function IEex_InstallPortraitGrid(chuResref)
 	-- Register panel 1's REAL content sub-rects for the HUD-layer composite so the widened rect's
 	-- transparent gap shows the world instead of opaque black (the composite REPLACEs a MOS panel's
 	-- whole rect). No GACTN bezel rect anymore: portraits AND action bar both left the stock band,
-	-- so the band simply is not composited -- the world shows there (PoE-style floating HUD).
+	-- so the band simply is not composited -- the world shows there (PoE-style modern HUD).
 	-- No-op without the HUD layer / on an older DLL that lacks the export.
 
 	-- Panel 23 (quickloot bar) was built by IEex_InstallQuickloot BEFORE this relocation
@@ -5100,7 +5126,7 @@ function IEex_InstallQuickloot(chuResref)
 
 	local x1, y1, w1, h1 = IEex_GetPanelArea(panel1Memory)
 
-	-- Refonte (Floating HUD) or the stock HUD? The two need DIFFERENT quickloot geometry, and
+	-- Refonte (Modern HUD) or the stock HUD? The two need DIFFERENT quickloot geometry, and
 	-- the flag alone is not the answer here: IEex_InstallPortraitGrid owns the runtime veto but
 	-- runs AFTER this function, so IEex_PortraitGridEnabled is still optimistically true when
 	-- the refonte is about to bail. Re-test its hard requirements (GUIW10 + the GL renderer,
@@ -5451,7 +5477,7 @@ function IEex_InstallIEexOptions()
 	end
 
 	-- Page arrows + counter, built only when there is more than one page: on a lean install (software
-	-- renderer, no World HUD Refonte) the surviving rows can still fit on one, and a pair of arrows
+	-- renderer, no Modern HUD) the surviving rows can still fit on one, and a pair of arrows
 	-- that never does anything is worse than none. IEex_ApplyOptionPage hides whichever arrow is at
 	-- the end of its travel.
 	if IEex_OptionPageCount() > 1 then
@@ -5543,7 +5569,7 @@ function IEex_OnCHUInitialized(chuResref)
 		IEex_SetPanelXY(panel1Memory, (resW - w1) / 2, toolbarBottom - h1, true)
 
 		-- Horizontal centring width for the dialog-family panels below (6 console / 7 SP-dialog /
-		-- 8 container / 9 button / 17 death). Under the Floating HUD (refonte) the DLL's Stage-2 GL
+		-- 8 container / 9 button / 17 death). Under the Modern HUD (refonte) the DLL's Stage-2 GL
 		-- transform scales the whole world HUD about the bottom-LEFT (Export_UIScaleRenderBegin, cx=0)
 		-- over the virtual canvas IEex_Refonte_CanvasWidth describes, so a panel centred on the
 		-- PHYSICAL width lands at screen-x = ((resW-w)/2)*s -- left-of-centre and undersized whenever
@@ -5552,7 +5578,7 @@ function IEex_OnCHUInitialized(chuResref)
 		-- screen-centre of resW/2. Gate = IEex_InstallPortraitGrid's own hard requirements (GUIW10 +
 		-- GL) so the stock/classic HUD (bottom-CENTRE pivot, where resW-centred is correct) is
 		-- untouched; the UI tier (m_bUseNewGui @0x8CF6DC+0x4A28, == the DLL's UIMult) is now an
-		-- ARGUMENT rather than a gate, because "Floating HUD Size" moves the canvas at 1x too -- at
+		-- ARGUMENT rather than a gate, because "Modern HUD Size" moves the canvas at 1x too -- at
 		-- the default size the helper returns resW there and nothing changes.
 		-- (MP dialog = panel 21, never re-centred here: separate.)
 		local centerW = resW
@@ -6326,16 +6352,16 @@ function IEex_InjectOptionIniComments()
 		["Colored Selection Circles"]             = "Tint each character's selection circle and move-destination marker with that character's own secondary (minor clothing) colour instead of the vanilla green, the way BG2EE colours its party circles. Enemies stay red, neutrals cyan, talking white, morale failure yellow. 0 = vanilla green (default -- the tint is opt-in, so an untouched install looks like the original under either renderer); 1 = tinted. In the options menu. Colour only -- the stroke width is a separate key.",
 		["Selection Circle Thickness"]            = "Stroke width of the selection circles under characters, in HALF map pixels: it magnifies with the camera zoom, like everything else on the map, so the outline keeps the same weight relative to the circle at every zoom level. The count is a whole number of 1-pixel rings, so a thin setting stays pinned at 1 pixel over a range of zooms before stepping up. 2 = one whole map pixel, i.e. the vanilla hairline at zoom 1, and the default; 1 is thinner still; 0 = automatic by pixel density (the BG2EE weighting); or force up to 6 (6 = three whole map pixels). Independent of Colored Selection Circles: either can be had without the other. Thickness grows INWARD, so the outer edge -- and the click target -- never moves. OpenGL only.",
 		["Destination Marker Thickness"]          = "Stroke width of the move-destination / target reticle, in HALF map pixels, on the same scale and with the same default as Selection Circle Thickness. 0 = follow Selection Circle Thickness exactly; or force 1 to 6. Each of the four pie pieces is drawn as one closed path with its three corners joined and rounded -- the engine draws them as three separate primitives that only meet because they are one pixel wide, so a wider stroke pulls them apart -- and the width is capped at a quarter of a pie piece's depth, past which the pieces fill into solid wedges. OpenGL only.",
-		["Colored Portrait Frames"]               = "Tint the selection frame around each party portrait with that character's colour, matching the circle under their feet. 0 = vanilla green frames (default -- BG2EE colours the ground circles, not the portrait frames); 1 = tinted. In the options menu. Requires Colored Selection Circles = 1, and needs the World HUD Refonte component (that is what installs the portrait renderer this draws through).",
+		["Colored Portrait Frames"]               = "Tint the selection frame around each party portrait with that character's colour, matching the circle under their feet. 0 = vanilla green frames (default -- BG2EE colours the ground circles, not the portrait frames); 1 = tinted. In the options menu. Requires Colored Selection Circles = 1, and needs the Modern HUD component (that is what installs the portrait renderer this draws through).",
 		["Portrait Frame Thickness"]              = "Stroke width, in screen pixels, of the party portrait selection frames -- the portrait is interface, not map, so this one does NOT scale with the camera zoom. 1 = the vanilla hairline (default -- the slot is small and its frame sits right on the bust), up to 4, or 0 to follow Selection Circle Thickness (its unzoomed value). Grows inward but stops at the gap between the frame and the portrait art, so it never covers the face. Under the software renderer, 0 means the vanilla hairline (the circle thickness is an OpenGL-only feature).",
 		["Selection Circle Color Slot"]           = "Which creature colour drives the tint: 0 metal, 1 minor clothing (default -- the 'Couleur secondaire' swatch in the inventory), 2 major clothing, 3 skin, 4 leather, 5 armor, 6 hair.",
 		["Selection Circle Min Brightness"]       = "Legibility floor (0-255) for tinted circles, so a character in near-black clothing still gets a visible circle. The hue is preserved; only brightness is raised. Default 110; 0 disables.",
 		["UI Canvas Scale x10"]                   = "HD UI canvas scale x10: 10 = native 1.0x; >=11 enables the HD UI upscale (e.g. 20 = 2x). Written by the HD/2x UI component.",
 		["Windowed"]                              = "1 = run in a window -- a normal titlebar window whose client area is exactly the launch resolution, so pick a custom resolution in the launch dialog to size it (any size is safe there: a windowed run never switches the display mode, on Windows or Wine alike); 0 = fullscreen (default).",
 		["Run In Background"]                     = "Keep the game simulating, rendering and playing its audio while another window has the focus (alt-tab). 1 = on (default); 0 = the classic pause, which also mutes the game. Presents are skipped only while the window is minimised. Native Windows + OpenGL; Wine and the software renderer keep the stock behavior.",
-		["Floating HUD Size"]                     = "Size of the Floating HUD (World HUD Refonte), in percent. 100 = the shipped size, which is the SAME fraction of the screen at every resolution -- the HUD is laid out on a virtual canvas and scaled to fit, so a bigger screen does not make it smaller. Above 100 makes it bigger than that (150 = half again as large; past the native size the 2x art is upscaled, so it softens), below 100 smaller (down to 50). Takes effect on the next launch. Applies with or without the 2x UI component.",
+		["Modern HUD Size"]                     = "Size of the Modern HUD (Modern HUD), in percent. 100 = the shipped size, which is the SAME fraction of the screen at every resolution -- the HUD is laid out on a virtual canvas and scaled to fit, so a bigger screen does not make it smaller. Above 100 makes it bigger than that (150 = half again as large; past the native size the 2x art is upscaled, so it softens), below 100 smaller (down to 50). Takes effect on the next launch. Applies with or without the 2x UI component.",
 		["Floating Text Size"]                    = "Size of the floating world text -- the lines characters call out, the spell a caster is caught casting, the text a region or a trap shows, and anything a spell or an item displays over its target -- in percent, with the 2x UI 'non-pixelated fonts' option installed. That option draws the text from a font atlas built at twice the classic size, and the text is rendered at ONE atlas pixel per screen pixel at every camera zoom: it is the sharpest the atlas can be, and it looks the same zoomed out as zoomed in (it used to be drawn at half the atlas whatever the zoom, which at 1x and 2x threw the extra detail away and left the smudge the option is meant to remove). 100 = that native size (default). Above 100 enlarges the text -- still smooth, but no longer pixel-exact -- and below 100 shrinks it, 50 to 200. OpenGL only, and only with the non-pixelated fonts option; without it the game keeps its own floating text untouched.",
-		["Floating HUD Ref Width"]                = "(advanced) Screen width the Floating HUD layout is AUTHORED for -- the width at which the full spread fits: full-size combat log bottom-left, bars centred, portrait busts bottom-right. Default 3840 (4K); 2560..7680. Any narrower screen shows that same layout scaled down rather than a rearranged one, so this is what keeps the HUD's proportions identical across resolutions. To change how BIG the HUD is, use Floating HUD Size instead. 2x UI only. Next launch.",
+		["Modern HUD Ref Width"]                = "(advanced) Screen width the Modern HUD layout is AUTHORED for -- the width at which the full spread fits: full-size combat log bottom-left, bars centred, portrait busts bottom-right. Default 3840 (4K); 2560..7680. Any narrower screen shows that same layout scaled down rather than a rearranged one, so this is what keeps the HUD's proportions identical across resolutions. To change how BIG the HUD is, use Modern HUD Size instead. 2x UI only. Next launch.",
 		["Last Resolution"]                       = "(internal) last resolution the game ran at. May hold a custom size typed in the launch dialog rather than one of the display's own modes -- it comes back pre-filled and ticked on the next launch.",
 		["Transparent Fog of War"]                = "Transparent fog of war instead of the interlaced version. Software renderer only; ignored under OpenGL.",
 		["Action Indicators"]                     = "Action indicators above character portraits showing each character's current action(s).",

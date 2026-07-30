@@ -1,6 +1,6 @@
 # mos/world_hud_refonte
 
-MOS assets owned by the World HUD Refonte component (DESIGNATED 103) -- mirror of
+MOS assets owned by the Modern HUD component (DESIGNATED 103) -- mirror of
 bam/world_hud_refonte for the MOS type. EMPTY today by design:
 
 * B3QKLOOT.MOS (quickloot bar bg) is CORE -- shipped since 2023-11-18, the stock

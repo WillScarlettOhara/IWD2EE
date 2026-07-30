@@ -64,7 +64,7 @@ Composants:
 42. Ajouter plus de pièges
 43. Ajouter des raccourcis clavier pour automatiser l’application de buffs
 44. 2x UI (interface haute résolution HD)
-45. HUD flottant (style PoE)
+45. HUD moderne (style PoE)
 
 --Noyau d’IWD2EE--
 
@@ -513,7 +513,7 @@ Vous choisissez comment les cadres des panneaux remplissent le vide letterbox su
 
 Avec ce composant installé, le menu Options IEex en jeu ajoute aussi « Bordures d’UI décoratives » -- le cadre de pierre STON autour de toute l’interface (à activer ; nécessite un redémarrage).
 
---HUD flottant (style PoE)--
+--HUD moderne (style PoE)--
 
 Un ATH flottant optionnel de style PoE/BG2EE. Les six portraits du groupe deviennent de grands bustes dans le coin inférieur droit, les barres d’action et de commande reposent sur un bloc décoratif en bas au centre (une statue tient l’orbe de pause et le bouton d’IA du groupe), et le journal de combat devient une boîte redimensionnable en bas à gauche (cliquez dessus pour faire défiler sa hauteur). Il utilise la jauge de vie de portrait rouge de style BG.
 

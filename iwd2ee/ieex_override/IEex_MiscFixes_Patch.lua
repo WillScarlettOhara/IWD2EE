@@ -156,7 +156,7 @@
 	-- CUIPanel::Render (0x4D3100) then draws RenderDither, a 50% black quad, over any frame that samples    --
 	-- the FALSE half of the toggle (the flip runs on the AI thread, Render reads m_bEnabled on the main     --
 	-- thread without the manager's critical section). That is the flicker. Original Black Isle bug: the     --
-	-- stock UI pulses too, it is simply small and low-contrast there, while the floating HUD puts the log   --
+	-- stock UI pulses too, it is simply small and low-contrast there, while the modern HUD puts the log   --
 	-- AND the whole command band on panel 0.                                                                --
 	--                                                                                                      --
 	-- Fix: skip the aliased 0x8 rule in single player. Both single-player branches of the inlined           --

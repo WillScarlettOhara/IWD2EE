@@ -612,7 +612,7 @@ SUBCOMPONENT @102
 // resrefs -- no separate, destructive install-time component. DESIGNATED 100/102 are left unused (NOT
 // recycled) so existing WeiDU manifests don't shift; the @103/@56060 tra strings are now orphaned.
 
-// Floating HUD (PoE/BG2EE-style): portraits as 54x84 busts bottom-right, action + command bars on the
+// Modern HUD (PoE/BG2EE-style): portraits as 54x84 busts bottom-right, action + command bars on the
 // user-art block bottom-centre (statue pause orb / party AI), resizable combat log bottom-left. Pure
 // flag flip: every 1x asset already ships with the core (ieex_override) and is inert until
 // IEex_PortraitGridEnabled is true. 2x-UI COMPATIBLE (DESIGNATED 99/101): the component overlays the

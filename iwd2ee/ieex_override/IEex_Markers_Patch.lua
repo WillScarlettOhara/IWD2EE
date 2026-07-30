@@ -33,7 +33,7 @@
 	--                                   0 = auto by pixel density (2px, or 3px
 	--                                   above 1920 wide), 2-4 = forced; independent of the tint
 	--   Colored Portrait Frames         0 = vanilla green portrait frames (default), 1 = tinted
-	--                                   (options menu row; needs the World HUD Refonte)
+	--                                   (options menu row; needs the Modern HUD)
 	--   Portrait Frame Thickness        1 = vanilla hairline (default), 0 = follow Selection
 	--                                   Circle Thickness, 2-4 = forced
 	--   Selection Circle Color Slot     0 metal, 1 minor cloth (default), 2 major, 3 skin, ...

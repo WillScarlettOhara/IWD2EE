@@ -63,7 +63,7 @@ Components:
 42. Add more traps
 43. Add key bindings for automating buffing
 44. 2x UI (HD high-resolution interface)
-45. Floating HUD (PoE-style)
+45. Modern HUD (PoE-style)
 
 --IWD2EE Core--
 
@@ -512,9 +512,9 @@ You choose how the panel frames fill the letterbox void on wide screens: "Decora
 
 With this component installed, the in-game IEex Options menu also gains "Decorative UI Borders" -- the STON stone edge frame around the whole interface (toggle; needs a restart).
 
---Floating HUD (PoE-style)--
+--Modern HUD (PoE-style)--
 
-An optional PoE/BG2EE-style floating HUD. The six party portraits become tall busts in the bottom-right corner, the action and command bars sit on a decorative block in the bottom-centre (a statue holds the pause orb and the party-AI toggle), and the combat log becomes a resizable box in the bottom-left (click it to cycle the height). It uses the BG-style red portrait-health fill.
+An optional PoE/BG2EE-style modern HUD. The six party portraits become tall busts in the bottom-right corner, the action and command bars sit on a decorative block in the bottom-centre (a statue holds the pause orb and the party-AI toggle), and the combat log becomes a resizable box in the bottom-left (click it to cycle the height). It uses the BG-style red portrait-health fill.
 
 Requires the OpenGL renderer and a resolution of 1024x768 or higher; otherwise the stock HUD is kept. Compatible with the 2x UI component -- with both installed the busts, bars and log use 2x artwork for a crisp high-resolution look.
 

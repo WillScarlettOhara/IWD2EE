@@ -1,5 +1,5 @@
 // =====================================================================================
-// World HUD Refonte  -  PoE/BG2EE-style floating HUD (opt-in, DESIGNATED 103)
+// Modern HUD  -  PoE/BG2EE-style modern HUD (opt-in, DESIGNATED 103)
 // =====================================================================================
 // Portraits = 54x84 busts in a 6x1 row bottom-right (58x88 slots, _S -> _B resref
 // redirect with _S fallback), action bar + command bar on the user-art block
@@ -47,8 +47,8 @@
 // crisp at both tiers. Reverse install order handled in 2x_ui_resolution_gate.tpa.
 // =====================================================================================
 
-PRINT ~[World HUD Refonte] Turning the floating HUD on (portrait busts bottom-right, bars bottom-centre, log bottom-left).~
-PRINT ~[World HUD Refonte] Requires the OpenGL renderer and a resolution of 1024x768 or higher; the stock HUD is kept otherwise (runtime check).~
+PRINT ~[Modern HUD] Turning the modern HUD on (portrait busts bottom-right, bars bottom-centre, log bottom-left).~
+PRINT ~[Modern HUD] Requires the OpenGL renderer and a resolution of 1024x768 or higher; the stock HUD is kept otherwise (runtime check).~
 
 // Refonte-only 1x art (see header).
 COPY ~%mod_folder%/bam/world_hud_refonte~ ~override~
@@ -58,7 +58,7 @@ COPY ~%mod_folder%/bam/world_hud_refonte~ ~override~
 // counterparts). The reverse order (a 2x UI installed AFTER the refonte) is handled symmetrically in
 // components/2x_ui_resolution_gate.tpa (mirrors its New-GUI 2x overlay).
 ACTION_IF (MOD_IS_INSTALLED ~iwd2ee.tp2~ ~99~) OR (MOD_IS_INSTALLED ~iwd2ee.tp2~ ~101~) BEGIN
-  PRINT ~[Floating HUD] 2x UI detected -- overlaying the 2x bust/bar/log set (108x168 busts, 2x block/log art).~
+  PRINT ~[Modern HUD] 2x UI detected -- overlaying the 2x bust/bar/log set (108x168 busts, 2x block/log art).~
   COPY ~%mod_folder%/bam/bam_2x_ui/world_hud_refonte~ ~override~
 END
 
@@ -71,5 +71,5 @@ ACTION_IF FILE_EXISTS ~override/IEex_Gui_State.lua~ BEGIN
     REPLACE_TEXTUALLY ~^IEex_PortraitGridEnabled = false~ ~IEex_PortraitGridEnabled = true~
   BUT_ONLY_IF_IT_CHANGES
 END ELSE BEGIN
-  WARN ~[World HUD Refonte] override/IEex_Gui_State.lua not found (install the IWD2EE core first) -- refonte NOT enabled.~
+  WARN ~[Modern HUD] override/IEex_Gui_State.lua not found (install the IWD2EE core first) -- refonte NOT enabled.~
 END

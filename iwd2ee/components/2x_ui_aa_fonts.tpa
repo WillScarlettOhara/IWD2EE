@@ -1,15 +1,25 @@
 // =====================================================================================
 // 2x UI - Non-pixelated fonts   (sub-choice of the 2x UI component; runs AFTER the gate)
 // =====================================================================================
-// Two pieces:
+// Three pieces:
 //
-// 1) NUMFONT (portrait HP digits): anti-aliased TTF-rendered BAM (Roboto Condensed Bold), built by
-//    scripts/build_aa_font_bam.py. Same per-glyph cell geometry as the stock 2x NUMFONT -> identical
-//    layout/footprint. Digits are language-neutral, so it ships for every language.
+// 1) IEEXHPF.BMP (portrait HP digits, OpenGL): an 8-bit COVERAGE atlas that IEexHelper draws as GL
+//    quads instead of letting CVidFont blit the font (render.cpp, Export_RenderPortraitRect). The
+//    engine's font path is 1-bit ALPHA -- a BAM pixel is either the colour key or fully opaque, and
+//    CVidFont::RealizePalette (0x793570) rebuilds the palette as a ramp from index1 = BACKGROUND to
+//    index255 = the text colour -- so every anti-aliased edge pixel was composited over BLACK rather
+//    than over the portrait: the AA read as a dark fringe and the drop shadow could only be a hard
+//    1-bit slab. The atlas carries real per-pixel coverage, so the digits blend into the portrait and
+//    the shadow is two fading passes. Built by mod-scripts/aa_fonts/build_hp_atlas.py (iwd2-work).
+//
+// 2) NUMFONT (portrait HP digits, fallback): anti-aliased TTF-rendered BAM (Roboto Condensed Bold),
+//    built by mod-scripts/aa_fonts/build_aa_fonts.py. Same per-glyph cell geometry as the stock 2x
+//    NUMFONT -> identical layout/footprint. Digits are language-neutral, so it ships for every
+//    language. Still the drawn font wherever the GL atlas path does not run (HUD layer off).
 //    COLOUR MODEL (iwd2-re CVidFont::RealizePalette): the engine rebuilds the BAM palette as
 //    index1~=background .. index255~=foreground, index0=transparent -> glyphs encoded by INDEX.
 //
-// 2) IEEXFLT (floating world text, CGameText): SUPERSAMPLE replacement. Plain AA at the stock ~8px
+// 3) IEEXFLT (floating world text, CGameText): SUPERSAMPLE replacement. Plain AA at the stock ~8px
 //    cap was tried and rejected (1-bit ink over colour-key -> AA muddies the glyphs), so instead the
 //    option ships IEEXFLT.BAM as a NATIVE-2x Play Bold atlas (cap16, mod-scripts/fonts/
 //    build_infofont.py in iwd2-work) and IEex_SupersampleFont_Patch.lua has IEexHelper OWN
@@ -27,8 +37,11 @@
 // =====================================================================================
 PRINT ~[2x UI] Non-pixelated fonts: AA NUMFONT (portrait HP digits) + supersampled floating world text~
 
-// NUMFONT: always (language-neutral digits). Overwrites the stock silly_pixel NUMFONT.
+// NUMFONT + its OpenGL coverage atlas: always (language-neutral digits). Overwrites the stock
+// silly_pixel NUMFONT. The DLL reads IEEXHPF.BMP straight from override by path, so it only has
+// to be present -- nothing registers it.
 COPY ~%mod_folder%/bam/bam_2x_ui/aa_fonts/NUMFONT.BAM~ ~override/NUMFONT.BAM~
+COPY ~%mod_folder%/bam/bam_2x_ui/aa_fonts/IEEXHPF.BMP~ ~override/IEEXHPF.BMP~
 
 // IEEXFLT: native-2x Play Bold atlas, language-selected (cp1251 build for Russian, cp1252 else).
 // Overwrites the base component's stock COPY_EXISTING capture; landing BEFORE the loader-list edit

@@ -181,16 +181,25 @@ function IEex_Extern_OnDerivedStatsOperatorEqu(this, that)
 	end)
 end
 
+-- Thread is Both, not Async: six of ~CDerivedStats' seven callsites live in
+-- CScreenCharacter (the dtor itself, OnCancelButtonClick, LevelUp) and run on
+-- the Sync thread; only CGameSprite::~CGameSprite reaches it from Async. The
+-- matching construct/operator= handlers are already tagged Both for the same
+-- reason. The bridge access has to be synchronized for that same reason --
+-- Async constructs CDerivedStats (and inserts into IEex_DerivedStatsData) while
+-- the record screen is open, so an unlocked read here can walk the map mid-rehash.
 function IEex_Extern_OnDestructDerivedStats(stats)
-	IEex_AssertThread(IEex_Thread.Async, true)
-	local statsData = IEex_Helper_GetBridgeNL("IEex_DerivedStatsData", stats)
-	local numStats = IEex_Helper_GetBridgeNumIntsNL("IEex_RegisteredLuaStats")
-	for i = 1, numStats do
-		local cleanupFunc = _G[IEex_Helper_GetBridgeNL("IEex_RegisteredLuaStats", i, "cleanup")]
-		if cleanupFunc then
-			cleanupFunc(statsData)
+	IEex_AssertThread(IEex_Thread.Both, true)
+	IEex_Helper_SynchronizedBridgeOperation("IEex_DerivedStatsData", function()
+		local statsData = IEex_Helper_GetBridgeNL("IEex_DerivedStatsData", stats)
+		local numStats = IEex_Helper_GetBridgeNumIntsNL("IEex_RegisteredLuaStats")
+		for i = 1, numStats do
+			local cleanupFunc = _G[IEex_Helper_GetBridgeNL("IEex_RegisteredLuaStats", i, "cleanup")]
+			if cleanupFunc then
+				cleanupFunc(statsData)
+			end
 		end
-	end
+	end)
 end
 
 function IEex_Extern_OnPostCreatureProcessEffectList(creatureData)

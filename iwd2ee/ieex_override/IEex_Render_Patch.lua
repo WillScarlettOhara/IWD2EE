@@ -115,6 +115,28 @@
 			!ret_word 08 00
 		]]})
 
+		-- QUIT PROMPT WITHOUT THE WINDOW TEARDOWN. CChitin::AskCloseConfirmation (0x78EEF0, the
+		-- Alt+F4 / WM_QUERYENDSESSION "really quit?" box) has two branches. The fullscreen one
+		-- destroys the entire video stack before it can show the Win32 MessageBox -- CleanUp the
+		-- sound mixer + video, then DestroyWindow(cWnd.Detach()) -- and rebuilds it through
+		-- InitGraphics() when the answer is No, which CreateWindowExA's a BRAND-NEW HWND. Every
+		-- handle cached against the old window then points at a destroyed one, and the cursor gate
+		-- is fatal: Export_GetCursorPosGated only reports a live position while WindowFromPoint
+		-- resolves to the game window, so after a cancelled quit it freezes the polled position
+		-- FOREVER (m_ptPointer, hover, edge-scroll and clicks all read through it) -- the game is
+		-- unplayable until relaunch. That teardown exists solely so a MessageBox can be seen over
+		-- DirectDraw EXCLUSIVE fullscreen; the GL path holds no exclusive mode (it presents through
+		-- opengl32 into a borderless window), so the box shows fine with the window left alone.
+		-- NOP the `jne` on m_bFullscreen (@0x78EF40, bytes 75 29; the byte tested is CChitin+0xE1)
+		-- so the GL run always falls through to the WINDOWED branch: m_bReInitializing = TRUE (which
+		-- pauses AsynchronousUpdate + the engine tick while the box is up), MessageBoxA, Resume().
+		-- Both MessageBox arguments are computed BEFORE the branch (GetCloseConfirmationStr into
+		-- [esp+0x10], GetCloseConfirmationFlags into ebp), so the fall-through is complete. Yes
+		-- still returns IDYES -> the WM_CLOSE handler DestroyWindows -> WM_DESTROY -> ShutDown
+		-- (field_F8 stays 0 on this branch, which is what lets that path run). Software mode keeps
+		-- the stock teardown: it is outside this "3D Acceleration" block and genuinely needs it.
+		IEex_WriteAssembly(0x78EF40, {"!repeat(2,!nop)"})
+
 		-- BACKGROUND AUDIO. Skipping the OnAltTab pause keeps the game SIMULATING out of
 		-- focus, but the OS still mutes it: DirectSound secondary buffers created without
 		-- DSBCAPS_GLOBALFOCUS (0x8000) are silenced whenever their window loses focus.

@@ -3775,3 +3775,5 @@ Type d’arme : à une main~
 @56144 = ~Aucun~
 @56145 = ~Cadré~
 @56146 = ~Entier~
+@56147 = ~Taille du texte flottant~
+@56148 = ~Taille du texte flottant affiché sur la carte : les répliques lancées par les personnages, le sort qu'on identifie chez un lanceur, le texte d'une région ou d'un piège, et ce qu'un sort ou un objet affiche au-dessus de sa cible. 100 correspond à la taille à laquelle l'option de polices non pixelisées le dessine : un pixel de sa police pour un pixel de l'écran, le plus net que cette police puisse être, et la même taille quel que soit le niveau de zoom. Au-dessus de 100 le texte se lit de plus loin, mais il est alors agrandi plutôt que dessiné net et s'adoucit un peu ; en dessous de 100 la carte retrouve de la place. Nécessite l'option de polices non pixelisées, et OpenGL.~

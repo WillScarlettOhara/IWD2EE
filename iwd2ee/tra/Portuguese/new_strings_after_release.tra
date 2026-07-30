@@ -3823,3 +3823,5 @@ Tipo: Uma Mão~
 @56144 = ~Não~
 @56145 = ~Enqua.~
 @56146 = ~Inteiro~
+@56147 = ~Tamanho do texto flutuante~
+@56148 = ~Tamanho do texto flutuante sobre o mapa: as falas dos personagens, a magia que se identifica em quem a conjura, o texto de uma região ou armadilha, e o que uma magia ou item exibe sobre o alvo. 100 é o tamanho em que a opção de fontes não pixelizadas o desenha: um pixel da fonte para um pixel da tela, o mais nítido que essa fonte consegue ser, e o mesmo tamanho em qualquer nível de zoom. Acima de 100 fica mais fácil de ler à distância, mas o texto é ampliado em vez de desenhado nítido e suaviza um pouco; abaixo de 100 o mapa recupera espaço. Requer a opção de fontes não pixelizadas e OpenGL.~

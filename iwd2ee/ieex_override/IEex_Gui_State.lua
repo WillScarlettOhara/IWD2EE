@@ -3,6 +3,13 @@
 -- flag in IEex_UIScale_Patch.lua. Core ships OFF = stock 1x UI.
 local IEEX_HD_UI = false
 
+-- Supersampled floating world text: on only with the 2x UI "non-pixelated fonts" sub-option, which
+-- is what ships the native-2x IEEXFLT atlas and loads IEex_SupersampleFont_Patch.lua (flipped
+-- false->true by 2x_ui_aa_fonts.tpa). GLOBAL, not local: the options panel reads it from the Async
+-- thread, where a patch-file global would not be there. Gates the "Floating text size" row -- without
+-- the sub-option that slider would scale a font nothing renders.
+IEEX_FLOAT_TEXT_HD = false
+
 -----------------------
 -- General Functions --
 -----------------------
@@ -179,21 +186,25 @@ IEEX_GL_ACTIVE = IEex_GetPrivateProfileInt("Program Options", "3D Acceleration",
 --   IEEX_PORTRAIT_FRAMES_AVAILABLE and NOT on GL.
 --   Colored Selection Circles (27) is renderer-independent (the tint hooks CMarker::Asynchronous-
 --   Update, not a draw call) -> always visible, even though its stroke widths are GL-only.
+--   Floating Text Size (136) needs the 2x UI "non-pixelated fonts" sub-option, which is what ships
+--   the atlas it scales -> IEEX_FLOAT_TEXT_HD, and GL.
 --
 -- ORDER = one group per page. Each group starts a fresh page, so the menu is browsed by subject
 -- rather than by however many rows happened to fit; a group with more rows than a page holds spreads
--- evenly over the pages it needs. Every slider row is in the last group on purpose: a slider needs
--- 78px for its trough and runs on a background whose checkbox sockets are painted over, so the two
--- shapes can never share a page.
+-- evenly over the pages it needs. Sliders and checkboxes DO share a page: a page holding any slider
+-- runs on the background whose socket column is painted over by the plank, and a checkbox carries
+-- its own housing plate in GBTNOPT3, so it reads as a fitting on the plank instead of needing the
+-- socket underneath it. That is what lets each value sit next to the switch it belongs to.
 IEEX_OPTION_ROW_GROUPS = {
-	-- Gameplay and what the world shows you.
-	{ 11, 7, 5, 9, 27, 23 },
-	-- Interface and display.
-	{ 19, 13, 29, 48, 17, 15, 40, 44, 52, 56 },
-	-- Pathfinding: the master switch and its eight sub-switches.
-	{ 21, 60, 64, 68, 72, 76, 80, 84, 88 },
-	-- Everything with a value rather than a state.
-	{ 92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132 },
+	-- Gameplay, and what the world shows you. Each marker slider sits directly under the switch it
+	-- belongs to -- a thickness is worth nothing on its own, and reading "colored selection circles"
+	-- two pages away from "selection circle thickness" is what the old by-widget grouping cost.
+	{ 11, 7, 5, 9, 116, 27, 92, 96, 23, 100 },
+	-- Interface and display, in clusters: how big the interface is, then the camera, then frame
+	-- pacing, then the window and the pointer.
+	{ 19, 13, 104, 108, 136, 29, 124, 48, 17, 112, 15, 120, 56, 40, 44, 52 },
+	-- Pathfinding: the master switch, its two dials, and its eight sub-switches.
+	{ 21, 128, 132, 60, 64, 68, 72, 76, 80, 84, 88 },
 }
 
 -- Flattened, because everything downstream walks the rows in menu order and does not care where the
@@ -216,6 +227,9 @@ local ieexRefonteRows = { [23] = true, [100] = true, [108] = true }
 
 function IEex_OptionRowVisible(labelId)
 	if labelId == 5 then return not IEEX_GL_ACTIVE end
+	-- The floating-text size scales an atlas only the "non-pixelated fonts" sub-option ships, and the
+	-- whole overlay is OpenGL: without either, the slider would move and nothing would change.
+	if labelId == 136 then return IEEX_FLOAT_TEXT_HD == true and IEEX_GL_ACTIVE end
 	if ieexGLOnlyRows[labelId] then return IEEX_GL_ACTIVE end
 	-- Captured from IEex_PortraitGridEnabled at load (see the declaration): read live it would
 	-- go false at game load via IEex_InstallPortraitGrid's veto, and read from a patch-file
@@ -558,6 +572,15 @@ function IEex_OptionRows()
 			["label"] = {ex_tra_56139, "Pathfinding: chase re-route delay"},
 			["desc"]  = {ex_tra_56140, "How many game ticks pass between route recalculations while chasing something that moves. 8 matches the original. Each recalculation discards the current route and the character stands still until the search answers, about two ticks, so this is really the walk-to-stand rhythm of a chase: 8 walks about six and stands about two, while 4 walks two and stands two and shows a visible stutter closing to melee. Do not go below 8 unless \"keep walking while re-routing\" is on. Part of Improved Pathfinding, which must be on for this to do anything."},
 		},
+
+		[136] = {
+			["kind"] = "slider", ["ini"] = "Floating Text Size",
+			["bridge"] = "floatingTextSize", ["default"] = 100,
+			["values"]  = {50, 75, 100, 125, 150, 175, 200},
+			["display"] = {"50%", "75%", "100%", "125%", "150%", "175%", "200%"},
+			["label"] = {ex_tra_56147, "Floating text size"},
+			["desc"]  = {ex_tra_56148, "Size of the floating text over the map -- the lines characters call out, the spell a caster is caught casting, the text a region or a trap shows, and anything a spell or an item displays over its target. 100 is the size the non-pixelated fonts option draws it at: one pixel of its font for one pixel of the screen, the sharpest that font can be, and the same size however far you zoom in or out. Above 100 makes it easier to read from a distance, though past 100 it is enlarged rather than drawn sharp and softens a little; below 100 gives the map back some room. Needs the non-pixelated fonts option, and OpenGL."},
+		},
 	}
 
 	return ieexOptionRows
@@ -601,10 +624,11 @@ end
 -- label ending just short of the checkbox, which sits on the round socket the background art has
 -- waiting for it at 394.
 --
--- A slider row has three columns in the same space and no checkbox, so it runs on the IEEXOPTS
+-- A slider row has three columns in the same space and no checkbox, so its page runs on the IEEXOPTS
 -- background instead, where the socket column is painted over by the plank and the row is usable out
--- to 423. Between that and a trough cut down to 78px, the label column runs 78..288. It only works
--- because a page is never half checkboxes and half sliders; see the forced page break in optionLayout.
+-- to 423. Between that and a trough cut down to 78px, the label column runs 78..288. The two widths
+-- are picked per ROW, so both shapes can share a page: a checkbox on the planked background brings
+-- its own housing plate (GBTNOPT3, 23x24 = the socket it replaces) and keeps its 304px column.
 -- The label box starts at the PLANK, not at the panel's inner edge. The background art puts a stone
 -- column over 55..70 and the plank's own frame bar over 70..73, with wood from 75; a box starting at
 -- 24 therefore had 54px of itself lying on stone, and since the labels are right-justified a long one
@@ -686,18 +710,18 @@ IEEX_OPTION_PAGE = 1
 -- gap, so a renderer-specific row missing from this install shifts everything below it up instead of
 -- stranding a hole -- which is also why the page count differs between installs.
 --
--- Pages come from IEEX_OPTION_ROW_GROUPS: every group starts a new one. That also keeps checkboxes
--- and sliders apart, which they have to be -- they need different column widths and different
--- backgrounds -- since the slider rows are a group of their own.
+-- Pages come from IEEX_OPTION_ROW_GROUPS: every group starts a new one. A page may hold both shapes
+-- (the label column is already picked per ROW, and see the background note below), so what is tracked
+-- here is only whether a page holds ANY slider -- that is what the background turns on.
 --
 -- Derived from the descriptors, not recorded while the panel is built: the build runs on Sync and
 -- every handler on Async, and a table filled in during the build would not exist on the other side.
-local ieexOptionLayout, ieexOptionPageKind, ieexOptionPageCount
+local ieexOptionLayout, ieexOptionPageHasSlider, ieexOptionPageCount
 
 local function optionLayout()
 
 	if ieexOptionLayout then return ieexOptionLayout end
-	ieexOptionLayout, ieexOptionPageKind = {}, {}
+	ieexOptionLayout, ieexOptionPageHasSlider = {}, {}
 
 	local page = 0
 	for _, group in ipairs(IEEX_OPTION_ROW_GROUPS) do
@@ -717,7 +741,7 @@ local function optionLayout()
 			local slot = (i - 1) % perPage
 			if slot == 0 then page = page + 1 end
 			ieexOptionLayout[id] = {page, slot}
-			ieexOptionPageKind[page] = IEex_OptionRow(id).kind
+			if IEex_OptionRow(id).kind == "slider" then ieexOptionPageHasSlider[page] = true end
 		end
 	end
 	ieexOptionPageCount = math.max(1, page)
@@ -730,10 +754,10 @@ function IEex_OptionPageCount()
 	return ieexOptionPageCount
 end
 
--- "toggle" or "slider" -- which shape every row on this page has, and so which background it wants.
-function IEex_OptionPageKind(page)
+-- Does this page hold a slider? That, not the shape of every row, is what picks the background.
+function IEex_OptionPageHasSlider(page)
 	optionLayout()
-	return ieexOptionPageKind[page]
+	return ieexOptionPageHasSlider[page] == true
 end
 
 function IEex_OptionRowPage(labelId)
@@ -767,10 +791,13 @@ function IEex_ApplyOptionPage(panel)
 	if IEEX_OPTION_PAGE < 1 then IEEX_OPTION_PAGE = 1 end
 	if IEEX_OPTION_PAGE > pageCount then IEEX_OPTION_PAGE = pageCount end
 
-	-- A slider page has no checkboxes, so it runs on the background whose column of round sockets is
-	-- painted over by the plank -- which is also what frees the width its wider labels need.
+	-- A page holding any slider runs on the background whose column of round sockets is painted over
+	-- by the plank: a trough needs that width, and the value readout beside it (x 374..420) lands
+	-- squarely on a socket. Checkboxes on that page are unharmed -- GBTNOPT3 draws its own 23x24
+	-- housing plate, exactly the socket it would have sat in, so it reads as a fitting on the plank.
+	-- A page with no slider at all (a lean install can still produce one) keeps the stock background.
 	IEex_SetPanelMosaicResref(panel,
-		IEex_OptionPageKind(IEEX_OPTION_PAGE) == "slider" and "IEEXOPTS" or "GOPPAUB")
+		IEex_OptionPageHasSlider(IEEX_OPTION_PAGE) and "IEEXOPTS" or "GOPPAUB")
 
 	-- x = nil parks the control and deactivates it.
 	local place = function(controlId, x, y)
@@ -3849,6 +3876,11 @@ function IEex_Extern_UI_ButtonLClick(CUIControlButton)
 					-- slot, brightness floor) on the next open/close of this panel.
 					if IEex_Helper_SetMarkerStyle then IEex_Helper_SetMarkerStyle() end
 
+					-- Same for the floating-text size: the helper caches the percent on first use, so
+					-- drop it and the next line of floating text is drawn at the new size. Nothing has
+					-- to be rebuilt for it -- the atlas does not change, only the scale it is drawn at.
+					if IEex_Helper_ReloadFloatTextScale then IEex_Helper_ReloadFloatTextScale() end
+
 					closeIEexOptions()
 				end,
 				-- "Cancel" Button
@@ -6302,7 +6334,7 @@ function IEex_InjectOptionIniComments()
 		["Windowed"]                              = "1 = run in a window -- a normal titlebar window whose client area is exactly the launch resolution, so pick a custom resolution in the launch dialog to size it (any size is safe there: a windowed run never switches the display mode, on Windows or Wine alike); 0 = fullscreen (default).",
 		["Run In Background"]                     = "Keep the game simulating, rendering and playing its audio while another window has the focus (alt-tab). 1 = on (default); 0 = the classic pause, which also mutes the game. Presents are skipped only while the window is minimised. Native Windows + OpenGL; Wine and the software renderer keep the stock behavior.",
 		["Floating HUD Size"]                     = "Size of the Floating HUD (World HUD Refonte), in percent. 100 = the shipped size, which is the SAME fraction of the screen at every resolution -- the HUD is laid out on a virtual canvas and scaled to fit, so a bigger screen does not make it smaller. Above 100 makes it bigger than that (150 = half again as large; past the native size the 2x art is upscaled, so it softens), below 100 smaller (down to 50). Takes effect on the next launch. Applies with or without the 2x UI component.",
-		["Floating Text Size"]                    = "Size of the floating world text -- the barks, damage numbers and feedback strings that appear over the map -- in percent, with the 2x UI 'non-pixelated fonts' option installed. That option draws the text from a font atlas built at twice the classic size, and the text is rendered at ONE atlas pixel per screen pixel at every camera zoom: it is the sharpest the atlas can be, and it looks the same zoomed out as zoomed in (it used to be drawn at half the atlas whatever the zoom, which at 1x and 2x threw the extra detail away and left the smudge the option is meant to remove). 100 = that native size (default). Above 100 enlarges the text -- still smooth, but no longer pixel-exact -- and below 100 shrinks it, 50 to 200. OpenGL only, and only with the non-pixelated fonts option; without it the game keeps its own floating text untouched.",
+		["Floating Text Size"]                    = "Size of the floating world text -- the lines characters call out, the spell a caster is caught casting, the text a region or a trap shows, and anything a spell or an item displays over its target -- in percent, with the 2x UI 'non-pixelated fonts' option installed. That option draws the text from a font atlas built at twice the classic size, and the text is rendered at ONE atlas pixel per screen pixel at every camera zoom: it is the sharpest the atlas can be, and it looks the same zoomed out as zoomed in (it used to be drawn at half the atlas whatever the zoom, which at 1x and 2x threw the extra detail away and left the smudge the option is meant to remove). 100 = that native size (default). Above 100 enlarges the text -- still smooth, but no longer pixel-exact -- and below 100 shrinks it, 50 to 200. OpenGL only, and only with the non-pixelated fonts option; without it the game keeps its own floating text untouched.",
 		["Floating HUD Ref Width"]                = "(advanced) Screen width the Floating HUD layout is AUTHORED for -- the width at which the full spread fits: full-size combat log bottom-left, bars centred, portrait busts bottom-right. Default 3840 (4K); 2560..7680. Any narrower screen shows that same layout scaled down rather than a rearranged one, so this is what keeps the HUD's proportions identical across resolutions. To change how BIG the HUD is, use Floating HUD Size instead. 2x UI only. Next launch.",
 		["Last Resolution"]                       = "(internal) last resolution the game ran at. May hold a custom size typed in the launch dialog rather than one of the display's own modes -- it comes back pre-filled and ticked on the next launch.",
 		["Transparent Fog of War"]                = "Transparent fog of war instead of the interlaced version. Software renderer only; ignored under OpenGL.",

@@ -59,3 +59,12 @@ ACTION_IF FILE_EXISTS ~override/IEex_SupersampleFont_Patch.lua~ BEGIN
 END ELSE BEGIN
   WARN ~[2x UI] override/IEex_SupersampleFont_Patch.lua not found (install the IWD2EE core first) -- floating world text stays stock.~
 END
+
+// Show the "Floating text size" row in the IEex options menu. The slider scales the IEEXFLT atlas
+// this component ships, so on any install without it the row would move and nothing would change --
+// hence the flag rather than an always-visible option. Same shape as the 2x UI's IEEX_HD_UI flip.
+ACTION_IF FILE_EXISTS ~override/IEex_Gui_State.lua~ BEGIN
+  COPY_EXISTING ~override/IEex_Gui_State.lua~ ~override~
+    REPLACE_TEXTUALLY ~IEEX_FLOAT_TEXT_HD = false~ ~IEEX_FLOAT_TEXT_HD = true~
+  BUT_ONLY_IF_IT_CHANGES
+END

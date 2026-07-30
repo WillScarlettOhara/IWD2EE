@@ -3645,3 +3645,5 @@ Type:  One-handed~
 @56144 = ~No~
 @56145 = ~Inquad.~
 @56146 = ~Intero~
+@56147 = ~Dimensione del testo fluttuante~
+@56148 = ~Dimensione del testo fluttuante sulla mappa: le battute dei personaggi, l'incantesimo che si riconosce a chi lo lancia, il testo di una regione o di una trappola, e ciò che un incantesimo o un oggetto mostra sopra il suo bersaglio. 100 è la dimensione a cui l'opzione dei font non pixelati lo disegna: un pixel del suo font per un pixel dello schermo, il massimo della nitidezza per quel font, e la stessa dimensione a qualunque livello di zoom. Sopra 100 si legge da più lontano, ma il testo viene ingrandito invece che disegnato nitido e si ammorbidisce un poco; sotto 100 la mappa recupera spazio. Richiede l'opzione dei font non pixelati e OpenGL.~

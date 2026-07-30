@@ -4348,6 +4348,39 @@ function IEex_Extern_CUIControlButtonWorldContainerSlot_OnRButtonClick(control)
 	IEex_LaunchWorldScreenItemInfo(CItem)
 end
 
+-- Right-click on a skill "+" / "-" button, on the level-up page (GUIREC panel 55) and on the
+-- character creation page (GUICG panel 6).
+function IEex_Extern_SkillsPlusMinus_OnRButtonClick(control)
+
+	IEex_AssertThread(IEex_Thread.Async, true)
+
+	local screen, pointsOffset, adjustValue
+	local resref = IEex_GetCHUResrefFromPanel(IEex_GetControlPanel(control))
+
+	if resref == "GUIREC" then
+		screen, pointsOffset, adjustValue = IEex_GetEngineCharacter(), 0x798, 0x5F8610
+	elseif resref == "GUICG" then
+		screen, pointsOffset, adjustValue = IEex_GetEngineCreateChar(), 0x4F2, 0x61A980
+	else
+		return
+	end
+
+	if screen == 0x0 then return end
+
+	-- One AdjustValue() call is one rank, and the button's own control id decides the direction,
+	-- so this single loop fills a skill from "+" and refunds it from "-". Every limit stays the
+	-- engine's: the increment stops once GetSkillCost() returns 0 -- that is where the 3rd-edition
+	-- rank cap lives, not in the UI -- or once the pool can no longer pay, and the decrement stops
+	-- at m_storedSkills[id], the rank the skill held when the screen opened, so ranks bought at
+	-- earlier levels survive. Both branches move the point pool, so a pool that did not move means
+	-- the step was refused and the skill is done. The rank cap bounds this at totalLevels+3 passes.
+	for _ = 1, 128 do
+		local pointsBefore = IEex_ReadDword(screen + pointsOffset)
+		IEex_Call(adjustValue, {}, control, 0x0)
+		if IEex_ReadDword(screen + pointsOffset) == pointsBefore then break end
+	end
+end
+
 ----------------------------
 -- Define Custom Controls --
 ----------------------------

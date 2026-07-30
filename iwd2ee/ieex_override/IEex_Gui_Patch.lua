@@ -433,6 +433,46 @@
 		})))
 	end
 
+	--------------------------------------------------
+	-- IEex_Extern_SkillsPlusMinus_OnRButtonClick --
+	--------------------------------------------------
+
+	if not IEex_Vanilla then
+
+		-- The skill "+" / "-" buttons move one rank per click, so spending the several hundred
+		-- points a caster arrives with in Heart of Fury is hundreds of clicks. Right-click fills
+		-- or empties the whole skill instead; see IEex_Extern_SkillsPlusMinus_OnRButtonClick().
+
+		-- Both skill button classes take their mask from the shared CUIControlButtonPlusMinus
+		-- constructor, which hardcodes LBUTTON. That base is also the abilities, feats, store
+		-- quantity, inventory stack and worldmap scroll controls, and CUIControlButton::
+		-- OnRButtonDown() presses the frame, takes capture and plays the right-click sound --
+		-- widening the mask there would give all of them a click that flashes and chimes and
+		-- does nothing. Set the bit in the two derived constructors instead, at the vtable
+		-- store, where esi is still the control.
+		local orRButtonIntoMask = {"80 8E 38 01 00 00 02"} -- or byte ptr [esi+0x138], RBUTTON
+		IEex_HookRestore(0x5F8414, 0, 6, orRButtonIntoMask) -- CUIControlButtonCharacterSkillsPlusMinus
+		IEex_HookRestore(0x61A764, 0, 6, orRButtonIntoMask) -- CUIControlButtonCharGenSkillsPlusMinus
+
+		-- Vtable slot 0x70 (OnRButtonClick) is the shared do-nothing stub in both classes -- point
+		-- them at one lua handler, which tells the two screens apart by the control's panel.
+		local skillsRButtonClick = IEex_WriteAssemblyAuto(IEex_FlattenTable({
+			{"!push_all_registers_iwd2"},
+			IEex_GenLuaCall("IEex_Extern_SkillsPlusMinus_OnRButtonClick", {
+				["args"] = {
+					{"!push(ecx)"}, -- control
+				},
+			}),
+			{[[
+				@call_error
+				!pop_all_registers_iwd2
+				!ret_word 08 00
+			]]},
+		}))
+		IEex_WriteDword(0x852D70, skillsRButtonClick) -- CUIControlButtonCharacterSkillsPlusMinus
+		IEex_WriteDword(0x854294, skillsRButtonClick) -- CUIControlButtonCharGenSkillsPlusMinus
+	end
+
 	-------------------------------------------------
 	-- IEex_Extern_CScreenWorld_AsynchronousUpdate --
 	-------------------------------------------------

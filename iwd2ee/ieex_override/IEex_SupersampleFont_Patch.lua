@@ -11,8 +11,8 @@
 -- zoomed in. The draw used to be half scale UNDER the zoom matrix, which minified the 2x atlas at
 -- zoom 1-2 and gave back the mush the option exists to remove. [IEex Options] "Floating Text Size"
 -- (percent) scales it for players who want the text bigger than the atlas. The metric hooks below
--- keep the engine's SetText word-wrap and cull rect consistent with the size actually drawn (a
--- no-op at the default). GL only (the whole path is OpenGL).
+-- keep the engine's SetText word-wrap breaking on the same words vanilla breaks on. GL only (the
+-- whole path is OpenGL).
 if IEex_GetPrivateProfileInt("Program Options", "3D Acceleration", 1, ".\\Icewind2.ini") == 0 then
 	return
 end
@@ -43,10 +43,11 @@ IEex_HookReplaceFunctionMaintainOriginal(0x4CBB20, 7, "CGameText::RenderOriginal
 ]]})
 IEex_Helper_DefineAddress("CGameText::RenderOriginal", IEex_Label("CGameText::RenderOriginal"))
 
--- The engine word-wraps floating text at SetText time from the FONT's metrics, and that layout is
--- rendered at "Floating Text Size" -- so report the DRAWN size here or the wrap is computed against
--- the wrong width (when the draw was 0.5x, lines broke ~2x too early and m_nMaxLines came out half,
--- dumping the overflow onto one long last line). Both are 5-byte prologues (mov eax,ds:0x8cf6d8).
+-- The engine word-wraps floating text at SetText time from the FONT's metrics against a box it sizes
+-- itself (GetFXSize/2), a budget in STOCK 1x font terms: ~40 characters a line, ~16 lines. Report
+-- HALF this native-2x atlas so the wrap keeps that budget -- fed the full atlas, lines break at ~20
+-- characters and m_nMaxLines comes out ~8, so SplitString runs out of lines and dumps the remainder
+-- onto one very long last line. Both are 5-byte prologues (mov eax,ds:0x8cf6d8).
 IEex_HookReplaceFunctionMaintainOriginal(0x793050, 5, "CVidFont::GetFontHeightOriginal", {[[
 	!jmp_dword >IEex_Helper_CVidFont_GetFontHeightHD
 ]]})

@@ -443,16 +443,32 @@
 		-- points a caster arrives with in Heart of Fury is hundreds of clicks. Right-click fills
 		-- or empties the whole skill instead; see IEex_Extern_SkillsPlusMinus_OnRButtonClick().
 
+		-- Character creation ignores the right mouse button wholesale, one level above the UI:
+		-- CScreenCreateChar's CheckMouseRButton vtable slot holds the shared `xor eax, eax; ret`
+		-- thunk, and CChitin::AsynchronousUpdate skips its entire right-button section -- the
+		-- button poll, OnRButtonDown, OnRButtonUp -- when that returns FALSE, so no control on
+		-- the screen can ever see a right-click. The record screen, where this all works, holds
+		-- the `mov eax, 1; ret` thunk in the same slot. Point chargen at that one. Nothing else
+		-- on the screen gains a behaviour: every other control there keeps LBUTTON alone in
+		-- m_nMouseButtons, and CUIControlButton::OnRButtonDown bails on that test before it
+		-- presses a frame, takes capture or plays the right-click sound.
+		IEex_WriteDword(0x853BE0, 0x49FC40) -- CScreenCreateChar::CheckMouseRButton
+
 		-- Both skill button classes take their mask from the shared CUIControlButtonPlusMinus
-		-- constructor, which hardcodes LBUTTON. That base is also the abilities, feats, store
-		-- quantity, inventory stack and worldmap scroll controls, and CUIControlButton::
-		-- OnRButtonDown() presses the frame, takes capture and plays the right-click sound --
-		-- widening the mask there would give all of them a click that flashes and chimes and
-		-- does nothing. Set the bit in the two derived constructors instead, at the vtable
-		-- store, where esi is still the control.
-		local orRButtonIntoMask = {"80 8E 38 01 00 00 02"} -- or byte ptr [esi+0x138], RBUTTON
-		IEex_HookRestore(0x5F8414, 0, 6, orRButtonIntoMask) -- CUIControlButtonCharacterSkillsPlusMinus
-		IEex_HookRestore(0x61A764, 0, 6, orRButtonIntoMask) -- CUIControlButtonCharGenSkillsPlusMinus
+		-- constructor, which hardcodes LBUTTON, so CUIControlButton::OnRButtonDown() drops the
+		-- click on its m_nMouseButtons test. Widening the mask in that shared constructor is not
+		-- an option -- the same base is the abilities, feats, store quantity, inventory stack and
+		-- worldmap scroll controls, and OnRButtonDown() presses the frame, takes capture and plays
+		-- the right-click sound, so all of them would gain a click that flashes and chimes and
+		-- does nothing. So set the bit per class at click time, from vtable slot 0x24
+		-- (OnRButtonDown), which neither class overrides -- both slots hold CUIControlButton::
+		-- OnRButtonDown, so the stub ORs the bit in and tail-jumps to it, leaving its `ret 8` to
+		-- unwind the CPoint. Doing it here rather than in the two derived constructors keeps the
+		-- change independent of when the screens build their controls from the CHU.
+		-- or byte ptr [ecx+0x138], RBUTTON / jmp CUIControlButton::OnRButtonDown
+		local orRButtonIntoMask = IEex_WriteAssemblyAuto({"80 89 38 01 00 00 02 !jmp_dword :4D4F70"})
+		IEex_WriteDword(0x852D24, orRButtonIntoMask) -- CUIControlButtonCharacterSkillsPlusMinus
+		IEex_WriteDword(0x854248, orRButtonIntoMask) -- CUIControlButtonCharGenSkillsPlusMinus
 
 		-- Vtable slot 0x70 (OnRButtonClick) is the shared do-nothing stub in both classes -- point
 		-- them at one lua handler, which tells the two screens apart by the control's panel.

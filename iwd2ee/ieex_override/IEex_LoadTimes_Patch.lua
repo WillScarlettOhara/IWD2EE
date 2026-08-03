@@ -5,6 +5,15 @@
 
 (function()
 
+	-- [IEex Options] "Fast Loading" (default 1; 0 restores the engine's own load pacing).
+	-- The SleepEx calls stripped below are what make a load yield often enough for the loading
+	-- screen to be rendered and seen. Removing them is a real speedup, but it also means a load
+	-- can finish before a single loading-screen frame is drawn, which makes any report about the
+	-- loading screen impossible to observe -- hence the switch. Diagnostic lever, not a tuning knob.
+	if IEex_GetPrivateProfileInt("IEex Options", "Fast Loading", 1, ".\\Icewind2.ini") == 0 then
+		return
+	end
+
 	IEex_DisableCodeProtection()
 
 	-- Modern version of sscanf() is slightly faster

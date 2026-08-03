@@ -98,6 +98,7 @@ if not IEex_Vanilla then
 	-- key is created at its default. Software Renderer is handled above.
 	local ex_ini_option_defaults = {
 		{"Present Thread", 1},
+		{"Single Present Owner", 1},
 		{"HUD Layer", 1},
 		{"UI Scale", 100},
 		{"SFX Audible Percent", 60},
@@ -6365,6 +6366,7 @@ function IEex_InjectOptionIniComments()
 
 	local comments = {
 		["Present Thread"]                        = "OpenGL: present frames on a dedicated thread for smoother pacing; auto-falls back to inline present on any error. 1 = on.",
+		["Single Present Owner"]                  = "OpenGL: the present thread blits and swaps every frame, so one context owns the window buffer (needed for a stable OBS capture). 1 = on; 0 makes each thread present its own frames.",
 		["HUD Layer"]                             = "OpenGL: composite the HUD on its own cached layer, re-blitting only when it changes. 1 = on; software / no-FBO uses the stock path.",
 		["UI Scale"]                              = "UI size as a percent of fill: 100 = fill (default), lower shrinks the UI within the screen. Render scale only. OpenGL.",
 		["SFX Audible Percent"]                   = "Sound-effect audible radius as a percent of screen width: ~96 = vanilla, 60 = hear-what-you-see (default), 50 = silent at the edge. Clamped 5-300.",

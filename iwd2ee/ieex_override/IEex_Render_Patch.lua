@@ -137,6 +137,27 @@
 		-- the stock teardown: it is outside this "3D Acceleration" block and genuinely needs it.
 		IEex_WriteAssembly(0x78EF40, {"!repeat(2,!nop)"})
 
+		-- LOADING SCREEN: REDRAW THE BACKGROUND EVERY PASS, NOT TWICE. CCacheStatus::Update
+		-- (0x4406B0) paints the background mosaic, borders and captions only while
+		-- m_nScreensDrawn < 2 (@0x441570), then draws just the progress bar and the hint text on
+		-- every later pass. That is the double-buffer idiom: put the static background into EACH
+		-- of the two buffers once, after which the dynamic parts alone need repainting, because
+		-- each buffer still holds its own copy of the background underneath.
+		--
+		-- The GL path presents from ONE persistent FBO, so there is no second buffer and no
+		-- background to sit underneath: from the third pass on, the hint text is drawn over the
+		-- previous text forever. Same hint -> the glyphs accumulate alpha and visibly thicken; and
+		-- because a long load rotates the hint, a NEW hint lands on top of the old one, giving two
+		-- different texts superimposed and unreadable. The mosaic itself is never affected, which
+		-- is why the artwork always looked correct while the text did not.
+		--
+		-- NOP the jge that skips the background block (@0x441574, 6 bytes) so it repaints every
+		-- pass, which is what "erase before redraw" means with a single buffer. Cost is one mosaic
+		-- render per loading pass, on a screen that is doing disk I/O anyway. Software mode keeps
+		-- the stock behaviour: it has the two real buffers this idiom was written for, and it is
+		-- outside this "3D Acceleration" block.
+		IEex_WriteAssembly(0x441574, {"!repeat(6,!nop)"})
+
 		-- BACKGROUND AUDIO. Skipping the OnAltTab pause keeps the game SIMULATING out of
 		-- focus, but the OS still mutes it: DirectSound secondary buffers created without
 		-- DSBCAPS_GLOBALFOCUS (0x8000) are silenced whenever their window loses focus.

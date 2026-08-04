@@ -122,6 +122,7 @@ if not IEex_Vanilla then
 		{"Smooth Cursor", 1},
 		{"Stretch UI to Screen", 0},
 		{"Integer Zoom", 0},
+		{"Camera Overscroll", 50},
 		{"Cutscene Log", 0},
 		{"Cutscene Zoom", 1},
 		{"UI Borders", 1},
@@ -240,8 +241,9 @@ end
 
 -- GL-only rows, by label id -- see the comment above for why each one is on this list.
 local ieexGLOnlyRows = {
-	[13] = true, [17] = true, [29] = true, [44] = true, [52] = true,
-	[56] = true, [92] = true, [96] = true, [104] = true, [124] = true,
+	[13] = true, [17] = true, [29] = true, [34] = true, [44] = true,
+	[52] = true, [56] = true, [92] = true, [96] = true, [104] = true,
+	[124] = true,
 }
 
 -- Rows that only exist alongside the Modern HUD's portrait render override.
@@ -403,6 +405,15 @@ function IEex_OptionRows()
 			["bridge"] = "integerZoom", ["default"] = 0,
 			["label"] = {ex_tra_56091, "Pixel-perfect zoom"},
 			["desc"]  = {ex_tra_56092, "Restricts the mouse-wheel zoom to whole-number levels (1x, 2x, 3x...), where every map pixel becomes an exact square block of screen pixels and the artwork stays as sharp as the original game. In between those levels the map is enlarged by a fraction, so some pixels are stretched wider than others and the image shimmers slightly while the camera moves. Fully zoomed out is always 1x, the original 1:1 presentation. The trade-off is coarser steps: with this on the wheel jumps straight from one whole level to the next instead of easing through the range. OpenGL only."},
+		},
+
+		[34] = {
+			["kind"] = "slider", ["ini"] = "Camera Overscroll",
+			["bridge"] = "cameraOverscroll", ["default"] = 50,
+			["values"]  = {0, 25, 50},
+			["display"] = {IEEX_OPTION_OFF, "25%", "50%"},
+			["label"] = {ex_tra_56149, "Camera overscroll"},
+			["desc"]  = {ex_tra_56150, "How far the camera may travel past the edge of the map, measured as a share of the screen. 50% is the default: up to half the screen may sit beyond the border, which is what lets you push scenery out from under the bottom bar to look at it, and the view stays where you left it when you zoom back out instead of being pulled onto the map. \"Off\" keeps the camera on the map at all times, the way the original game does, and still reaches the true map edges when you are zoomed in -- a zoomed view only covers part of the map, so it has room to travel without showing anything empty. 25% is the middle ground. On an area smaller than your screen there is nothing to pan at normal zoom, so \"Off\" simply centres it, again as the original does; zoom in and it pans again. OpenGL only."},
 		},
 
 		[40] = {
@@ -6407,6 +6418,7 @@ function IEex_InjectOptionIniComments()
 		["Stretch UI to Screen"]                  = "1 = stretch the UI to fill the screen (larger, softer); 0 = native size, letterboxed (crisper). OpenGL only.",
 		["Cutscene Zoom"]                         = "Hold a zoom level for the duration of a cutscene, so scripted shots are framed the way they were composed (they were authored for the 800x600 view: at high resolution the same shot plays inside a window several times too wide and the beats land wrong). 1 = the authored frame (default, as in the Enhanced Editions), matching its HEIGHT so nothing is ever cropped -- only the sides widen (3.6x at 2160p, 2.4x at 1440p, 1.8x at 1080p), and snapped to a whole factor by itself if 'Integer Zoom' is on; 2 = always snapped to a whole factor, so the map stays pixel-exact even with 'Integer Zoom' off (3x at 2160p, 2x at 1440p; below 1200p that is 1x = no zoom); 0 = off, keep whatever zoom the player is using. The player's own zoom is restored when the cutscene ends, and the wheel is ignored while the lock holds. OpenGL only.",
 		["Cutscene Log"]                          = "Diagnostic: 1 = append one line per camera change to cutscene_log.txt (view position, viewport, scroll target, area, resolution, zoom). Works under both renderers -- run it in software at 800x600 to capture the framing cutscenes were authored for. Off by default.",
+		["Camera Overscroll"]                     = "How far the camera may pan past a map edge, as a percentage of the VISIBLE screen (0..50, default 50). Measured against the visible span rather than the raw viewport so one number means the same thing at every zoom: the world is scaled about the viewport centre, so only W/zoom of the screen shows map. 50 = half the screen may be off-map -- scenery can be pushed out from under the bottom bar, and the overrun survives a full zoom-out instead of snapping back. 0 = the camera never leaves the map: identical to vanilla's [0, nAreaWidth - W] at zoom 1, and still able to reach the true map edges when zoomed in (the hidden margin is free). An area smaller than the screen has no valid range below 50 and falls back to vanilla's centred framing, which is also what the engine does there. OpenGL only.",
 		["Integer Zoom"]                          = "1 = the mouse wheel only stops on whole-number zoom levels (1x, 2x, 3x ...), so one map pixel is always an exact square block of screen pixels; 0 = the default 0.15 steps, which land between whole levels and stretch some pixels wider than others. Fully zoomed out is 1x either way. OpenGL only.",
 		["Show FPS"]                              = "On-screen counter: render framerate, AI (game-logic) rate, and VRAM pool usage.",
 		["Vsync"]                                 = "Sync frame presentation to the display refresh to remove tearing. OpenGL only.",

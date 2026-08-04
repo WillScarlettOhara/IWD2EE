@@ -225,7 +225,7 @@ IEEX_OPTION_ROW_GROUPS = {
 	{ 11, 7, 5, 9, 116, 27, 92, 96, 23, 100 },
 	-- Interface and display, in clusters: how big the interface is, then the camera, then frame
 	-- pacing, then the window and the pointer.
-	{ 19, 13, 104, 108, 136, 29, 124, 48, 17, 112, 15, 120, 56, 40, 44, 52 },
+	{ 19, 13, 104, 108, 136, 29, 34, 124, 48, 17, 112, 15, 120, 56, 40, 44, 52 },
 	-- Pathfinding: the master switch, its two dials, and its eight sub-switches.
 	{ 21, 128, 132, 60, 64, 68, 72, 76, 80, 84, 88 },
 }
